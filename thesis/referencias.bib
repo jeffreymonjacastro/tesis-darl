@@ -1,0 +1,152 @@
+@article{cai2023disde,
+  title         ={Diagnosing Model Performance Under Distribution Shift}, 
+  author        ={Tiffany Tianhui Cai and Hongseok Namkoong and Steve Yadlowsky},
+  journal       ={arXiv preprint arXiv:2303.02011},
+  year          ={2023},
+  eprint        ={2303.02011},
+  archivePrefix ={arXiv},
+  primaryClass  ={stat.ML},
+  url           ={https://arxiv.org/abs/2303.02011},
+  doi           ={10.48550/arXiv.2303.02011}
+}
+
+@inproceedings{singh2025shift,
+  title         ={Who experiences large model decay and why? A Hierarchical Framework for Diagnosing Heterogeneous Performance Drift}, 
+  author        ={Harvineet Singh and Fan Xia and Alexej Gossmann and Andrew Chuang and Julian C. Hong and Jean Feng},
+  booktitle     ={Proceedings of the 42nd International Conference on Machine Learning},
+  year          ={2025},
+  eprint        ={2506.00756},
+  archivePrefix ={arXiv},
+  primaryClass  ={cs.LG},
+  url           ={https://arxiv.org/abs/2506.00756},
+  doi           ={10.48550/arXiv.2506.00756}
+}
+
+@inproceedings{gardner2023tableshift,
+  title         ={Benchmarking Distribution Shift in Tabular Data with TableShift}, 
+  author        ={Josh Gardner and Zoran Popovi\'{c} and Ludwig Schmidt},
+  booktitle     ={Advances in Neural Information Processing Systems},
+  year          ={2024},
+  eprint        ={2312.07577},
+  archivePrefix ={arXiv},
+  primaryClass  ={cs.LG},
+  url           ={https://arxiv.org/abs/2312.07577},
+  doi           ={10.48550/arXiv.2312.07577}       
+}
+
+@article{mahadevan2024cost,
+  title = {Cost-aware retraining for machine learning},
+  journal = {Knowledge-Based Systems},
+  volume = {293},
+  pages = {111610},
+  year = {2024},
+  issn = {0950-7051},
+  doi = {10.1016/j.knosys.2024.111610},
+  url = {https://www.sciencedirect.com/science/article/pii/S0950705124002454},
+  author = {Ananth Mahadevan and Michael Mathioudakis},
+  keywords = {Machine learning, Resource-aware computing},
+  abstract = {Retraining a machine learning (ML) model is essential for maintaining its performance as the data change over time. However, retraining is also costly, as it typically requires re-processing the entire dataset. As a result, a trade-off arises: on the one hand, retraining an ML model too frequently incurs unnecessary computing costs; on the other hand, not retraining frequently enough leads to stale ML models and incurs a cost in loss of accuracy. To resolve this trade-off, we envision ML systems that make automated and cost-optimal decisions about when to retrain an ML model. In this work, we study the decision problem of whether to retrain or keep an existing ML model based on the data, the model, and the predictive queries answered by the model. Crucially, we consider the costs associated with each decision and aim to optimize the trade-off. Our main contribution is a Cost-Aware Retraining Algorithm, CARA, which optimizes the trade-off over streams of data and queries. To explore the performance of CARA, we first analyze synthetic datasets and demonstrate that CARA can adapt to different data drifts and retraining costs while performing similarly to an optimal retrospective algorithm. Subsequently, we experiment with real-world datasets and demonstrate that CARA has better accuracy than drift detection baselines while making fewer retraining decisions, thus incurring lower total costs.}
+}
+
+@article{shakhovska2025severity,
+  title = {Severity-Aware Drift Adaptation for Cost-Efficient Model Maintenance},
+  author = {Shakhovska, Khrystyna and Pukach, Petro},
+  journal = {AI},
+  volume = {6},
+  year = {2025},
+  number = {11},
+  article-number = {279},
+  url = {https://www.mdpi.com/2673-2688/6/11/279},
+  doi = {10.3390/ai6110279},
+  issn = {2673-2688},
+  abstract = {Objectives: This paper introduces an adaptive learning framework for handling concept drift in data by dynamically adjusting model updates based on the severity of detected drift. Methods: The proposed method combines multiple statistical measures to quantify distributional changes between recent and historical data windows. The resulting severity score drives a three-tier adaptation policy: minor drift is ignored, moderate drift triggers incremental model updates, and severe drift initiates full model retraining. Results: This approach balances stability and adaptability, reducing unnecessary computation while preserving model accuracy. The framework is applicable to both single-model and ensemble-based systems, offering a flexible and efficient solution for real-time drift management. Also, different transformation methods were reviewed, and quantile transformation was tested. By applying a quantile transformation, the Kolmogorov–Smirnov (KS) statistic decreased from 0.0559 to 0.0072, demonstrating effective drift adaptation.}  
+}
+
+@article{tanna2025selfhealing,
+  title = {Self-Healing ML Pipelines: Automating Drift Detection and Remediation in Production Systems},
+  author = {Raghuveer kalyan Tanna},
+  journal = {Preprints.org},
+  publisher = {Preprints},
+  year    = {2025},
+  month = {October},
+  doi     = {10.20944/preprints202510.2522.v1},
+  url = {https://doi.org/10.20944/preprints202510.2522.v1},
+  note    = {Preprint, not peer-reviewed}
+}
+
+@book{sutton2018rl,
+  author    = {Richard S. Sutton and Andrew G. Barto},
+  title     = {Reinforcement Learning: An Introduction},
+  edition   = {2},
+  publisher = {The MIT Press},
+  year      = {2018},
+  address   = {Cambridge, MA},
+  isbn      = {9780262039246},
+  url       = {http://incompleteideas.net/book/the-book-2nd.html}
+}
+ 
+@article{kaelbling1998pomdp,
+  author    = {Leslie Pack Kaelbling and Michael L. Littman and Anthony R. Cassandra},
+  title     = {Planning and acting in partially observable stochastic domains},
+  journal   = {Artificial Intelligence},
+  volume    = {101},
+  number    = {1--2},
+  pages     = {99--134},
+  year      = {1998},
+  doi       = {10.1016/S0004-3702(98)00023-X},
+  url       = {https://www.sciencedirect.com/science/article/pii/S000437029800023X}
+}
+ 
+@article{schulman2017ppo,
+  author    = {John Schulman and Filip Wolski and Prafulla Dhariwal and
+               Alec Radford and Oleg Klimov},
+  title     = {Proximal Policy Optimization Algorithms},
+  journal   = {arXiv preprint arXiv:1707.06347},
+  year      = {2017},
+  eprint    = {1707.06347},
+  archivePrefix = {arXiv},
+  primaryClass  = {cs.LG},
+  url       = {https://arxiv.org/abs/1707.06347},
+  doi       = {10.48550/arXiv.1707.06347}
+}
+ 
+@article{schulman2016gae,
+  author    = {John Schulman and Philipp Moritz and Sergey Levine and
+               Michael I. Jordan and Pieter Abbeel},
+  title     = {High-Dimensional Continuous Control Using Generalized
+               Advantage Estimation},
+  journal   = {arXiv preprint arXiv:1506.02438},
+  year      = {2016},
+  eprint    = {1506.02438},
+  archivePrefix = {arXiv},
+  primaryClass  = {cs.LG},
+  url       = {https://arxiv.org/abs/1506.02438},
+  doi       = {10.48550/arXiv.1506.02438}
+}
+ 
+@inproceedings{chen2016xgboost,
+  author    = {Tianqi Chen and Carlos Guestrin},
+  title     = {{XGBoost}: A Scalable Tree Boosting System},
+  booktitle = {Proceedings of the 22nd ACM SIGKDD International Conference
+               on Knowledge Discovery and Data Mining},
+  series    = {KDD '16},
+  pages     = {785--794},
+  year      = {2016},
+  publisher = {ACM},
+  address   = {New York, NY, USA},
+  doi       = {10.1145/2939672.2939785},
+  url       = {https://dl.acm.org/doi/10.1145/2939672.2939785}
+}
+ 
+@article{gama2014survey,
+  author    = {João Gama and Indrė Žliobaitė and Albert Bifet and
+               Mykola Pechenizkiy and Abdelhamid Bouchachia},
+  title     = {A survey on concept drift adaptation},
+  journal   = {ACM Computing Surveys},
+  volume    = {46},
+  number    = {4},
+  pages     = {44:1--44:37},
+  year      = {2014},
+  doi       = {10.1145/2523813},
+  url       = {https://dl.acm.org/doi/10.1145/2523813}
+}

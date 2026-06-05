@@ -1,3 +1,145 @@
+## Reglas vigentes del monorepo DARL
+
+Este repositorio se llama `tesis-darl` y se organiza como monorepo para la tesis
+en LaTeX y el entorno experimental en Python de DARL: Drift-Aware
+Reinforcement Learning for selective updating of two-stage tabular ML pipelines.
+
+La estructura autorizada del proyecto es:
+
+```text
+tesis-darl/
+├── AGENTS.md
+├── README.md
+├── .gitignore
+├── Makefile
+├── pyproject.toml
+├── requirements.txt
+├── .agents/
+│   ├── README.md
+│   └── skills/
+│       ├── README.md
+│       ├── latex-thesis/
+│       │   └── README.md
+│       ├── formula-explanation/
+│       │   └── README.md
+│       ├── literature-review/
+│       │   └── README.md
+│       ├── experiment-workflow/
+│       │   └── README.md
+│       ├── results-to-latex/
+│       │   └── README.md
+│       ├── python-style/
+│       │   └── README.md
+│       └── citation-rules/
+│           └── README.md
+├── thesis/
+│   ├── README.md
+│   ├── chapters/
+│   │   └── README.md
+│   ├── figures/
+│   │   ├── README.md
+│   │   ├── manual/
+│   │   │   └── README.md
+│   │   └── generated/
+│   │       └── README.md
+│   ├── tables/
+│   │   ├── README.md
+│   │   └── generated/
+│   │       └── README.md
+│   ├── styles/
+│   │   └── README.md
+│   └── build/
+│       └── README.md
+├── code/
+│   ├── README.md
+│   ├── src/
+│   │   ├── README.md
+│   │   └── darl/
+│   │       ├── README.md
+│   │       ├── data/
+│   │       │   └── README.md
+│   │       ├── drift/
+│   │       │   └── README.md
+│   │       ├── pipeline/
+│   │       │   └── README.md
+│   │       ├── actions/
+│   │       │   └── README.md
+│   │       ├── rl/
+│   │       │   └── README.md
+│   │       ├── evaluation/
+│   │       │   └── README.md
+│   │       └── visualization/
+│   │           └── README.md
+│   ├── experiments/
+│   │   ├── README.md
+│   │   └── configs/
+│   │       └── README.md
+│   ├── notebooks/
+│   │   └── README.md
+│   └── tests/
+│       └── README.md
+├── data/
+│   ├── README.md
+│   ├── raw/
+│   │   └── README.md
+│   ├── interim/
+│   │   └── README.md
+│   ├── processed/
+│   │   └── README.md
+│   └── external/
+│       └── README.md
+├── outputs/
+│   ├── README.md
+│   ├── models/
+│   │   └── README.md
+│   ├── metrics/
+│   │   └── README.md
+│   ├── logs/
+│   │   └── README.md
+│   ├── figures/
+│   │   └── README.md
+│   └── tables/
+│       └── README.md
+├── literature/
+│   ├── README.md
+│   ├── papers/
+│   │   └── README.md
+│   ├── notes/
+│   │   └── README.md
+│   └── bibtex/
+│       └── README.md
+└── scripts/
+    └── README.md
+```
+
+Reglas de trabajo para Codex:
+
+- `thesis/` contiene la tesis en LaTeX. Mantener la redacción académica en
+  español y no editar manualmente archivos generados.
+- Cuando se agreguen fórmulas en la tesis, usar el patrón: fórmula, `Donde:`,
+  explicación de símbolos y explicación conceptual.
+- `code/` contiene el paquete Python y experimentos. El código Python debe ser
+  modular, reproducible y documentado antes de ejecutar experimentos grandes.
+- `data/` contiene datasets y no debe versionarse salvo sus `README.md`.
+- `outputs/` contiene resultados generados y no debe versionarse salvo sus
+  `README.md`.
+- Los resultados que entren a la tesis deben generarse primero en `outputs/` y
+  luego exportarse a `thesis/figures/generated/` o
+  `thesis/tables/generated/`.
+- `literature/` contiene papers, notas y BibTeX. No subir PDFs con restricciones
+  de licencia si no corresponde.
+- `.agents/skills/` contendrá skills futuras de Codex. Cada skill real deberá
+  tener un `SKILL.md`, pero no crear esos archivos hasta que se pida
+  explícitamente.
+- No subir datasets pesados, modelos entrenados, cachés, logs, notebooks de
+  checkpoint, builds de LaTeX ni resultados temporales.
+- Antes de borrar o mover contenido existente, revisar el estado de Git y
+  preservar cambios del usuario.
+- En la fase de inicialización del repositorio solo se crean carpetas,
+  `README.md` de orientación y placeholders mínimos permitidos.
+
+## Contexto experimental futuro conservado
+
 You are helping me build the experimental environment for my CS thesis:
 "Drift-Aware Selective Updating of Two-Stage Tabular ML Pipelines:
 A Diagnostic Framework and Empirical Evaluation."

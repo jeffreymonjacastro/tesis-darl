@@ -1,0 +1,193 @@
+\chapter{REVISIÓN CRÍTICA DE LA LITERATURA}
+ 
+La literatura sobre el mantenimiento de modelos de aprendizaje automático bajo
+\textit{distribution shift} se ha desarrollado a lo largo de cuatro líneas relativamente
+independientes: el diagnóstico del tipo de drift, la evaluación de la robustez de modelos
+tabulares, la decisión de cuándo reentrenar y la automatización de la remediación en
+\textit{pipelines} de producción. Aunque cada una de estas líneas ha producido
+contribuciones valiosas, ninguna ha abordado de forma conjunta la pregunta de qué etapa de
+un \textit{pipeline} de dos etapas conviene actualizar, cuánto se recupera el rendimiento
+con cada acción y a qué costo computacional, en función del tipo y la severidad de drift
+detectado, ni ha propuesto aprender esa política de decisión de manera automática mediante
+aprendizaje por refuerzo. A continuación se revisa cada línea y se identifican sus
+limitaciones frente al problema planteado en esta investigación.
+ 
+\section{Diagnóstico del tipo de distribution shift}
+ 
+Una primera familia de métodos se centra en identificar el tipo de drift que ha afectado a
+un modelo sin prescribir ninguna acción correctiva sobre el \textit{pipeline}. Cai et
+al.~\cite{cai2023disde} proponen DISDE (\textit{DIstribution Shift DEcomposition}), un framework
+que descompone la caída de rendimiento de un modelo en dos términos: uno atribuible a
+cambios en la distribución marginal de las variables de entrada $P(X)$ (\textit{covariate
+shift}) y otro atribuible a cambios en la relación condicional $P(Y \mid X)$
+(\textit{concept drift}). La descomposición se construye sobre una distribución compartida
+entre los dominios de entrenamiento y destino, lo que permite cuantificar la contribución
+de cada tipo de cambio al deterioro observado. DISDE valida su método sobre el
+\textit{dataset} Adult Census con modelos de Random Forest de profundidad restringida, lo
+que limita deliberadamente la complejidad del clasificador para hacer más observable la
+atribución del deterioro a cada tipo de drift.
+ 
+A pesar de su rigor, DISDE presenta dos limitaciones relevantes para esta investigación.
+En primer lugar, el método se detiene en el diagnóstico: no especifica qué componente del
+\textit{pipeline} debe actualizarse en respuesta a la descomposición obtenida, ni evalúa si
+distintas acciones correctivas producen recuperaciones de rendimiento diferentes. En segundo
+lugar, DISDE no estudia cómo la magnitud de drift ---su severidad--- modifica la relación
+entre el tipo diagnosticado y la acción más conveniente. Desde la perspectiva del POMDP
+propuesto en esta investigación, DISDE aporta evidencia sobre la señal de diagnóstico pero
+no sobre la política de acción.
+ 
+Singh et al.~\cite{singh2025shift} proponen SHIFT (\textit{Subgroup-scanning Hierarchical
+Inference Framework for performance drifT}), un framework no paramétrico de dos etapas que
+primero detecta si algún subgrupo de la población experimenta una caída de rendimiento
+inaceptable debido a \textit{covariate shift} o \textit{outcome shift} agregados, y luego
+identifica los subconjuntos de variables responsables. A diferencia de DISDE, SHIFT aborda
+el diagnóstico mediante pruebas de hipótesis en lugar de estimación, lo que le permite
+operar con conjuntos de datos más pequeños sin asumir modelos paramétricos ni el grafo
+causal entre variables. En un experimento real sobre predicción de readmisión hospitalaria,
+SHIFT guía una corrección dirigida al modelo y demuestra que esta supera al reentrenamiento
+no dirigido.
+ 
+No obstante, SHIFT presenta limitaciones similares a las de DISDE desde la perspectiva de
+esta investigación. El framework trata el modelo predictivo como una unidad monolítica y no
+considera la posibilidad de actualizar únicamente la etapa de preprocesamiento. Tampoco
+evalúa sistemáticamente cómo la severidad de drift modifica la relación entre el diagnóstico
+y la acción óptima, ni mide el costo computacional de las distintas correcciones. En
+términos del POMDP, SHIFT enriquece la señal de observación (señala subgrupos afectados),
+pero no resuelve el problema de aprendizaje de la política de decisión.
+ 
+\section{Benchmarking de robustez ante distribution shift en datos tabulares}
+ 
+Una segunda línea de investigación aborda la ausencia de \textit{benchmarks} estandarizados
+para evaluar la robustez de modelos de clasificación tabular ante drift de distribución
+real. Gardner et al.~\cite{gardner2023tableshift} introducen TableShift, un \textit{benchmark} que
+comprende 15 tareas de clasificación binaria sobre dominios de finanzas, salud, educación y
+política pública, cada una acompañada de una partición de dominio que induce una brecha de
+rendimiento estadísticamente significativa entre los datos de entrenamiento y los datos fuera
+de distribución. Su estudio a gran escala ---que evalúa 18 modelos, incluyendo XGBoost,
+LightGBM, redes neuronales profundas y transformadores tabulares--- revela una tendencia
+lineal entre la precisión en distribución y fuera de distribución, y muestra que ningún
+modelo ni método de robustez de dominio cierra consistentemente la brecha de rendimiento.
+ 
+Desde una perspectiva metodológica, TableShift ofrece una API Python que proporciona
+documentación de tipos de \textit{features}, preprocesamiento estandarizado y particiones de
+dominio reproducibles, lo que lo convierte en la fuente de datos natural para los
+experimentos de esta investigación y para la generación de episodios de entrenamiento del
+agente de aprendizaje por refuerzo. Sin embargo, TableShift evalúa únicamente modelos
+estáticos bajo drift real y no experimenta con ninguna estrategia de actualización
+post-drift. El \textit{benchmark} caracteriza el problema de drift en datos tabulares sin
+proporcionar evidencia sobre la solución de actualización selectiva del \textit{pipeline} ni
+sobre la política de decisión óptima.
+ 
+\section{Decisiones de reentrenamiento con conciencia del costo}
+ 
+Una tercera línea estudia cuándo es económicamente justificado reentrenar un modelo tras
+detectar drift, considerando explícitamente el trade-off entre el costo de mantener un
+modelo desactualizado y el costo del reentrenamiento. Mahadevan y
+Mathioudakis~\cite{mahadevan2024cost} formulan este problema como una decisión de optimización
+y proponen CARA (\textit{Cost-Aware Retraining Algorithm}), que toma decisiones de
+reentrenamiento sobre flujos de datos y consultas minimizando el costo total esperado. Sus
+experimentos sobre \textit{datasets} sintéticos y reales demuestran que CARA realiza menos
+decisiones de reentrenamiento que los \textit{baselines} basados en detección de drift,
+incurriendo en menores costos totales. Este trabajo introduce la dimensión de costo
+computacional que esta investigación retoma, pero opera sobre un modelo de una sola etapa
+y es agnóstico al tipo de drift: toma sus decisiones en función de la degradación de
+rendimiento agregada sin distinguir si esta proviene de \textit{covariate shift} o de
+\textit{concept drift}. Además, CARA emplea reglas determinísticas basadas en umbrales,
+mientras que esta investigación propone una política aprendida mediante aprendizaje por
+refuerzo que puede adaptarse a combinaciones de señales no vistas.
+ 
+Shakhovska y Pukach~\cite{shakhovska2025severity} extienden esta perspectiva introduciendo un
+\textit{severity score} como señal para calibrar la intensidad de la respuesta. El score
+combina la estadística de Kolmogorov--Smirnov, la distancia de Wasserstein y la divergencia
+de Jensen--Shannon en una métrica ponderada que alimenta una política de tres niveles: el
+drift menor se ignora, la moderada dispara actualizaciones incrementales del modelo y la
+severa inicia el reentrenamiento completo. Los autores reportan reducciones en el cómputo
+innecesario y reconocen explícitamente como trabajo futuro la necesidad de ``adaptar no solo
+a la severidad sino también al tipo de drift'' para habilitar actualizaciones más precisas y
+contextualizadas. Al igual que CARA, este framework trata el sistema de aprendizaje
+automático como una unidad indivisible y no evalúa la posibilidad de actualizar únicamente
+la etapa de preprocesamiento. Su política de tres niveles es fija y no se adapta a nuevos
+patrones de drift sin rediseño manual, limitación que el enfoque de aprendizaje por refuerzo
+propuesto en esta investigación supera de forma directa.
+ 
+\section{Self-healing pipelines y automatización de la remediación}
+ 
+Una cuarta línea sistematiza las estrategias de remediación automática en \textit{pipelines}
+de ML en producción. Tanna~\cite{tanna2025selfhealing} presenta una revisión comprensiva de los
+patrones arquitectónicos, los mecanismos de detección y las estrategias de remediación
+---incluyendo reentrenamiento incremental, \textit{rollback} a modelos estables, cambio de
+\textit{ensemble} y actualización activa--- con casos de estudio en detección de fraude
+financiero, predicción de riesgo clínico y sistemas de recomendación en comercio
+electrónico. El trabajo concluye que la elección de la estrategia de remediación depende
+del trade-off entre latencia, precisión y costo operativo, y proporciona orientación
+cualitativa para diseñadores de sistemas de producción. Notablemente, el propio survey
+señala como dirección futura la integración con aprendizaje por refuerzo para mecanismos de
+remediación más adaptativos, anticipando el enfoque que esta investigación desarrolla.
+ 
+Sin embargo, este trabajo no conduce experimentos controlados que midan cuánto rendimiento
+recupera cada estrategia en función del tipo o la severidad de drift, y no diferencia entre
+actualizar etapas individuales del \textit{pipeline} versus reentrenar el sistema completo.
+El survey ofrece orientación operativa sin la evidencia cuantitativa necesaria para
+prescribir cuál acción es óptima bajo qué condiciones, ni proporciona un mecanismo que
+aprenda esa correspondencia de manera automática.
+ 
+\section{Síntesis y brecha identificada}
+ 
+La Tabla~\ref{tab:comparacion} resume las dimensiones abordadas por cada trabajo relacionado
+y contrasta con las contribuciones de la presente investigación.
+ 
+\begin{table}[h]
+\centering
+\caption{Comparación de trabajos relacionados}
+\label{tab:comparacion}
+\resizebox{0.98\textwidth}{!}{%
+\begin{tabular}{lcccccc}
+\hline
+\textbf{Trabajo} &
+\textbf{\begin{tabular}[c]{@{}c@{}}Diagnóstico\\tipo drift\end{tabular}} &
+\textbf{\begin{tabular}[c]{@{}c@{}}Niveles de\\severidad\end{tabular}} &
+\textbf{\begin{tabular}[c]{@{}c@{}}Pipeline\\dos etapas\end{tabular}} &
+\textbf{\begin{tabular}[c]{@{}c@{}}Recuperación\\medida\end{tabular}} &
+\textbf{\begin{tabular}[c]{@{}c@{}}Costo\\cómputo\end{tabular}} &
+\textbf{\begin{tabular}[c]{@{}c@{}}Política\\aprendida (RL)\end{tabular}} \\
+\hline
+DISDE \cite{cai2023disde}           & \checkmark & $\times$ & $\times$ & $\times$ & $\times$ & $\times$ \\
+SHIFT \cite{singh2025shift}         & \checkmark & $\times$ & $\times$ & \checkmark & $\times$ & $\times$ \\
+TableShift \cite{gardner2023tableshift}  & $\times$   & $\times$ & $\times$ & $\times$ & $\times$ & $\times$ \\
+CARA \cite{mahadevan2024cost}      & $\times$   & $\times$ & $\times$ & \checkmark & \checkmark & $\times$ \\
+Severity-Aware \cite{shakhovska2025severity} & $\times$ & \checkmark & $\times$ & \checkmark & \checkmark & $\times$ \\
+Self-Healing \cite{tanna2025selfhealing}  & $\times$   & $\times$ & $\times$ & $\times$ & \checkmark & $\times$ \\
+\textbf{DARL}    & \checkmark & \checkmark & \checkmark & \checkmark & \checkmark & \checkmark \\
+\hline
+\end{tabular}%
+}
+\begin{flushleft}
+\footnotesize\textit{Nota.} \checkmark~= abordado; $\times$~= no abordado.
+\end{flushleft}
+\end{table}
+ 
+La tabla revela una brecha consistente: ningún trabajo existente aborda simultáneamente (a)
+el diagnóstico del tipo y la severidad de drift, (b) la distinción entre etapas de un
+\textit{pipeline} de dos etapas como unidades de actualización independientes, (c) la
+medición cuantitativa de la recuperación de rendimiento y el costo computacional de cada
+acción, y (d) el aprendizaje automático de una política de decisión mediante aprendizaje
+por refuerzo que generalice a escenarios de drift no vistos.
+ 
+Los métodos de diagnóstico (DISDE, SHIFT) establecen con rigor qué tipo de drift ha
+ocurrido, pero dejan sin responder qué acción tomar. Los métodos de decisión de
+reentrenamiento (CARA, Severity-Aware) razonan sobre cuándo actuar y a qué costo, pero
+asumen que el \textit{pipeline} es una sola pieza, son agnósticos al tipo de drift y
+emplean políticas de umbral fijo no adaptativas. Los trabajos de \textit{benchmarking}
+(TableShift) caracterizan el problema sin proponer soluciones de adaptación. Los surveys de
+\textit{self-healing} (Tanna) organizan el espacio de estrategias sin evaluarlas
+empíricamente y sin proponer un mecanismo de aprendizaje.
+ 
+Esta investigación aborda esa brecha al proponer DARL, un framework que (a) usa herramientas
+estándar de detección de drift ---PSI, KS y C2ST--- para construir el vector de observación
+del agente, (b) formaliza el problema de decisión como un POMDP donde el agente aprende
+mediante PPO a seleccionar la acción de actualización óptima entre cuatro posibles, y (c)
+mide la recuperación de AUC-ROC y el costo computacional relativo de la política aprendida
+bajo condiciones de drift sintético controlado sobre \textit{benchmarks} tabulares reales,
+comparándola contra una tabla de decisión empírica construida como \textit{baseline}. El
+resultado es un agente DARL que internaliza el trade-off rendimiento--costo y generaliza a
+combinaciones de tipo y severidad de drift no observadas durante el entrenamiento.
