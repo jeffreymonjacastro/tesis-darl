@@ -1,0 +1,22 @@
+La penalización de complejidad de cada árbol se define como:
+
+\begin{equation}
+    \Omega(f_k) = \gamma_{\text{xgb}} T_k
+    + \frac{1}{2}\lambda_{\text{xgb}}\lVert\mathbf{w}_k\rVert^2.
+    \label{eq:xgboost_regularization}
+\end{equation}
+
+\noindent\textbf{Donde:}
+\begin{itemize}
+    \item $\Omega(f_k)$ representa la complejidad penalizada del árbol $k$.
+    \item $\gamma_{\text{xgb}}$ representa el costo asociado a añadir hojas al árbol.
+    \item $T_k$ representa el número de hojas del árbol $k$.
+    \item $\lambda_{\text{xgb}}$ representa el peso de regularización sobre los valores de las hojas.
+    \item $\mathbf{w}_k$ representa el vector de pesos o valores asignados a las hojas del árbol $k$.
+    \item $\lVert\mathbf{w}_k\rVert^2$ representa la norma cuadrada de dichos pesos.
+\end{itemize}
+
+Conceptualmente, esta regularización penaliza tanto la estructura del árbol como la magnitud
+de sus predicciones en las hojas. Esto permite que XGBoost mantenga capacidad predictiva sin
+crecer de forma innecesaria. En DARL, esta propiedad es útil porque el costo de actualizar o
+reentrenar el modelo puede medirse y compararse contra la recuperación de rendimiento.
