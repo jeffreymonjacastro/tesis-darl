@@ -232,6 +232,7 @@ __pycache__/
 .pytest_cache/
 .mypy_cache/
 .ruff_cache/
+.tmp/
 
 # --- tesis-darl: Jupyter ---
 .ipynb_checkpoints/
