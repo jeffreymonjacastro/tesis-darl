@@ -1,6 +1,6 @@
 ---
 name: kaggle-runner
-description: Preparar, subir, ejecutar y recuperar notebooks o scripts de DARL en Kaggle usando Kaggle CLI. Usar cuando Codex deba organizar un objetivo en carpetas kaggle por objetivo con kaggle-metadata.json y un .ipynb o .py, ejecutar el kernel remoto, y descargar resultados a output/results o outputs/kaggle/.
+description: Preparar, subir, ejecutar y recuperar notebooks o scripts de DARL en Kaggle usando Kaggle CLI. Usar cuando Codex deba organizar un objetivo en carpetas kaggle por objetivo con kaggle-metadata.json y un .ipynb o .py, ejecutar el kernel remoto, y descargar resultados a output de la misma carpeta.
 ---
 
 # kaggle-runner
@@ -16,7 +16,8 @@ kaggle/
     │   ├── kaggle-metadata.json
     │   └── <notebook>.ipynb o <script>.py
     └── output/
-        └── results/
+        └── results.json
+        └── data.csv
 ```
 
 ## Reglas
@@ -33,7 +34,7 @@ Crear o revisar `input/kaggle-metadata.json` con campos compatibles con Kaggle C
 
 ```json
 {
-  "id": "<usuario>/<slug>",
+  "id": "jeffreyamc/<slug>",
   "title": "<titulo>",
   "code_file": "<archivo.ipynb-o-py>",
   "language": "python",

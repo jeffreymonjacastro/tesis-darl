@@ -1,0 +1,55 @@
+{
+  "name": "rl-book",
+  "generated_at": "2026-06-07",
+  "generator": "book-to-skill adapted for Codex project-local skills",
+  "source_metadata": {
+    "source": "RL An Introduction.pdf",
+    "pages": 548,
+    "words": 261243,
+    "estimated_tokens": 348324,
+    "extraction_method": "pdftotext",
+    "extraction_mode": "text"
+  },
+  "chapters": [
+    {
+      "file": "ch01-reinforcement-learning-problem.md",
+      "focus": "agent, environment, state, action, reward, return, policy"
+    },
+    {
+      "file": "ch02-markov-decision-processes.md",
+      "focus": "MDP, state transition, reward function, discount factor, Markov property"
+    },
+    {
+      "file": "ch03-value-functions-and-bellman-equations.md",
+      "focus": "state value, action value, Bellman expectation, optimality"
+    },
+    {
+      "file": "ch04-dynamic-programming.md",
+      "focus": "policy evaluation, policy improvement, value iteration, known models"
+    },
+    {
+      "file": "ch05-monte-carlo-and-temporal-difference-learning.md",
+      "focus": "Monte Carlo return, TD error, bootstrapping, online learning"
+    },
+    {
+      "file": "ch06-function-approximation.md",
+      "focus": "generalization, parameterized value functions, features, neural approximators"
+    },
+    {
+      "file": "ch07-policy-gradient-methods.md",
+      "focus": "parameterized policy, stochastic actions, objective gradient, return maximization"
+    },
+    {
+      "file": "ch08-actor-critic-and-advantage.md",
+      "focus": "actor, critic, advantage, variance reduction, PPO connection"
+    },
+    {
+      "file": "ch09-partial-observability.md",
+      "focus": "hidden state, observations, belief, history, POMDP connection"
+    },
+    {
+      "file": "ch10-darl-rl-design.md",
+      "focus": "DARL state, action, reward, episode, baselines, thesis wording"
+    }
+  ]
+}

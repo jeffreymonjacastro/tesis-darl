@@ -1,0 +1,80 @@
+{
+  "name": "darl-papers",
+  "generated_at": "2026-06-07",
+  "generator": "book-to-skill adapted for Codex project-local skills",
+  "source_metadata": {
+    "total_sources": 13,
+    "pages": 318,
+    "words": 170903,
+    "estimated_tokens": 227870,
+    "extraction_method": "multi-method",
+    "extraction_mode": "text"
+  },
+  "chapters": [
+    {
+      "file": "ch01-benchmarking-distribution-shift-in-tabular-data.md",
+      "source": "Benchmarking Distribution Shift in Tabular Data.pdf",
+      "role": "benchmark and evaluation protocol for tabular distribution shift"
+    },
+    {
+      "file": "ch02-cost-aware-retraining-for-machine-learning.md",
+      "source": "Cost-aware retraining for machine learning.pdf",
+      "role": "maintenance baseline for deciding when retraining is worth its cost"
+    },
+    {
+      "file": "ch03-diagnosing-model-performance-under-distribution-shift.md",
+      "source": "Diagnosing Model Performance Under Distribution Shift.pdf",
+      "role": "diagnostic foundation for separating performance decay from observed distribution changes"
+    },
+    {
+      "file": "ch04-generalized-advantage-estimation.md",
+      "source": "High-dimensional continuous control using generalized advantage estimation.pdf",
+      "role": "policy-gradient variance reduction reference for PPO-style training"
+    },
+    {
+      "file": "ch05-impact-of-hba1c-measurement-on-hospital-readmission.md",
+      "source": "Impact_of_HbA1c_Measurement_on_Hospital_Readmissio.pdf",
+      "role": "healthcare/domain context for hospital readmission prediction"
+    },
+    {
+      "file": "ch06-optimal-resource-allocation-for-ml-model-training-and-maintenance.md",
+      "source": "Optimal Resource Allocation for ML Model Training and.pdf",
+      "role": "resource-budget motivation for selective updating"
+    },
+    {
+      "file": "ch07-planning-and-acting-in-partially-observable-stochastic-domains.md",
+      "source": "Planning and acting in partially observable stochastic domains.pdf",
+      "role": "formal foundation for treating drift maintenance as partial observability"
+    },
+    {
+      "file": "ch08-proximal-policy-optimization-algorithms.md",
+      "source": "Proximal Policy Optimization Algorithms.pdf",
+      "role": "practical policy optimization method for the DARL agent"
+    },
+    {
+      "file": "ch09-self-healing-ml-pipelines.md",
+      "source": "Self-Healing ML Pipelines.pdf",
+      "role": "MLOps motivation for automated detection and remediation"
+    },
+    {
+      "file": "ch10-severity-aware-drift-adaptation-for-cost-efficient-model-maintenance.md",
+      "source": "Severity-Aware Drift Adaptation for Cost-Efficient Model Maintenance.pdf",
+      "role": "severity-conditioned maintenance policy motivation"
+    },
+    {
+      "file": "ch11-survey-on-concept-drift-adaptation.md",
+      "source": "Survey on Concept Drift Adaptation.pdf",
+      "role": "taxonomy and vocabulary for concept drift and adaptation"
+    },
+    {
+      "file": "ch12-heterogeneous-performance-drift.md",
+      "source": "Who experiences large model decay and why A Hierarchical Framework for Diagnosing Heterogeneous Performance Drift.pdf",
+      "role": "subgroup and slice-level performance drift diagnosis"
+    },
+    {
+      "file": "ch13-xgboost-a-scalable-tree-boosting-system.md",
+      "source": "XGBoost.pdf",
+      "role": "stage-2 predictive model foundation for tabular pipelines"
+    }
+  ]
+}
