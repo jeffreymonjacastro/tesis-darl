@@ -17,6 +17,23 @@ dependencies = [
     "matplotlib==3.10.9",
     "ray==2.55.1",
     "ipykernel==7.2.0",
+    "torch>=2.12.0",
+    "ipywidgets>=8.1.8",
+    "xport>=3.2.1",
+    "fairlearn>=0.14.0",
+    "datasets>=5.0.0",
+    "torchvision>=0.27.0",
+    "folktables>=0.0.12",
+    "frozendict>=2.4.7",
+    "hyperopt>=0.2.7",
+    "h5py>=3.16.0",
+    "tables>=3.11.1",
+    "einops>=0.8.2",
+    "tab-transformer-pytorch>=0.6.1",
+    "openpyxl>=3.1.5",
+    "optuna>=4.9.0",
+    "kaggle>=2.2.1",
+    "torchinfo>=1.8.0",
 ]
 
 [tool.uv]
