@@ -11,105 +11,56 @@ tesis-darl/
 ├── AGENTS.md
 ├── README.md
 ├── .gitignore
-├── Makefile
+├── .temp/
 ├── pyproject.toml
-├── requirements.txt
+├── uv.lock
 ├── .agents/
-│   ├── README.md
 │   └── skills/
-│       ├── README.md
 │       ├── latex-thesis/
-│       │   └── README.md
 │       ├── formula-explanation/
-│       │   └── README.md
 │       ├── literature-review/
-│       │   └── README.md
 │       ├── experiment-workflow/
-│       │   └── README.md
 │       ├── results-to-latex/
-│       │   └── README.md
 │       ├── python-style/
-│       │   └── README.md
 │       └── citation-rules/
-│           └── README.md
 ├── thesis/
-│   ├── README.md
 │   ├── chapters/
-│   │   └── README.md
 │   ├── figures/
-│   │   ├── README.md
 │   │   ├── manual/
-│   │   │   └── README.md
 │   │   └── generated/
-│   │       └── README.md
 │   ├── tables/
-│   │   ├── README.md
 │   │   └── generated/
-│   │       └── README.md
 │   ├── styles/
-│   │   └── README.md
 │   └── build/
-│       └── README.md
 ├── code/
-│   ├── README.md
 │   ├── src/
-│   │   ├── README.md
-│   │   └── darl/
-│   │       ├── README.md
-│   │       ├── data/
-│   │       │   └── README.md
-│   │       ├── drift/
-│   │       │   └── README.md
-│   │       ├── pipeline/
-│   │       │   └── README.md
-│   │       ├── actions/
-│   │       │   └── README.md
-│   │       ├── rl/
-│   │       │   └── README.md
-│   │       ├── evaluation/
-│   │       │   └── README.md
-│   │       └── visualization/
-│   │           └── README.md
+│   │   ├── darl/
+│   │   │   ├── data/
+│   │   │   ├── drift/
+│   │   │   ├── pipeline/
+│   │   │   ├── actions/
+│   │   │   ├── rl/
+│   │   │   ├── evaluation/
+│   │   │   └── visualization/
+│   │   └── notebooks/
 │   ├── experiments/
-│   │   ├── README.md
 │   │   └── configs/
-│   │       └── README.md
-│   ├── notebooks/
-│   │   └── README.md
 │   └── tests/
-│       └── README.md
 ├── data/
-│   ├── README.md
 │   ├── raw/
-│   │   └── README.md
-│   ├── interim/
-│   │   └── README.md
-│   ├── processed/
-│   │   └── README.md
-│   └── external/
-│       └── README.md
+│   └── processed/
 ├── outputs/
-│   ├── README.md
+│   ├── data_profiling/
 │   ├── models/
-│   │   └── README.md
 │   ├── metrics/
-│   │   └── README.md
 │   ├── logs/
-│   │   └── README.md
 │   ├── figures/
-│   │   └── README.md
 │   └── tables/
-│       └── README.md
 ├── literature/
-│   ├── README.md
 │   ├── papers/
-│   │   └── README.md
 │   ├── notes/
-│   │   └── README.md
 │   └── bibtex/
-│       └── README.md
 └── scripts/
-    └── README.md
 ```
 
 Reglas de trabajo para Codex:
