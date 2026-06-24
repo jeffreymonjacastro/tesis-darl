@@ -24,7 +24,7 @@ import numpy as np
 import pandas as pd
 import scipy.stats as stats
 
-from darl.drift.metrics import (
+from darl.evaluation import (
     ks_stat,
     psi_numeric,
     psi_categorical,
@@ -54,7 +54,7 @@ class _NumericMeta:
     direction: str  # high/low/central/extreme
     alpha_q: float  # Beta target shape a
     beta_q: float  # Beta target shape b
-    severity: float  # α mixture weight
+    drift_severity: float  # α mixture weight
     extra: dict = field(default_factory=dict)  # KS, PSI after transform
 
 
@@ -64,9 +64,19 @@ class _CatMeta:
     p0: pd.Series  # original distribution (proportions)
     q: pd.Series  # target distribution (proportions)
     p_alpha: pd.Series  # mixed distribution
-    severity: float
+    drift_severity: float
     strategy: str
     extra: dict = field(default_factory=dict)  # PSI, JS, Hellinger, chi2
+
+
+@dataclass
+class _LabelMeta:
+    col: str
+    drift_severity: float
+    p_flip: float
+    before_prevalence: float
+    after_prevalence: float
+    extra: dict = field(default_factory=dict)
 
 
 class DriftInjector:
@@ -117,7 +127,7 @@ class DriftInjector:
                 direction="",
                 alpha_q=0.0,
                 beta_q=0.0,
-                severity=0.0,
+                drift_severity=0.0,
             )
 
         for col in self._categorical_cols:
@@ -132,9 +142,11 @@ class DriftInjector:
     def transform(
         self,
         df_target: pd.DataFrame,
-        alpha: float,
+        drift_severity: float,
         numeric_drift_config: dict[str, str] | None = None,
         categorical_drift_config: dict[str, dict] | None = None,
+        label_col: str | None = None,
+        drift_type: str = "covariate",
     ) -> tuple[pd.DataFrame, dict[str, Any]]:
         """
         Apply synthetic drift.
@@ -142,7 +154,7 @@ class DriftInjector:
         Parameters
         ----------
         df_target : DataFrame to perturb.
-        alpha : float in [0, 1] — drift severity.
+        drift_severity : float in [0, 1] — drift severity.
         numeric_drift_config : {col: direction} where direction ∈
             {"high", "low", "central", "extreme"}.  Defaults to "high".
         categorical_drift_config : {col: config_dict}.
@@ -150,6 +162,10 @@ class DriftInjector:
               strategy: "uniform" | "manual_boost" | "rare" | "swap_top"
               increase: {cat: multiplier}   (manual_boost only)
               decrease: {cat: multiplier}   (manual_boost only)
+        label_col : str | None
+            The binary label column name to apply label flipping to.
+        drift_type : "covariate" | "concept" | "both"
+            The type of drift to inject.
         """
         numeric_drift_config = numeric_drift_config or {}
         categorical_drift_config = categorical_drift_config or {}
@@ -157,34 +173,62 @@ class DriftInjector:
         df = df_target.copy()
         metadata: dict[str, Any] = {}
 
-        # ── numeric ──
-        for col in self._numeric_cols:
-            if col not in df.columns:
-                continue
-            meta = self._numeric_meta[col]
-            direction = numeric_drift_config.get(col, "high")
-            aq, bq = BETA_TARGETS[direction]
-            meta.direction, meta.alpha_q, meta.beta_q, meta.severity = (
-                direction,
-                aq,
-                bq,
-                alpha,
+        # ── concept / label shift (label flipping) ──
+        if (
+            (drift_type in ("concept", "both"))
+            and label_col
+            and (label_col in df.columns)
+        ):
+            p_flip = 0.45 * drift_severity
+            before_prev = float(df[label_col].mean())
+
+            n = len(df)
+            mask = self._rng.binomial(1, p_flip, n).astype(bool)
+            df.loc[mask, label_col] = 1 - df.loc[mask, label_col]
+
+            after_prev = float(df[label_col].mean())
+            metadata[label_col] = _LabelMeta(
+                col=label_col,
+                drift_severity=drift_severity,
+                p_flip=p_flip,
+                before_prevalence=before_prev,
+                after_prevalence=after_prev,
+                extra={"psi": 0.0},
             )
 
-            before = df[col].copy()
-            df[col] = self._apply_numeric(df[col], meta, alpha)
-            after = df[col].copy()
+        # ── numeric ──
+        if drift_type in ("covariate", "both"):
+            for col in self._numeric_cols:
+                if col not in df.columns:
+                    continue
+                meta = self._numeric_meta[col]
+                direction = numeric_drift_config.get(col, "high")
+                aq, bq = BETA_TARGETS[direction]
+                meta.direction, meta.alpha_q, meta.beta_q, meta.drift_severity = (
+                    direction,
+                    aq,
+                    bq,
+                    drift_severity,
+                )
 
-            meta.extra = {
-                **ks_stat(before.dropna(), after.dropna()),
-                "psi": psi_numeric(before.dropna(), after.dropna()),
-            }
-            metadata[col] = meta
+                before = df[col].copy()
+                df[col] = self._apply_numeric(df[col], meta, drift_severity)
+                after = df[col].copy()
+
+                meta.extra = {
+                    **ks_stat(before.dropna(), after.dropna()),
+                    "psi": psi_numeric(before.dropna(), after.dropna()),
+                }
+                metadata[col] = meta
 
         # ── categorical — resample rows ──
-        if self._categorical_cols and categorical_drift_config:
+        if (
+            (drift_type in ("covariate", "both"))
+            and self._categorical_cols
+            and categorical_drift_config
+        ):
             df, cat_metas = self._apply_categorical(
-                df, alpha, categorical_drift_config, df_target
+                df, drift_severity, categorical_drift_config, df_target
             )
             metadata.update(cat_metas)
 
@@ -196,7 +240,7 @@ class DriftInjector:
         self,
         series: pd.Series,
         meta: _NumericMeta,
-        alpha: float,
+        drift_severity: float,
     ) -> pd.Series:
         out = series.copy()
         mask = out.notna()
@@ -207,9 +251,9 @@ class DriftInjector:
         )
         n = mask.sum()
         # Bernoulli mask
-        m = self._rng.binomial(1, alpha, n).astype(bool)
+        m = self._rng.binomial(1, drift_severity, n).astype(bool)
         z_tilde = self._rng.beta(meta.alpha_q, meta.beta_q, n)
-        z_drift = np.where(m, z_tilde, z.values)
+        z_drift = np.where(m, z_tilde, z)
         # back to original scale
         out[mask] = z_drift * (meta.col_max - meta.col_min) + meta.col_min
         return out
@@ -219,7 +263,7 @@ class DriftInjector:
     def _apply_categorical(
         self,
         df: pd.DataFrame,
-        alpha: float,
+        drift_severity: float,
         drift_config: dict[str, dict],
         df_original: pd.DataFrame,
     ) -> tuple[pd.DataFrame, dict[str, _CatMeta]]:
@@ -232,7 +276,7 @@ class DriftInjector:
                 continue
             p0 = self._cat_meta_fit[col]
             q = self._build_q(p0, drift_config[col])
-            p_alpha = (1 - alpha) * p0 + alpha * q
+            p_alpha = (1 - drift_severity) * p0 + drift_severity * q
             p_alpha /= p_alpha.sum()
 
             # per-row importance ratio  p_α(x) / p_0(x)
@@ -240,14 +284,14 @@ class DriftInjector:
             p0_map = p0.rename(index=str)
             pa_map = p_alpha.rename(index=str)
             w_col = row_cats.map(pa_map).fillna(EPS) / row_cats.map(p0_map).fillna(EPS)
-            weights *= w_col.values
+            weights *= np.asarray(w_col.values, dtype=np.float64)
 
             metas[col] = _CatMeta(
                 col=col,
                 p0=p0,
                 q=q,
                 p_alpha=p_alpha,
-                severity=alpha,
+                drift_severity=drift_severity,
                 strategy=drift_config[col].get("strategy", ""),
             )
 
@@ -314,12 +358,12 @@ class DriftInjector:
         """Return a tidy DataFrame with per-variable drift metrics."""
         rows = []
         for col, meta in metadata.items():
-            row = {"variable": col}
+            row: dict[str, Any] = {"variable": col}
             if isinstance(meta, _NumericMeta):
                 row.update(
                     {
                         "type": "numeric",
-                        "severity_alpha": meta.severity,
+                        "drift_severity": meta.drift_severity,
                         "direction": meta.direction,
                         "beta_orig": f"({meta.alpha_0:.2f}, {meta.beta_0:.2f})",
                         "beta_target": f"({meta.alpha_q:.2f}, {meta.beta_q:.2f})",
@@ -330,8 +374,19 @@ class DriftInjector:
                 row.update(
                     {
                         "type": "categorical",
-                        "severity_alpha": meta.severity,
+                        "drift_severity": meta.drift_severity,
                         "strategy": meta.strategy,
+                        **meta.extra,
+                    }
+                )
+            elif isinstance(meta, _LabelMeta):
+                row.update(
+                    {
+                        "type": "label",
+                        "drift_severity": meta.drift_severity,
+                        "strategy": f"flip (p={meta.p_flip:.2f})",
+                        "before_prev": f"{meta.before_prevalence:.3f}",
+                        "after_prev": f"{meta.after_prevalence:.3f}",
                         **meta.extra,
                     }
                 )

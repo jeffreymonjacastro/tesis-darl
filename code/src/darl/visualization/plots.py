@@ -4,7 +4,7 @@ import scipy.stats as stats
 import pandas as pd
 
 from darl.utils import find_project_root
-from darl.data.profiling import beta_distribution
+from darl.utils.beta_dist import beta_distribution
 
 
 def plot_beta_distributions(

@@ -279,3 +279,5 @@ Thumbs.db
 # Mantener README de papers dentro de literature pese a reglas heredadas.
 literature/papers/*
 !literature/papers/README.md
+
+.gemini/antigravity/brain/*
