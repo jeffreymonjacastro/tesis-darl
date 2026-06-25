@@ -121,9 +121,9 @@ costo computacional asociado a cada acción de actualización.
     \item Entrenar un agente de aprendizaje por refuerzo mediante el algoritmo
     \textit{Proximal Policy Optimization} (PPO) sobre episodios de drift sintético
     controlado, de modo que aprenda una política óptima $\pi^*$ que maximice la
-    recompensa acumulada esperada sobre los cuatro conjuntos de datos del
-    \textit{benchmark} TableShift \cite{gardner2023tableshift}: ICU Hospital Mortality,
-    Hospital Readmission, Income y Food Stamps.
+    recompensa acumulada esperada sobre dos conjuntos de datos del
+    \textit{benchmark} TableShift \cite{gardner2023tableshift}: Hospital Readmission
+    (\texttt{diabetes\_readmission}) y PhysioNet/sepsis (\texttt{physionet}).
  
     \item Evaluar la política aprendida bajo condiciones de drift sintético de tipo
     y severidad conocidos, midiendo la recuperación del AUC-ROC y el costo
@@ -164,9 +164,10 @@ generalización a otros problemas de gestión de \textit{pipelines} en producci�
 
 La investigación se circunscribe a \textit{pipelines} de ML de dos etapas 
 (preprocesamiento y modelo predictivo) aplicados a tareas de clasificación binaria sobre
-datos tabulares en modalidad \textit{batch}. La evaluación empírica se realiza sobre cuatro
-conjuntos de datos del \textit{benchmark} TableShift: ICU Hospital Mortality, Hospital
-Readmission, Income y Food Stamps \cite{gardner2023tableshift}. El \textit{distribution shift} se
+datos tabulares en modalidad \textit{batch}. La evaluación empírica se realiza sobre dos
+conjuntos de datos del \textit{benchmark} TableShift: Hospital Readmission
+(\texttt{diabetes\_readmission}) y PhysioNet/sepsis (\texttt{physionet})
+\cite{gardner2023tableshift}. El \textit{distribution shift} se
 inyecta de forma sintética y controlada en tres niveles de severidad (leve, moderada y
 severa) para los tipos \textit{covariate shift}, \textit{concept drift} y su combinación.
 El modelo predictivo empleado en los experimentos es XGBoost, con regresión logística como
@@ -174,10 +175,10 @@ línea base. El preprocesamiento sigue el esquema de la API de TableShift, exten
 transformaciones de cuantiles para variables con distribución sesgada y codificación por
 objetivo para variables categóricas de alta cardinalidad.
  
-El agente de aprendizaje por refuerzo se entrena utilizando el algoritmo PPO implementado
-sobre la librería Stable-Baselines3, con un entorno de simulación construido bajo la
-interfaz estándar de Gymnasium. El entrenamiento se realiza exclusivamente sobre episodios
-de drift sintético generados a partir de los cuatro datasets seleccionados; no se contempla
+El agente de aprendizaje por refuerzo se plantea para entrenamiento mediante PPO,
+con un entorno de simulación construido bajo una interfaz compatible con Gymnasium.
+El entrenamiento se realiza exclusivamente sobre episodios
+de drift sintético generados a partir de los dos datasets seleccionados; no se contempla
 despliegue en entornos de producción en tiempo real ni integración con sistemas de
 orquestación como Airflow o MLflow.
 
@@ -186,7 +187,7 @@ orquestación como Airflow o MLflow.
 
 El framework DARL está orientado a uso académico y experimental. Los experimentos se ejecutan en
 modalidad \textit{batch} y no cubren escenarios de \textit{streaming} con drift gradual y
-continuo. La evaluación se restringe a los cuatro \textit{datasets} seleccionados y a un
+continuo. La evaluación se restringe a los dos \textit{datasets} seleccionados y a un
 modelo predictivo principal; la generalización de los resultados a otros dominios y
 arquitecturas requiere validación adicional. Asimismo, se asume disponibilidad de etiquetas
 en el conjunto de datos del dominio objetivo para realizar el reentrenamiento, condición que

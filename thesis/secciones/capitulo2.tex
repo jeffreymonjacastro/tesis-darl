@@ -141,6 +141,63 @@ separación es la base del problema de actualización selectiva que DARL busca r
 identificar qué componente debe actualizarse bajo distintos tipos de drift.
 
 % ------------------------------------------------------------
+\section{XGBoost como modelo predictivo base}
+\label{sec:xgboost}
+% ------------------------------------------------------------
+
+XGBoost (\textit{eXtreme Gradient Boosting}) es un algoritmo de aprendizaje basado en
+árboles de decisión potenciados por gradiente que ha demostrado ser altamente competitivo
+en tareas de clasificación y regresión sobre datos tabulares
+\cite{chen2016xgboost,gardner2023tableshift}.
+
+El modelo construye un ensamble aditivo de $K$ árboles de decisión:
+
+\begin{equation}
+    \hat{y}_i = \sum_{k=1}^{K} f_k(x_i),
+    \qquad f_k \in \mathcal{F}.
+    \label{eq:xgboost_prediction}
+\end{equation}
+
+\noindent\textbf{Donde:}
+\begin{itemize}
+    \item $\hat{y}_i$ representa la predicción del modelo para la observación $i$.
+    \item $x_i$ representa la observación de entrada $i$.
+    \item $K$ representa el número total de árboles del ensamble.
+    \item $f_k$ representa el árbol de decisión número $k$.
+    \item $\mathcal{F}$ representa el espacio de árboles de regresión disponibles para el modelo.
+\end{itemize}
+
+Conceptualmente, XGBoost no aprende un único árbol, sino una suma de árboles que corrigen
+progresivamente los errores de los árboles anteriores. Esta estructura lo hace flexible para
+capturar relaciones no lineales y combinaciones complejas de variables en datos tabulares.
+
+El entrenamiento minimiza una función objetivo regularizada:
+
+\begin{equation}
+    \mathcal{L}(\theta) =
+    \sum_{i=1}^{n} \ell(y_i,\hat{y}_i)
+    + \sum_{k=1}^{K} \Omega(f_k).
+    \label{eq:xgboost_objective}
+\end{equation}
+
+\noindent\textbf{Donde:}
+\begin{itemize}
+    \item $\mathcal{L}(\theta)$ representa la función objetivo que XGBoost busca minimizar.
+    \item $\theta$ representa los parámetros del modelo.
+    \item $n$ representa el número de observaciones de entrenamiento.
+    \item $y_i$ representa la etiqueta real de la observación $i$.
+    \item $\hat{y}_i$ representa la predicción del modelo para la observación $i$.
+    \item $\ell(y_i,\hat{y}_i)$ representa la pérdida de predicción, por ejemplo, entropía cruzada en clasificación binaria.
+    \item $\Omega(f_k)$ representa la penalización de complejidad asociada al árbol $f_k$.
+\end{itemize}
+
+La ecuación \eqref{eq:xgboost_objective} equilibra dos metas: ajustar bien los datos y evitar
+modelos excesivamente complejos. La primera suma mide el error de predicción; la segunda
+suma penaliza árboles demasiado grandes o con pesos muy altos, reduciendo el riesgo de
+sobreajuste \cite{chen2016xgboost}.
+
+
+% ------------------------------------------------------------
 \section{Distribution shift: taxonomía y formalización}
 % ------------------------------------------------------------
 
@@ -391,23 +448,7 @@ observadas, valores positivos de $\Delta \ell_t$ aportan evidencia de \textit{pe
 si la degradación observada se debe a cambios de entrada, cambios de la relación
 $P(Y \mid X)$, o a una combinación de ambos fenómenos.
 
-\begin{table}[H]
-    \centering
-    \caption{Clasificación conceptual de métricas de monitoreo en DARL}
-    \label{tab:metricas_drift_darl}
-    \begin{tabular}{lll}
-        \toprule
-        \textbf{Métrica} & \textbf{Información utilizada} & \textbf{Tipo principal de señal}      \\
-        \midrule
-        PSI              & $X$                            & \textit{Covariate shift}              \\
-        KS               & $X$                            & \textit{Covariate shift}              \\
-        C2ST             & $X$                            & \textit{Covariate shift} multivariado \\
-        $\Delta AUC$     & $\hat{Y},Y$                    & \textit{Concept/performance drift}    \\
-        $\Delta \ell$    & $\hat{Y},Y$                    & \textit{Concept/performance drift}    \\
-        $S_X(t)$         & PSI, KS, C2ST                  & Severidad de \textit{covariate shift} \\
-        \bottomrule
-    \end{tabular}
-\end{table}
+\input{tables/metricas_drift_darl}
 
 \subsection{Severity score de covariate shift}
 
@@ -469,14 +510,12 @@ formalmente como la tupla:
     \item $R$ es la función de recompensa.
     \item $\gamma$ es el factor de descuento de recompensas futuras.
 \end{itemize}
-
 \begin{figure}[H]
     \centering
-    \includegraphics[width=0.85\textwidth]{images/MDP.jpg}
+    \input{../outputs/figures/mdp}
     \caption{Esquema general de un Proceso de Decisión de Markov (MDP)}
     \label{fig:mdp}
 \end{figure}
-
 Como se ve en la figura \ref{fig:mdp}, un MDP modela una situación en la que un agente observa un estado $s_t \in \mathcal{S}$, toma una acción $a_t \in \mathcal{A}$, recibe una recompensa $r_t$ y pasa a un nuevo estado $s_{t+1}$. Esta estructura permite
 formular problemas de decisión secuencial, como el mantenimiento de un \textit{pipeline}
 de ML, donde cada acción tiene efectos sobre el rendimiento futuro del sistema
@@ -678,14 +717,12 @@ de Decisión de Markov Parcialmente Observable (POMDP), definido como:
     \item $\Omega$ representa la función de observación.
     \item $\gamma$ representa el factor de descuento.
 \end{itemize}
-
 \begin{figure}[H]
     \centering
-    \includegraphics[width=0.85\textwidth]{images/POMDP.jpg}
+    \input{../outputs/figures/pomdp}
     \caption{Esquema general de un POMDP}
     \label{fig:pomdp}
 \end{figure}
-
 Como se muestra en la figura \ref{fig:pomdp}, un POMDP extiende el MDP para casos
 en los que el agente no observa directamente el estado real, sino una aproximación, generalmente considerada como una distribución normal $\mathcal{N}(\mu, \sigma)$. Esto encaja con DARL porque el estado real de las distribuciones
 del \textit{pipeline} no es accesible completamente; el agente solo observa métricas estimadas a partir de muestras finitas \cite{kaelbling1998pomdp}.
@@ -944,59 +981,5 @@ PPO es el algoritmo elegido para DARL por tres razones específicas al problema
     \item Estabilidad de entrenamiento. El mecanismo de \textit{clipping} de la Ecuación~\eqref{eq:ppo_clip} previene cambios excesivos de política durante el entrenamiento, lo cual es crítico cuando el número de episodios disponibles es limitado.
 \end{enumerate}
 
-% ------------------------------------------------------------
-\section{XGBoost como modelo predictivo base}
-\label{sec:xgboost}
-% ------------------------------------------------------------
 
-XGBoost (\textit{eXtreme Gradient Boosting}) es un algoritmo de aprendizaje basado en
-árboles de decisión potenciados por gradiente que ha demostrado ser altamente competitivo
-en tareas de clasificación y regresión sobre datos tabulares
-\cite{chen2016xgboost,gardner2023tableshift}.
-
-El modelo construye un ensamble aditivo de $K$ árboles de decisión:
-
-\begin{equation}
-    \hat{y}_i = \sum_{k=1}^{K} f_k(x_i),
-    \qquad f_k \in \mathcal{F}.
-    \label{eq:xgboost_prediction}
-\end{equation}
-
-\noindent\textbf{Donde:}
-\begin{itemize}
-    \item $\hat{y}_i$ representa la predicción del modelo para la observación $i$.
-    \item $x_i$ representa la observación de entrada $i$.
-    \item $K$ representa el número total de árboles del ensamble.
-    \item $f_k$ representa el árbol de decisión número $k$.
-    \item $\mathcal{F}$ representa el espacio de árboles de regresión disponibles para el modelo.
-\end{itemize}
-
-Conceptualmente, XGBoost no aprende un único árbol, sino una suma de árboles que corrigen
-progresivamente los errores de los árboles anteriores. Esta estructura lo hace flexible para
-capturar relaciones no lineales y combinaciones complejas de variables en datos tabulares.
-
-El entrenamiento minimiza una función objetivo regularizada:
-
-\begin{equation}
-    \mathcal{L}(\theta) =
-    \sum_{i=1}^{n} \ell(y_i,\hat{y}_i)
-    + \sum_{k=1}^{K} \Omega(f_k).
-    \label{eq:xgboost_objective}
-\end{equation}
-
-\noindent\textbf{Donde:}
-\begin{itemize}
-    \item $\mathcal{L}(\theta)$ representa la función objetivo que XGBoost busca minimizar.
-    \item $\theta$ representa los parámetros del modelo.
-    \item $n$ representa el número de observaciones de entrenamiento.
-    \item $y_i$ representa la etiqueta real de la observación $i$.
-    \item $\hat{y}_i$ representa la predicción del modelo para la observación $i$.
-    \item $\ell(y_i,\hat{y}_i)$ representa la pérdida de predicción, por ejemplo, entropía cruzada en clasificación binaria.
-    \item $\Omega(f_k)$ representa la penalización de complejidad asociada al árbol $f_k$.
-\end{itemize}
-
-La ecuación \eqref{eq:xgboost_objective} equilibra dos metas: ajustar bien los datos y evitar
-modelos excesivamente complejos. La primera suma mide el error de predicción; la segunda
-suma penaliza árboles demasiado grandes o con pesos muy altos, reduciendo el riesgo de
-sobreajuste \cite{chen2016xgboost}.
 

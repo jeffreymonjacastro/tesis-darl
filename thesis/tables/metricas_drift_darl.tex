@@ -1,0 +1,17 @@
+\begin{table}[H]
+    \centering
+    \caption{Clasificación conceptual de métricas de monitoreo en DARL}
+    \label{tab:metricas_drift_darl}
+    \begin{tabular}{lll}
+        \toprule
+        \textbf{Métrica} & \textbf{Información utilizada} & \textbf{Tipo principal de señal}      \\
+        \midrule
+        PSI              & $X$                            & \textit{Covariate shift}              \\
+        KS               & $X$                            & \textit{Covariate shift}              \\
+        C2ST             & $X$                            & \textit{Covariate shift} multivariado \\
+        $\Delta AUC$     & $\hat{Y},Y$                    & \textit{Concept/performance drift}    \\
+        $\Delta \ell$    & $\hat{Y},Y$                    & \textit{Concept/performance drift}    \\
+        $S_X(t)$         & PSI, KS, C2ST                  & Severidad de \textit{covariate shift} \\
+        \bottomrule
+    \end{tabular}
+\end{table}

@@ -14,15 +14,13 @@ df_drift, metadata = inj.transform(df_target, alpha=0.3)
 summary = inj.summary(metadata)
 """
 
-from __future__ import annotations
-
-import warnings
-from dataclasses import dataclass, field
 from typing import Any
 
 import numpy as np
 import pandas as pd
 import scipy.stats as stats
+
+from darl.types.types import _NumericMeta, _CatMeta, _LabelMeta
 
 from darl.evaluation import (
     ks_stat,
@@ -42,41 +40,6 @@ BETA_TARGETS = {
     "central": (8.0, 8.0),
     "extreme": (0.5, 0.5),
 }
-
-
-@dataclass
-class _NumericMeta:
-    col: str
-    col_min: float
-    col_max: float
-    alpha_0: float  # Beta original shape a
-    beta_0: float  # Beta original shape b
-    direction: str  # high/low/central/extreme
-    alpha_q: float  # Beta target shape a
-    beta_q: float  # Beta target shape b
-    drift_severity: float  # α mixture weight
-    extra: dict = field(default_factory=dict)  # KS, PSI after transform
-
-
-@dataclass
-class _CatMeta:
-    col: str
-    p0: pd.Series  # original distribution (proportions)
-    q: pd.Series  # target distribution (proportions)
-    p_alpha: pd.Series  # mixed distribution
-    drift_severity: float
-    strategy: str
-    extra: dict = field(default_factory=dict)  # PSI, JS, Hellinger, chi2
-
-
-@dataclass
-class _LabelMeta:
-    col: str
-    drift_severity: float
-    p_flip: float
-    before_prevalence: float
-    after_prevalence: float
-    extra: dict = field(default_factory=dict)
 
 
 class DriftInjector:
@@ -114,9 +77,7 @@ class DriftInjector:
             col_min, col_max = float(clean.min()), float(clean.max())
             z = np.clip((clean - col_min) / (col_max - col_min + EPS), EPS, 1 - EPS)
 
-            with warnings.catch_warnings():
-                warnings.simplefilter("ignore")
-                a0, b0, _, _ = stats.beta.fit(z, floc=0, fscale=1)
+            a0, b0, _, _ = stats.beta.fit(z, floc=0, fscale=1)
 
             self._numeric_meta[col] = _NumericMeta(
                 col=col,

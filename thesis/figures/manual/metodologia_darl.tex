@@ -1,0 +1,30 @@
+\begin{tikzpicture}[
+    font=\small,
+    stagebox/.style={
+        draw,
+        rounded corners=2pt,
+        fill=gray!8,
+        minimum height=24mm,
+        text width=27mm,
+        align=center
+    },
+    arrow/.style={-{Latex[length=2.3mm]}, thick},
+    feedback/.style={-{Latex[length=2.3mm]}, thick, dashed}
+]
+
+\node[stagebox] (s1) at (0, 0) {\textbf{1. Datos}\\TableShift\\XGBoost};
+\node[stagebox, right=6mm of s1] (s2) {\textbf{2. Drift}\\Beta numérica\\remuestreo categórico\\label flipping};
+\node[stagebox, right=6mm of s2] (s3) {\textbf{3. Monitoreo}\\Covariate shift\\Concept drift};
+\node[stagebox, right=6mm of s3] (s4) {\textbf{4. Acción RL}\\Defer\\Update features\\Update model\\Retrain all};
+\node[stagebox, right=6mm of s4] (s5) {\textbf{5. Métricas}\\$\Delta$ AUC-ROC\\F1\\tiempo y RAM};
+\node[stagebox, right=6mm of s5] (s6) {\textbf{6. PPO}\\reward\\o punishment};
+
+\draw[arrow] (s1) -- (s2);
+\draw[arrow] (s2) -- (s3);
+\draw[arrow] (s3) -- (s4);
+\draw[arrow] (s4) -- (s5);
+\draw[arrow] (s5) -- (s6);
+\draw[feedback] (s6.south) -- ++(0,-9mm) -| (s4.south);
+\draw[feedback] (s6.south) -- ++(0,-16mm) -| (s2.south);
+
+\end{tikzpicture}

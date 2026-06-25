@@ -1,11 +1,372 @@
 \chapter{MARCO METODOLÓGICO}
 
-Inicie aquí el texto, utilizando sangría de 1.25 cm. en el primer
-párrafo. Continúe el segundo párrafo.
+Este capítulo describe la metodología experimental de DARL. El objetivo metodológico
+es construir episodios controlados de drift sobre datos tabulares reales,
+observar el efecto del cambio mediante métricas estadísticas y supervisadas, y
+entrenar una política que seleccione la acción de mantenimiento más eficiente
+para un \textit{pipeline} de dos etapas.
 
-Continúe el segundo párrafo
+% ------------------------------------------------------------
+\section{Diseño general del framework DARL}
+% ------------------------------------------------------------
 
-\section{Primer subtítulo}
+DARL se organiza como un ciclo de seis módulos. Primero, se seleccionan
+\textit{datasets} tabulares de TableShift y se entrena un \textit{pipeline} base
+con XGBoost como modelo principal. Segundo, se aplica drift sintético controlado
+sobre variables numéricas, categóricas o sobre las etiquetas. Tercero, se
+monitorea el cambio resultante mediante señales de \textit{covariate shift},
+\textit{concept drift} y degradación de desempeño. Cuarto, un agente de
+aprendizaje por refuerzo observa esas señales y elige una acción de
+mantenimiento. Quinto, se ejecuta la acción seleccionada y se mide su efecto en
+rendimiento y cómputo. Finalmente, esas mediciones alimentan la recompensa que
+guía el entrenamiento de PPO.
 
-Lorem ipsun
+\begin{figure}[H]
+    \centering
+    \resizebox{0.98\textwidth}{!}{\input{figures/manual/metodologia_darl}}
+    \caption{Flujo metodológico propuesto para DARL}
+    \label{fig:metodologia_darl}
+\end{figure}
+
+Como se muestra en la Figura~\ref{fig:metodologia_darl}, la metodología no trata
+la detección de drift como un fin aislado. Las métricas de monitoreo son señales
+intermedias para decidir si conviene diferir, actualizar el preprocesamiento,
+actualizar el modelo predictivo o reentrenar todo el \textit{pipeline}. Esta
+separación responde a la brecha identificada en la literatura: diagnosticar que
+existe drift determina qué componente debe actualizarse
+\cite{cai2023disde,mahadevan2024cost}.
+
+% ------------------------------------------------------------
+\section{Selección de datasets y particiones experimentales}
+% ------------------------------------------------------------
+
+La evaluación se concentra en dos \textit{datasets} de TableShift
+\cite{gardner2023tableshift}. La selección busca cubrir dos regímenes tabulares
+distintos: uno dominado por variables categóricas y otro dominado por variables
+numéricas. Esta decisión permite evaluar si las acciones de actualización
+selectiva se comportan de forma distinta cuando el drift afecta principalmente
+frecuencias categóricas o distribuciones numéricas continuas.
+
+\begin{table}[H]
+    \centering
+    \caption{Datasets considerados en la metodología DARL}
+    \label{tab:datasets_metodologia_darl}
+    \resizebox{0.98\textwidth}{!}{%
+        \begin{tabular}{lll}
+            \hline
+            \textbf{Dataset}             & \textbf{Rol experimental} & \textbf{Tipo dominante de variables} \\
+            \hline
+            \text{diabetes\_readmission} & Readmisión hospitalaria   & Categóricas y discretas              \\
+            \text{physionet}             & Predicción de sepsis      & Numéricas fisiológicas               \\
+            \hline
+        \end{tabular}
+    }
+\end{table}
+
+Para cada dataset se distinguen tres particiones. La partición de referencia se
+usa para ajustar el preprocesamiento y entrenar el modelo base. La partición
+pre-drift estima el desempeño inicial sin intervención. La partición post-drift
+recibe las perturbaciones sintéticas y permite medir degradación, detección y
+recuperación. En el caso de \text{diabetes\_readmission}, el objetivo binario
+representa si un encuentro hospitalario termina en readmisión frente a la clase
+``NO''. En el caso de \text{physionet}, el objetivo binario representa la
+etiqueta de sepsis usada en los notebooks exploratorios del repositorio.
+
+Esta estructura conserva dos propiedades metodológicas importantes. Primero,
+usa datos tabulares reales y particiones reproducibles, en lugar de construir
+todo el entorno con datos sintéticos. Segundo, mantiene control experimental
+sobre el tipo y severidad de drift, porque el cambio se inyecta después de fijar
+la distribución de referencia.
+
+% ------------------------------------------------------------
+\section{Pipeline base de dos etapas}
+% ------------------------------------------------------------
+
+El sistema evaluado es un \textit{pipeline} de dos etapas. La primera etapa transforma los datos crudos en
+una representación numérica para el modelo. La segunda etapa aprende el mapeo
+predictivo. La implementación metodológica considera XGBoost como modelo
+principal por su desempeño en datos tabulares \cite{chen2016xgboost}, y
+regresión logística como línea base de menor complejidad.
+
+La etapa de preprocesamiento aplica tres familias de transformación. Las
+variables numéricas sesgadas se transforman mediante cuantiles, las variables
+categóricas de alta cardinalidad se codifican mediante \textit{target encoding},
+y el resto de variables numéricas se escala con una normalización estándar. La
+separación entre preprocesamiento y modelo es deliberada: permite evaluar
+acciones que actualizan solo los parámetros de transformación, solo el modelo
+predictivo o ambos.
+
+En cada configuración experimental, el \textit{pipeline} base se ajusta con la
+partición de referencia. Luego se evalúa en la partición pre-drift para obtener
+el desempeño inicial y en la partición post-drift perturbada para estimar la
+degradación. El valor de referencia para la recompensa no es el rendimiento
+absoluto del modelo, sino la recuperación lograda por cada acción frente al
+estado drifted sin mantenimiento.
+
+% ------------------------------------------------------------
+\section{Inyección sintética de drift}
+% ------------------------------------------------------------
+
+El módulo \text{DriftInjector} genera tres escenarios: \textit{covariate
+    shift}, \textit{concept drift} y la combinación de ambos. El drift se controla
+mediante una severidad $\gamma \in [0,1]$, donde valores mayores aumentan la
+proporción de observaciones afectadas o la intensidad del desplazamiento. Esta
+formulación mantiene trazabilidad entre el tipo de perturbación aplicada y las
+señales que deberían observarse en el módulo de monitoreo.
+
+\subsection{Drift numérico mediante mezcla Beta}
+
+Para variables numéricas, primero se normaliza cada valor al intervalo $[0,1]$
+usando los mínimos y máximos de referencia. La distribución objetivo que genera
+los valores perturbados se define mediante una Beta:
+
+\begin{equation}
+    z_{ij} \sim \mathrm{Beta}(\alpha_j,\beta_j),
+    \qquad
+    f_j(z)=
+    \frac{z^{\alpha_j-1}(1-z)^{\beta_j-1}}
+    {B(\alpha_j,\beta_j)},
+    \quad 0 \leq z \leq 1.
+    \label{eq:beta_target_distribution}
+\end{equation}
+
+\noindent\textbf{Donde:}
+\begin{itemize}
+    \item $z_{ij}$ representa el valor sintético normalizado generado para la observación $i$ en la variable numérica $j$.
+    \item $\mathrm{Beta}(\alpha_j,\beta_j)$ representa la distribución objetivo usada para generar valores en $[0,1]$.
+    \item $f_j(z)$ representa la función de densidad de la distribución Beta asociada a la variable $j$.
+    \item $\alpha_j$ y $\beta_j$ son parámetros positivos que controlan la forma de la distribución objetivo.
+    \item $B(\alpha_j,\beta_j)$ representa la función Beta de normalización.
+\end{itemize}
+
+Conceptualmente, la distribución Beta no decide por sí sola qué filas son
+modificadas; solo define de dónde provienen los valores numéricos alternativos.
+Al variar $\alpha_j$ y $\beta_j$, el inyector puede generar desplazamientos
+hacia valores altos, bajos, centrales o extremos dentro del rango normalizado.
+
+La selección de las observaciones perturbadas se modela por separado mediante
+una variable Bernoulli:
+
+\begin{equation}
+    m_{ij} \sim \mathrm{Bernoulli}(\gamma),
+    \qquad
+    \tilde{x}_{ij}
+    =
+    \left[
+        (1-m_{ij})u_{ij}
+        + m_{ij}z_{ij}
+        \right]
+    (x^{\max}_{j}-x^{\min}_{j})
+    + x^{\min}_{j}.
+    \label{eq:beta_mixture_drift}
+\end{equation}
+
+\noindent\textbf{Donde:}
+\begin{itemize}
+    \item $m_{ij}$ representa la máscara binaria que indica si la observación $i$ es perturbada en la variable $j$.
+    \item $\gamma$ representa la severidad del drift y controla la probabilidad de reemplazo.
+    \item $u_{ij}$ representa el valor original normalizado al intervalo $[0,1]$.
+    \item $z_{ij}$ representa la muestra Beta definida en la Ecuación~\ref{eq:beta_target_distribution}.
+    \item $\tilde{x}_{ij}$ representa el valor de la variable numérica $j$ para la observación $i$ después de aplicar drift.
+    \item $x^{\min}_{j}$ y $x^{\max}_{j}$ son el mínimo y máximo de la variable $j$ en la partición de referencia.
+\end{itemize}
+
+Conceptualmente, la Bernoulli controla la intensidad aplicada a nivel de
+observación y variable: si $m_{ij}=0$, se conserva el valor original; si
+$m_{ij}=1$, se usa el valor sintético generado por la Beta. Así, el mecanismo
+simula \textit{covariate shift} en $P(X)$ sin cambiar directamente la etiqueta,
+por lo que debería reflejarse principalmente en métricas como KS, PSI o C2ST.
+
+\subsection{Drift categórico mediante remuestreo marginal}
+
+Para variables categóricas, se construye una distribución objetivo $q_j(c)$ sobre
+las categorías de la variable $j$ y se interpola con la distribución de
+referencia $p_{0,j}(c)$:
+
+\begin{equation}
+    p_{\gamma,j}(c)
+    =
+    (1-\gamma)p_{0,j}(c)
+    + \gamma q_j(c).
+    \label{eq:categorical_marginal_drift}
+\end{equation}
+
+\noindent\textbf{Donde:}
+\begin{itemize}
+    \item $p_{\gamma,j}(c)$ representa la probabilidad post-drift de la categoría $c$ en la variable categórica $j$.
+    \item $p_{0,j}(c)$ representa la frecuencia relativa de la categoría $c$ en la partición de referencia.
+    \item $q_j(c)$ representa la distribución categórica objetivo definida para inducir drift.
+    \item $\gamma$ representa la severidad del drift y controla cuánto se acerca la distribución post-drift a $q_j(c)$.
+    \item $c$ representa una categoría posible de la variable $j$.
+\end{itemize}
+
+Conceptualmente, esta fórmula modifica las frecuencias de las categorías sin
+alterar la regla de etiquetado. En la implementación, esta distribución se
+aplica mediante remuestreo de filas ponderado por las nuevas probabilidades
+marginales. Este diseño es más conservador que reemplazar categorías de manera
+independiente, porque reduce el riesgo de crear combinaciones de columnas poco
+plausibles.
+
+\subsection{Concept drift mediante label flipping}
+
+Para simular \textit{concept drift}, se altera la relación entre $X$ e $Y$
+mediante inversión aleatoria de etiquetas binarias. La probabilidad de inversión
+se acota para evitar un escenario completamente aleatorio:
+
+\begin{equation}
+    \tilde{y}_{i}
+    =
+    \left\{
+    \begin{array}{ll}
+        1-y_i, & \text{con probabilidad } p_{\text{flip}}=\min(0.45,0.45\gamma), \\
+        y_i,   & \text{con probabilidad } 1-p_{\text{flip}}.
+    \end{array}
+    \right.
+    \label{eq:label_flipping}
+\end{equation}
+
+\noindent\textbf{Donde:}
+\begin{itemize}
+    \item $\tilde{y}_{i}$ representa la etiqueta de la observación $i$ después de aplicar drift.
+    \item $y_i$ representa la etiqueta original antes de aplicar drift.
+    \item $p_{\text{flip}}$ representa la probabilidad de invertir la etiqueta.
+    \item $\gamma$ representa la severidad del drift.
+    \item $0.45$ es el límite máximo de inversión usado para mantener una señal predictiva remanente.
+\end{itemize}
+
+Conceptualmente, el \textit{label flipping} no cambia la distribución marginal de
+las covariables $P(X)$, pero sí degrada la relación condicional $P(Y \mid X)$.
+Por ello, este mecanismo permite evaluar si el sistema distingue escenarios en
+los que actualizar el preprocesamiento no basta y se requiere actualizar el
+modelo predictivo.
+
+% ------------------------------------------------------------
+\section{Monitoreo y señales de diagnóstico}
+% ------------------------------------------------------------
+
+El módulo de monitoreo calcula señales no supervisadas y supervisadas. Las
+señales no supervisadas comparan la partición de referencia con la ventana
+actual usando solo $X$. En este grupo se incluyen PSI, KS, divergencia de
+Jensen--Shannon, distancia de Hellinger y pruebas $\chi^2$ para variables
+categóricas. Adicionalmente, Evidently se usa como herramienta de monitoreo
+\textit{batch}; su \text{DataDriftPreset} permite evaluar cambios de
+distribución entre dos conjuntos de datos y reportar drift por columna
+\cite{evidently_data_drift,evidently_github}.
+
+Las señales supervisadas se calculan cuando existen etiquetas disponibles. En
+este grupo se ubican $\Delta AUC_t$, $\Delta \ell_t$, F1 y el flujo de errores
+del modelo. River ADWIN se usa como detector en línea sobre el flujo de error de
+predicción; ADWIN mantiene una ventana adaptativa y detecta cambios cuando las
+medias de subventanas recientes dejan de ser compatibles \cite{river_adwin}. El
+recorrido fila por fila de los datos tabulares se implementa con utilidades de
+\text{river.stream} \cite{river_iter_pandas}.
+
+El resultado del monitoreo se resume en un vector de observación para el agente:
+promedios y máximos de métricas de drift por variable, indicadores de drift por
+familia de variables, señales supervisadas de desempeño y costos históricos de
+acciones previas. Estas señales no se interpretan como observaciones perfectas
+del estado real; se consideran evidencia parcial del tipo, severidad y efecto
+del drift.
+
+% ------------------------------------------------------------
+\section{Entorno de decisión y acciones del agente}
+% ------------------------------------------------------------
+
+El problema de actualización selectiva se modela como un POMDP, porque el agente
+no observa directamente $P_t(X)$ ni $P_t(Y \mid X)$, sino métricas estimadas
+sobre ventanas finitas \cite{kaelbling1998pomdp}. Cada episodio contiene entre
+10 y 20 pasos de decisión. En cada paso se aplica un drift sintético, se calcula
+el vector de observación, el agente selecciona una acción, se ejecuta la acción
+y se mide si el rendimiento mejora frente al estado sin mantenimiento.
+
+\begin{table}[H]
+    \centering
+    \caption{Acciones de mantenimiento consideradas por DARL}
+    \label{tab:acciones_darl}
+    \begin{tabular}{lll}
+        \hline
+        \textbf{Acción}          & \textbf{Componente afectado} & \textbf{Interpretación}     \\
+        \hline
+        \textit{Defer}           & Ninguno                      & Mantener el pipeline actual \\
+        \textit{Update features} & $f_{\phi}$                   & Reajustar preprocesamiento  \\
+        \textit{Update model}    & $g_{\theta}$                 & Reajustar modelo predictivo \\
+        \textit{Retrain all}     & $f_{\phi}$ y $g_{\theta}$    & Reentrenar todo el pipeline \\
+        \hline
+    \end{tabular}
+\end{table}
+
+La hipótesis operacional es que distintos tipos de drift favorecen distintas
+acciones. Un \textit{covariate shift} puro debería favorecer la actualización de
+\textit{features} cuando el modelo sigue siendo válido. Un \textit{concept
+    drift} debería favorecer la actualización del modelo. Un drift combinado puede
+requerir reentrenamiento completo. La acción \textit{Defer} permite capturar
+escenarios donde el cambio detectado no justifica el costo de mantenimiento.
+
+% ------------------------------------------------------------
+\section{Recompensa y entrenamiento PPO}
+% ------------------------------------------------------------
+
+La recompensa combina recuperación de rendimiento y costo computacional. Para
+cada acción $a_t$, se compara el AUC obtenido después de aplicar la acción con
+el AUC del mismo estado drifted sin mantenimiento. El costo se normaliza contra
+el costo de reentrenar todo el \textit{pipeline}, usado como referencia de mayor
+intervención:
+
+\begin{equation}
+    r_t(a_t)
+    =
+    \lambda_A
+    \left(
+    AUC_t^{(a_t)} - AUC_t^{(\text{drift})}
+    \right)
+    -
+    \lambda_C
+    \left(
+    \frac{1}{2}
+    \frac{T_t^{(a_t)}}{T_t^{(\text{all})}}
+    +
+    \frac{1}{2}
+    \frac{M_t^{(a_t)}}{M_t^{(\text{all})}}
+    \right).
+    \label{eq:darl_reward}
+\end{equation}
+
+\noindent\textbf{Donde:}
+\begin{itemize}
+    \item $r_t(a_t)$ representa la recompensa recibida tras ejecutar la acción $a_t$ en el paso $t$.
+    \item $AUC_t^{(a_t)}$ representa el AUC-ROC obtenido después de aplicar la acción seleccionada.
+    \item $AUC_t^{(\text{drift})}$ representa el AUC-ROC del pipeline drifted sin mantenimiento.
+    \item $T_t^{(a_t)}$ representa el tiempo de ejecución de la acción seleccionada.
+    \item $T_t^{(\text{all})}$ representa el tiempo requerido por el reentrenamiento completo.
+    \item $M_t^{(a_t)}$ representa el uso máximo de memoria de la acción seleccionada.
+    \item $M_t^{(\text{all})}$ representa el uso máximo de memoria del reentrenamiento completo.
+    \item $\lambda_A$ y $\lambda_C$ ponderan la importancia relativa de recuperar rendimiento y reducir costo.
+\end{itemize}
+
+Conceptualmente, esta recompensa evita que el agente elija siempre
+\textit{Retrain all}. Una acción recibe mayor recompensa si recupera AUC con bajo
+costo relativo; recibe menor recompensa si recupera poco rendimiento o si incurre
+en un costo similar al reentrenamiento completo sin una mejora proporcional. Este
+diseño sigue la motivación de mantenimiento consciente del costo: la mejor acción
+no es necesariamente la que maximiza rendimiento absoluto, sino la que ofrece el
+mejor balance entre recuperación y recursos \cite{mahadevan2024cost}.
+
+El agente se entrena con PPO, descrito en la Sección~\ref{sec:ppo}. En esta
+metodología, PPO no reemplaza al detector de drift; aprende una política sobre
+las señales producidas por el monitor. Su función es mejorar gradualmente la
+probabilidad de seleccionar acciones que producen mayor recompensa acumulada,
+manteniendo actualizaciones de política estables mediante el objetivo recortado
+\cite{schulman2017ppo}.
+
+% ------------------------------------------------------------
+\section{Métricas de evaluación}
+% ------------------------------------------------------------
+
+La evaluación final separa métricas de rendimiento y métricas de cómputo. Las
+métricas de rendimiento incluyen AUC-ROC como métrica principal, F1-score como
+medida complementaria y $\Delta AUC$ como caída o recuperación frente al estado
+pre-drift. Las métricas de cómputo incluyen tiempo de actualización, memoria
+máxima y costo relativo frente a \textit{Retrain all}. Esta separación permite
+responder dos preguntas distintas: si la acción corrige el deterioro y si lo
+hace con menos recursos que el reentrenamiento completo.
 
