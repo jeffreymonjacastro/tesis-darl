@@ -13,7 +13,8 @@ para un \textit{pipeline} de dos etapas.
 DARL se organiza como un ciclo de seis módulos. Primero, se seleccionan
 \textit{datasets} tabulares de TableShift y se entrena un \textit{pipeline} base
 con XGBoost como modelo principal. Segundo, se aplica drift sintético controlado
-sobre variables numéricas, categóricas o sobre las etiquetas. Tercero, se
+sobre variables numéricas, categóricas o sobre la relación feature-label.
+Tercero, se
 monitorea el cambio resultante mediante señales de \textit{covariate shift},
 \textit{concept drift} y degradación de desempeño. Cuarto, un agente de
 aprendizaje por refuerzo observa esas señales y elige una acción de
@@ -24,7 +25,7 @@ guía el entrenamiento de PPO.
 \begin{figure}[H]
     \centering
     \resizebox{0.98\textwidth}{!}{\input{figures/manual/metodologia_darl}}
-    \caption{Flujo metodológico propuesto para DARL}
+    \caption{Flujo metodológico de DARL como ciclo POMDP}
     \label{fig:metodologia_darl}
 \end{figure}
 
@@ -139,7 +140,7 @@ los valores perturbados se define mediante una Beta:
     \item $B(\alpha_j,\beta_j)$ representa la función Beta de normalización.
 \end{itemize}
 
-Conceptualmente, la distribución Beta no decide por sí sola qué filas son
+La distribución Beta no decide por sí sola qué filas son
 modificadas; solo define de dónde provienen los valores numéricos alternativos.
 Al variar $\alpha_j$ y $\beta_j$, el inyector puede generar desplazamientos
 hacia valores altos, bajos, centrales o extremos dentro del rango normalizado.
@@ -171,7 +172,7 @@ una variable Bernoulli:
     \item $x^{\min}_{j}$ y $x^{\max}_{j}$ son el mínimo y máximo de la variable $j$ en la partición de referencia.
 \end{itemize}
 
-Conceptualmente, la Bernoulli controla la intensidad aplicada a nivel de
+La distribución Bernoulli controla la intensidad aplicada a nivel de
 observación y variable: si $m_{ij}=0$, se conserva el valor original; si
 $m_{ij}=1$, se usa el valor sintético generado por la Beta. Así, el mecanismo
 simula \textit{covariate shift} en $P(X)$ sin cambiar directamente la etiqueta,
@@ -200,45 +201,50 @@ referencia $p_{0,j}(c)$:
     \item $c$ representa una categoría posible de la variable $j$.
 \end{itemize}
 
-Conceptualmente, esta fórmula modifica las frecuencias de las categorías sin
+Esta fórmula modifica las frecuencias de las categorías sin
 alterar la regla de etiquetado. En la implementación, esta distribución se
 aplica mediante remuestreo de filas ponderado por las nuevas probabilidades
 marginales. Este diseño es más conservador que reemplazar categorías de manera
 independiente, porque reduce el riesgo de crear combinaciones de columnas poco
 plausibles.
 
-\subsection{Concept drift mediante label flipping}
+\subsection{Concept drift mediante inversión de relación en variables}
 
-Para simular \textit{concept drift}, se altera la relación entre $X$ e $Y$
-mediante inversión aleatoria de etiquetas binarias. La probabilidad de inversión
-se acota para evitar un escenario completamente aleatorio:
+Para simular \textit{concept drift} en el experimento PhysioNet, se altera la
+relación funcional entre las variables fisiológicas y la etiqueta mediante una
+inversión parcial de las covariables alrededor de su mediana. Para cada variable
+numérica seleccionada, el valor perturbado se define como:
 
 \begin{equation}
-    \tilde{y}_{i}
+    \tilde{x}_{ij}
     =
-    \left\{
-    \begin{array}{ll}
-        1-y_i, & \text{con probabilidad } p_{\text{flip}}=\min(0.45,0.45\gamma), \\
-        y_i,   & \text{con probabilidad } 1-p_{\text{flip}}.
-    \end{array}
-    \right.
-    \label{eq:label_flipping}
+    x_{ij}
+    +
+    \gamma
+    \left(
+    2x^{\mathrm{med}}_{j}
+    -
+    2x_{ij}
+    \right).
+    \label{eq:feature_relationship_inversion}
 \end{equation}
 
 \noindent\textbf{Donde:}
 \begin{itemize}
-    \item $\tilde{y}_{i}$ representa la etiqueta de la observación $i$ después de aplicar drift.
-    \item $y_i$ representa la etiqueta original antes de aplicar drift.
-    \item $p_{\text{flip}}$ representa la probabilidad de invertir la etiqueta.
-    \item $\gamma$ representa la severidad del drift.
-    \item $0.45$ es el límite máximo de inversión usado para mantener una señal predictiva remanente.
+    \item $\tilde{x}_{ij}$ representa el valor de la observación $i$ en la variable fisiológica $j$ después de aplicar la perturbación.
+    \item $x_{ij}$ representa el valor original de la observación $i$ en la variable $j$.
+    \item $x^{\mathrm{med}}_{j}$ representa la mediana de la variable $j$ calculada sobre la partición que se perturba.
+    \item $\gamma$ representa la severidad del drift y controla la intensidad de la inversión.
 \end{itemize}
 
-Conceptualmente, el \textit{label flipping} no cambia la distribución marginal de
-las covariables $P(X)$, pero sí degrada la relación condicional $P(Y \mid X)$.
-Por ello, este mecanismo permite evaluar si el sistema distingue escenarios en
-los que actualizar el preprocesamiento no basta y se requiere actualizar el
-modelo predictivo.
+Esta transformación desplaza los valores hacia el lado opuesto
+de la mediana con una intensidad proporcional a $\gamma$. La etiqueta observada
+no se modifica directamente; lo
+que cambia es la correspondencia efectiva entre los patrones fisiológicos y la
+regla predictiva aprendida por el modelo. Por ello, el experimento evalúa si
+mantener el preprocesamiento original y actualizar el modelo predictivo permite
+recuperar desempeño cuando la relación aprendida entre $X$ e $Y$ deja de ser
+válida bajo la nueva ventana.
 
 % ------------------------------------------------------------
 \section{Monitoreo y señales de diagnóstico}
@@ -255,11 +261,9 @@ distribución entre dos conjuntos de datos y reportar drift por columna
 
 Las señales supervisadas se calculan cuando existen etiquetas disponibles. En
 este grupo se ubican $\Delta AUC_t$, $\Delta \ell_t$, F1 y el flujo de errores
-del modelo. River ADWIN se usa como detector en línea sobre el flujo de error de
-predicción; ADWIN mantiene una ventana adaptativa y detecta cambios cuando las
-medias de subventanas recientes dejan de ser compatibles \cite{river_adwin}. El
-recorrido fila por fila de los datos tabulares se implementa con utilidades de
-\text{river.stream} \cite{river_iter_pandas}.
+del modelo. En los experimentos actuales, estas señales se usan para cuantificar
+la degradación posterior al drift y la recuperación obtenida por cada acción de
+mantenimiento, sin incorporar un detector en línea adicional.
 
 El resultado del monitoreo se resume en un vector de observación para el agente:
 promedios y máximos de métricas de drift por variable, indicadores de drift por
@@ -274,10 +278,12 @@ del drift.
 
 El problema de actualización selectiva se modela como un POMDP, porque el agente
 no observa directamente $P_t(X)$ ni $P_t(Y \mid X)$, sino métricas estimadas
-sobre ventanas finitas \cite{kaelbling1998pomdp}. Cada episodio contiene entre
-10 y 20 pasos de decisión. En cada paso se aplica un drift sintético, se calcula
-el vector de observación, el agente selecciona una acción, se ejecuta la acción
-y se mide si el rendimiento mejora frente al estado sin mantenimiento.
+sobre ventanas finitas \cite{kaelbling1998pomdp}. En la configuración actual de
+la demo PPO, cada episodio contiene 100 pasos de decisión y la evaluación
+determinística final se realiza sobre 50 episodios. En cada paso se presenta un
+escenario de drift sintético, se calcula el vector de observación, el agente
+selecciona una acción y se mide si el rendimiento mejora frente al estado sin
+mantenimiento.
 
 \begin{table}[H]
     \centering
@@ -301,6 +307,109 @@ acciones. Un \textit{covariate shift} puro debería favorecer la actualización 
     drift} debería favorecer la actualización del modelo. Un drift combinado puede
 requerir reentrenamiento completo. La acción \textit{Defer} permite capturar
 escenarios donde el cambio detectado no justifica el costo de mantenimiento.
+
+% ------------------------------------------------------------
+\section{Baseline empírico de tabla de decisión}
+% ------------------------------------------------------------
+
+Como referencia comparativa para la política aprendida, se construye una tabla
+de decisión empírica sobre el experimento PhysioNet. Esta tabla no corresponde a
+una política entrenada por refuerzo, sino a un \textit{baseline} supervisado por
+el diseño experimental: para cada combinación de tipo de drift y severidad
+conocidos, se ejecutan las estrategias de actualización disponibles, se mide su
+recuperación de AUC-ROC y se penaliza su costo computacional relativo. La acción
+seleccionada por la tabla es aquella que minimiza el costo total residual.
+
+En el notebook experimental, la tabla compara las acciones principales
+\textit{Defer}, \textit{Update features}, \textit{Update model} y
+\textit{Retrain all}. Adicionalmente, se reporta una estrategia auxiliar
+\textit{A2c}, denominada \textit{features correctivos}, que corrige
+marginalmente las variables drifteadas hacia la distribución de referencia y
+mantiene congelados el preprocesamiento y el modelo. Esta estrategia se incluye
+como referencia empírica adicional, pero no forma parte del espacio de acciones
+del agente PPO.
+
+\begin{table}[H]
+    \centering
+    \caption{Estrategias consideradas en la tabla baseline empírica}
+    \label{tab:baseline_empirico_acciones}
+    \begin{tabular}{lll}
+        \hline
+        \textbf{ID} & \textbf{Estrategia}           & \textbf{Descripción}                   \\
+        \hline
+        A1          & \textit{Defer}                & Mantener el pipeline original          \\
+        A2          & \textit{Update features}      & Reajustar Stage 1 y mantener Stage 2   \\
+        A2c         & \textit{Features correctivos} & Corregir variables hacia referencia    \\
+        A3          & \textit{Update model}         & Mantener Stage 1 y reentrenar Stage 2  \\
+        A4          & \textit{Retrain all}          & Reajustar Stage 1 y reentrenar Stage 2 \\
+        \hline
+    \end{tabular}
+\end{table}
+
+La recuperación relativa de AUC-ROC para una acción $a$ bajo una condición de
+drift $d$ y severidad $s$ se calcula como:
+
+\begin{equation}
+    \mathrm{Rec}_{d,s}(a)
+    =
+    \frac{
+        AUC_{d,s}^{(a)}
+    }{
+        AUC^{(\mathrm{base})}
+    }
+    \times 100.
+    \label{eq:baseline_auc_recovery}
+\end{equation}
+
+\noindent\textbf{Donde:}
+\begin{itemize}
+    \item $\mathrm{Rec}_{d,s}(a)$ representa el porcentaje de recuperación de AUC-ROC de la acción $a$ bajo el tipo de drift $d$ y severidad $s$.
+    \item $AUC_{d,s}^{(a)}$ representa el AUC-ROC obtenido al aplicar la acción $a$ sobre la ventana perturbada.
+    \item $AUC^{(\mathrm{base})}$ representa el AUC-ROC del pipeline base evaluado antes de aplicar drift.
+    \item $d$ representa el tipo de drift considerado: \textit{covariate shift}, \textit{concept drift} o ambos.
+    \item $s$ representa la severidad experimental del drift.
+\end{itemize}
+
+Esta métrica expresa cuánto rendimiento conserva o recupera
+cada estrategia respecto al pipeline base. Un valor cercano a 100 indica que la
+acción mantiene un desempeño similar al escenario pre-drift, mientras que
+valores inferiores indican degradación residual después de aplicar la
+intervención.
+
+Para seleccionar la acción de la tabla se define un costo total que combina
+degradación residual y costo computacional relativo, siguiendo la motivación de
+reentrenamiento consciente del costo \cite{mahadevan2024cost}:
+
+\begin{equation}
+    J_{d,s}(a)
+    =
+    \left(
+    100 - \mathrm{Rec}_{d,s}(a)
+    \right)
+    +
+    \lambda_B \kappa(a),
+    \qquad
+    a^{*}_{d,s}
+    =
+    \arg\min_{a \in \mathcal{A}_B} J_{d,s}(a).
+    \label{eq:baseline_total_cost}
+\end{equation}
+
+\noindent\textbf{Donde:}
+\begin{itemize}
+    \item $J_{d,s}(a)$ representa el costo total asignado a la acción $a$ bajo tipo de drift $d$ y severidad $s$.
+    \item $100 - \mathrm{Rec}_{d,s}(a)$ representa la degradación residual de AUC-ROC después de aplicar la acción.
+    \item $\kappa(a)$ representa el costo computacional relativo de la acción $a$, normalizado respecto a \textit{Retrain all}.
+    \item $\lambda_B$ representa el peso que convierte el costo computacional relativo en puntos de recuperación porcentual.
+    \item $\mathcal{A}_B$ representa el conjunto de estrategias evaluadas por la tabla baseline.
+    \item $a^{*}_{d,s}$ representa la acción empíricamente óptima para la condición $(d,s)$.
+\end{itemize}
+
+El baseline empírico funciona como una tabla de consulta
+construida con conocimiento explícito del tipo y severidad de drift. Por ello,
+no reemplaza al agente PPO ni resuelve el POMDP: sirve como punto de comparación
+para evaluar si la política aprendida selecciona acciones razonables sin recibir
+directamente la etiqueta de la condición experimental.
 
 % ------------------------------------------------------------
 \section{Recompensa y entrenamiento PPO}
@@ -343,7 +452,7 @@ intervención:
     \item $\lambda_A$ y $\lambda_C$ ponderan la importancia relativa de recuperar rendimiento y reducir costo.
 \end{itemize}
 
-Conceptualmente, esta recompensa evita que el agente elija siempre
+La recompensa evita que el agente elija siempre
 \textit{Retrain all}. Una acción recibe mayor recompensa si recupera AUC con bajo
 costo relativo; recibe menor recompensa si recupera poco rendimiento o si incurre
 en un costo similar al reentrenamiento completo sin una mejora proporcional. Este
@@ -351,12 +460,112 @@ diseño sigue la motivación de mantenimiento consciente del costo: la mejor acc
 no es necesariamente la que maximiza rendimiento absoluto, sino la que ofrece el
 mejor balance entre recuperación y recursos \cite{mahadevan2024cost}.
 
+\subsection{Diseño del agente PPO}
+
 El agente se entrena con PPO, descrito en la Sección~\ref{sec:ppo}. En esta
 metodología, PPO no reemplaza al detector de drift; aprende una política sobre
-las señales producidas por el monitor. Su función es mejorar gradualmente la
-probabilidad de seleccionar acciones que producen mayor recompensa acumulada,
-manteniendo actualizaciones de política estables mediante el objetivo recortado
-\cite{schulman2017ppo}.
+las señales producidas por el monitor. Por ello, la entrada del agente no es el
+dataset completo ni las distribuciones reales $P_t(X)$ y $P_t(Y \mid X)$, sino
+el vector de observación $o_t$ definido en la Sección anterior. Este vector
+resume severidad estimada, señales de drift, degradación de AUC/F1 e historial
+reciente de costos. A partir de $o_t$, el agente produce una distribución
+categórica sobre las cuatro acciones de mantenimiento de la
+Tabla~\ref{tab:acciones_darl}.
+
+Formalmente, la política aprendida por PPO se interpreta como:
+
+\begin{equation}
+    \pi_{\theta}(a_t \mid o_t)
+    =
+    P(a_t = a \mid o_t; \theta),
+    \qquad
+    a_t \in \mathcal{A}.
+    \label{eq:darl_ppo_policy}
+\end{equation}
+
+\noindent\textbf{Donde:}
+\begin{itemize}
+    \item $\pi_{\theta}(a_t \mid o_t)$ representa la política estocástica del agente PPO.
+    \item $o_t$ representa el vector de observación disponible en el paso de decisión $t$.
+    \item $a_t$ representa la acción de mantenimiento seleccionada en el paso $t$.
+    \item $\theta$ representa los parámetros entrenables de la política.
+    \item $\mathcal{A}$ representa el conjunto de acciones de DARL: diferir, actualizar \textit{features}, actualizar modelo y reentrenar todo.
+\end{itemize}
+
+Esta política asigna mayor probabilidad a las acciones que han
+producido mejores recompensas en escenarios similares. Durante el entrenamiento,
+la selección puede ser estocástica para explorar alternativas; durante la
+evaluación final se usa la acción determinística de mayor probabilidad para
+analizar de forma estable el comportamiento aprendido.
+
+Además de la política, PPO estima una función de valor:
+
+\begin{equation}
+    V_{\psi}(o_t)
+    \approx
+    \mathbb{E}
+    \left[
+        \sum_{k=0}^{\infty}
+        \gamma^{k} r_{t+k}
+        \mid o_t
+        \right].
+    \label{eq:darl_ppo_value}
+\end{equation}
+
+\noindent\textbf{Donde:}
+\begin{itemize}
+    \item $V_{\psi}(o_t)$ representa la recompensa acumulada esperada desde la observación $o_t$.
+    \item $\psi$ representa los parámetros entrenables del crítico.
+    \item $\gamma$ representa el factor de descuento de recompensas futuras.
+    \item $r_{t+k}$ representa la recompensa recibida $k$ pasos después del paso $t$.
+\end{itemize}
+
+Conceptualmente, el crítico funciona como una línea base que permite estimar si
+una acción fue mejor o peor de lo esperado para una observación dada. Esta señal
+reduce la varianza de las actualizaciones de política y permite que PPO mejore
+la probabilidad de acciones útiles sin depender únicamente de recompensas
+instantáneas ruidosas \cite{sutton2018rl,schulman2017ppo}.
+
+En la implementación práctica con SB3, se usa \texttt{MlpPolicy} para
+parametrizar el actor y el crítico mediante redes neuronales densas. El entorno
+sigue la interfaz Gymnasium: \texttt{reset} inicializa un episodio de drift
+sintético, \texttt{step} aplica una acción, calcula la recompensa de la
+Ecuación~\ref{eq:darl_reward} y retorna la siguiente observación. Cada
+transición usada por PPO tiene la forma $(o_t, a_t, r_t, o_{t+1})$.
+
+\begin{table}[H]
+    \centering
+    \caption{Configuración práctica del agente PPO en la demo DARL}
+    \label{tab:ppo_config_darl}
+    \begin{tabular}{p{0.38\textwidth}p{0.50\textwidth}}
+        \hline
+        \textbf{Elemento}          & \textbf{Configuración}                                 \\
+        \hline
+        Algoritmo                  & PPO con \texttt{MlpPolicy}                             \\
+        Espacio de acciones        & Discreto, con cuatro acciones de mantenimiento         \\
+        Observación                & Señales resumidas de drift, desempeño y costos previos \\
+        Horizonte por episodio     & 100 pasos de decisión                                  \\
+        Evaluación final           & 50 episodios determinísticos                           \\
+        Dispositivo                & CPU                                                    \\
+        Semilla                    & 42                                                     \\
+        Factor de descuento        & $\gamma = 0.95$                                        \\
+        Tamaño de \textit{rollout} & 64 pasos                                               \\
+        Tamaño de lote             & 32 transiciones                                        \\
+        Épocas por actualización   & 5                                                      \\
+        \hline
+    \end{tabular}
+\end{table}
+
+La función del agente es mejorar gradualmente la probabilidad de seleccionar
+acciones que producen mayor recompensa acumulada, manteniendo actualizaciones de
+política estables mediante el objetivo recortado de PPO. Esta elección es
+adecuada para DARL porque el espacio de acciones es pequeño, la observación es
+parcial y ruidosa, y la recompensa combina recuperación predictiva con costo
+computacional. En consecuencia, el agente no memoriza una regla fija por tipo de
+drift; aprende una política aproximada que puede decidir, por ejemplo, diferir
+ante cambios leves, actualizar \textit{features} ante señales principalmente
+covariadas, actualizar el modelo ante señales conceptuales o reentrenar todo
+cuando la intervención parcial no compensa la degradación.
 
 % ------------------------------------------------------------
 \section{Métricas de evaluación}
@@ -369,4 +578,3 @@ pre-drift. Las métricas de cómputo incluyen tiempo de actualización, memoria
 máxima y costo relativo frente a \textit{Retrain all}. Esta separación permite
 responder dos preguntas distintas: si la acción corrige el deterioro y si lo
 hace con menos recursos que el reentrenamiento completo.
-

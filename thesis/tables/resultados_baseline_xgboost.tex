@@ -1,0 +1,38 @@
+\begin{table}[H]
+    \centering
+    \caption{Baseline empírico XGBoost para actualización selectiva en PhysioNet}
+    \label{tab:resultados_baseline_xgboost}
+    \scriptsize
+    \resizebox{\textwidth}{!}{%
+        \begin{tabular}{llrrrrrr}
+            \toprule
+            \raisebox{-0.7\normalbaselineskip}{\textbf{Condición}} &
+            \raisebox{-0.7\normalbaselineskip}{\textbf{Severidad}} &
+            \multicolumn{5}{c}{\textbf{\% Recuperación}} &
+            \raisebox{-0.7\normalbaselineskip}{\textbf{Acción óptima}} \\
+            \cmidrule(lr){3-7}
+                                &                    &
+            \textbf{A1}         & \textbf{A2}        & \textbf{A2c}          &
+            \textbf{A3}         & \textbf{A4}        &                         \\
+            \midrule
+            Covariate shift     & Leve               & 96.6                   & 95.4  & 95.5  & 98.0  & 98.1  & A1 \\
+            Covariate shift     & Moderada           & 90.6                   & 91.8  & 91.8  & 96.6  & 96.7  & A3 \\
+            Covariate shift     & Severa             & 84.9                   & 89.7  & 89.8  & 96.1  & 95.7  & A3 \\
+            Concept drift       & Leve               & 98.1                   & 100.0 & 100.0 & 99.9  & 100.0 & A2 \\
+            Concept drift       & Moderada           & 92.7                   & 82.8  & 92.7  & 96.6  & 96.6  & A1 \\
+            Concept drift       & Severa             & 86.3                   & 82.6  & 82.6  & 100.0 & 99.7  & A3 \\
+            Covariate + Concept & Moderada           & 87.6                   & 83.1  & 86.4  & 96.6  & 92.9  & A3 \\
+            Covariate + Concept & Severa             & 80.8                   & 88.4  & 88.5  & 95.7  & 96.2  & A3 \\
+            \bottomrule
+        \end{tabular}%
+    }
+    \vspace{1mm}
+    \begin{minipage}{0.96\textwidth}
+        \footnotesize
+        \textit{Nota.} Rec. indica AUC-ROC de la estrategia dividido entre el
+        AUC-ROC baseline ($0.7836$), multiplicado por 100. Los costos relativos
+        usados para seleccionar la acción óptima fueron: A1=$0.00x$,
+        A2=$0.12x$, A2c=$0.16x$, A3=$0.45x$ y A4=$1.00x$, todos normalizados
+        respecto al reentrenamiento completo.
+    \end{minipage}
+\end{table}

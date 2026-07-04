@@ -1,0 +1,19 @@
+\begin{table}[H]
+    \centering
+    \caption{Hiperparámetros usados en la demo PPO de DARL}
+    \label{tab:hiperparametros_ppo_demo}
+    \begin{tabular}{ll}
+        \toprule
+        \textbf{Elemento}                & \textbf{Valor usado}                 \\
+        \midrule
+        Política                         & \texttt{MlpPolicy}                   \\
+        Semilla                          & 42                                   \\
+        Longitud de episodio             & 100 pasos                            \\
+        Episodios de evaluación final    & 50                                   \\
+        Checkpoints de entrenamiento     & 0, 500, 1000, 1500, 2000, 2500, 3000 \\
+        Factor de descuento $\gamma$     & 0.95                                 \\
+        Peso de recuperación $\lambda_A$ & 1.00                                 \\
+        Peso de costo $\lambda_C$        & 0.25                                 \\
+        \bottomrule
+    \end{tabular}
+\end{table}

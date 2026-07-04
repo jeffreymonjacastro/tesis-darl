@@ -1,3 +1,154 @@
 \chapter{RESULTADOS PRELIMINARES}
 
-Puede ser incluido como un capítulo o puede ser una sección aparte dependiendo del enfoque del trabajo. Normalmente en un trabajo de revisión o mini revisión esta sección discute los hallazgos encontrados en el contexto de interés elaborando sugerencias y aportes al estado del arte y enfatizando la necesidad posterior de un trabajo que lleve de manera lógica a su trabajo de tesis a desarrollar. Esto podría también estar en la sección de conclusiones.
+Este capítulo presenta resultados preliminares de dos componentes de DARL. En
+primer lugar, se reporta la tabla de decisión empírica construida con XGBoost
+sobre PhysioNet, usada como baseline para comparar estrategias de actualización
+selectiva. En segundo lugar, se documenta una demostración práctica del agente
+PPO implementada con la librería Stable-Baselines3, cuyo objetivo es validar el ciclo de
+decisión POMDP descrito en el Capítulo III, mediante una validación inicial de consistencia
+metodológica.
+
+% ------------------------------------------------------------
+\section{Baseline empírico de actualización selectiva}
+% ------------------------------------------------------------
+
+En el primer experimento se entrena un
+\textit{pipeline} de dos etapas con XGBoost como modelo predictivo y se evalúan
+cinco estrategias ante drift sintético de distinta naturaleza y severidad. El
+AUC del modelo base antes de aplicar las perturbaciones fue $0.7836$; por
+ello, la recuperación se reporta como porcentaje relativo respecto a dicho
+baseline.
+
+La Tabla~\ref{tab:resultados_baseline_xgboost} resume los resultados principales
+de recuperación de AUC. Las acciones A1--A4 corresponden a las estrategias
+del espacio de decisión de DARL: diferir, actualizar \textit{features},
+actualizar modelo y reentrenar todo. La acción A2c se incluye como estrategia
+auxiliar correctiva como alternativa para el feature update. Lo que hace es crear
+un \textit{quantile map} que referencia los datos con drift con los originales
+para intentar corregir el drift. No forma parte del espacio de
+acciones del agente PPO.
+
+\input{tables/resultados_baseline_xgboost.tex}
+
+Los resultados muestran que el reentrenamiento completo (A4) no domina
+necesariamente la decisión. En drift leve, A1 puede ser óptima porque evita
+costo computacional y conserva una recuperación alta. En escenarios moderados o
+severos, A3 aparece con frecuencia como mejor compromiso entre recuperación de
+AUC y costo relativo: recupera gran parte del desempeño sin pagar el costo total
+de A4.
+
+También se observa que la estrategia A2 no siempre mejora el desempeño, aun
+cuando el drift contiene componentes covariados. Esto ocurre porque reajustar el
+preprocesamiento puede cambiar la representación de entrada sin corregir la
+relación aprendida por el modelo. En contraste, A3 es más robusta en los casos
+de drift severo o combinado, donde actualizar el modelo predictivo permite
+recuperar mejor la relación efectiva entre variables y etiqueta.
+Esto ocurre porque el modelo XGBoost realiza una normalización interna
+de los datos con drift, mejorando la inferencia del modelo a pesar de la falta
+de actualización de los features en A2. Por ello, actualizar el modelo (A3)
+tiende a superar a actualizar los features (A2) en casos de Covariate shift.
+
+Esta evidencia preliminar respalda la motivación central de DARL: la
+acción de mantenimiento debe elegirse por balance costo-beneficio y no solo por
+maximización del rendimiento absoluto.
+
+% ------------------------------------------------------------
+\section{Demostración PPO para la aproximación POMDP}
+% ------------------------------------------------------------
+
+El segundo resultado corresponde a la demostración de PPO para DARL. Esta
+demostración implementa una versión
+práctica y liviana del POMDP de DARL usando Stable-Baselines3. El agente no
+observa directamente el estado real de las distribuciones, sino un vector
+$o_t$ con señales resumidas de severidad, drift, degradación de AUC/F1 y costos
+históricos. A partir de esa observación, PPO selecciona una de cuatro acciones:
+\textit{Defer}, \textit{Update features}, \textit{Update model} o
+\textit{Retrain all}.
+
+\input{tables/hiperparametros_ppo_demo.tex}
+
+La evaluación determinística final se realizó sobre 50 episodios de 100 pasos
+cada uno, para un total de 5000 decisiones. El reward medio por paso fue
+$0.0334$ y el reward acumulado medio por episodio fue $3.3390$ con desviación
+estándar $0.4155$. La política final seleccionó principalmente
+\textit{Update features} en el $59.86\%$ de los pasos y \textit{Update model} en
+el $40.14\%$ restante; no seleccionó \textit{Defer} ni \textit{Retrain all} en
+esta evaluación final, ya que las estrategias A1 y A4 son los que tienen menor
+reward al ser escogido.
+
+\begin{figure}[H]
+    \centering
+    \subfigure[]{
+        \includegraphics[width=0.47\textwidth]{figures/generated/ppo_reward_episodio.pdf}
+    }
+    \hfill
+    \subfigure[]{
+        \includegraphics[width=0.47\textwidth]{figures/generated/ppo_reward_distribucion.pdf}
+    }
+    \caption{Resultados de reward acumulado en la evaluación PPO. La subfigura
+        (a) muestra el reward total obtenido en cada episodio junto con una
+        media móvil, mientras que la subfigura (b) resume la distribución del
+        reward acumulado entre episodios.}
+    \label{fig:ppo_reward_episodio_distribucion}
+\end{figure}
+
+La Figura~\ref{fig:ppo_reward_episodio_distribucion} resume la variabilidad del
+reward acumulado durante la evaluación final. La subfigura (a) muestra el
+reward total obtenido en cada episodio y una media móvil que permite observar la
+tendencia sin asumir monotonía. La curva se mantiene en valores positivos,
+aunque con fluctuaciones, lo cual es esperable porque cada episodio recorre una
+secuencia distinta de escenarios sintéticos de drift. La subfigura (b) muestra
+la distribución del reward acumulado; la concentración alrededor de valores
+positivos indica que la política aprendida tiende a obtener beneficio neto bajo
+la función de recompensa definida, pero todavía conserva dispersión entre
+episodios.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.98\textwidth]{figures/generated/step_reward_summary.pdf}
+    \caption{Reward promedio por paso durante la evaluación PPO}
+    \label{fig:ppo_reward_promedio_step}
+\end{figure}
+
+La Figura~\ref{fig:ppo_reward_promedio_step} presenta el reward promedio por
+paso agregado sobre los 50 episodios. Esta gráfica no debe interpretarse como
+una curva de aprendizaje temporal dentro del episodio. En esta demo, cada paso
+corresponde a un escenario de drift sintético, no a una dinámica física donde el
+estado necesariamente mejora con el tiempo. Por ello, las oscilaciones reflejan
+variabilidad entre escenarios y severidades. La media suavizada y la banda de
+error estándar ayudan a distinguir la señal promedio del ruido de evaluación.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.98\textwidth]{figures/generated/cumulative_step_reward_summary.pdf}
+    \caption{Reward acumulado promedio por paso durante la evaluación PPO}
+    \label{fig:ppo_reward_acumulado_step}
+\end{figure}
+
+La Figura~\ref{fig:ppo_reward_acumulado_step} muestra la suma acumulada de los
+rewards medios por paso. A diferencia del reward puntual, esta visualización
+permite observar si la política conserva un beneficio agregado positivo a lo
+largo del episodio. La trayectoria creciente indica que, en promedio, las
+acciones seleccionadas generan más recuperación ponderada por costo que pérdida
+neta. Esta evidencia es coherente con el objetivo práctico de la demo: verificar
+que PPO aprende una política útil bajo observaciones parciales, sin forzar una
+mejora monotónica del reward en cada paso individual.
+
+% ------------------------------------------------------------
+\section{Lectura preliminar}
+% ------------------------------------------------------------
+
+En conjunto, los resultados preliminares sugieren que la actualización selectiva
+es metodológicamente plausible para DARL. La tabla empírica muestra que la
+acción óptima cambia según tipo y severidad de drift, y que el costo computacional
+puede cambiar la decisión incluso cuando una estrategia obtiene mayor AUC
+absoluto. La demo PPO, por su parte, verifica que un agente puede aprender una
+política sobre señales resumidas y seleccionar acciones parciales con reward
+positivo promedio.
+
+La principal limitación es que la demo PPO usa escenarios sintéticos
+deterministas y livianos, diseñados para validar el flujo POMDP y no para
+demostrar convergencia definitiva. La comparación empírica completa deberá
+integrar los resultados del baseline XGBoost con una evaluación del agente sobre
+escenarios derivados directamente del experimento PhysioNet, manteniendo la
+misma definición de recuperación de AUC y costo relativo.
