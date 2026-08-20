@@ -1,3 +1,95 @@
-\customchapter{CONCLUSIONES} 
+\customchapter{CONCLUSIONES}
 
-Lorem ipsum dolor sit amet, dicant volutpat vulputate sea at. Et nam volumus voluptua, ea noster omnesque has. Qui ut graeci melius platonem. Sit fugit prompta dignissim cu. Soluta meliore repudiare vis in, eum id liber maiestatis contentiones.
+\section*{Conclusiones principales}
+
+El desarrollo permitió consolidar la motivación central de DARL:
+el mantenimiento de un \textit{pipeline} tabular de dos etapas no debe decidirse
+únicamente a partir de la caída de rendimiento, sino considerando conjuntamente
+el tipo de drift, su severidad, la etapa afectada y el costo computacional de
+cada intervención. La revisión de literatura muestra que los trabajos existentes
+abordan partes del problema ---diagnóstico de drift, reentrenamiento consciente
+del costo o estrategias de \textit{self-healing}---, pero no integran de forma
+explícita el diagnóstico de \textit{covariate shift} y \textit{concept drift}
+con acciones selectivas sobre preprocesamiento y modelo predictivo dentro de un
+mismo espacio de decisión.
+
+El marco teórico y metodológico desarrollado formaliza esta brecha como un
+problema de decisión parcialmente observable. En DARL, el agente no observa
+directamente las distribuciones reales $P_t(X)$ ni $P_t(Y \mid X)$, sino señales
+derivadas de métricas de monitoreo, degradación de desempeño y costos históricos.
+Esta formulación es coherente con el comportamiento esperado de sistemas reales
+de ML, donde las decisiones de mantenimiento se toman bajo incertidumbre, con
+información incompleta y con restricciones de cómputo. Además, separar las
+acciones en \textit{Defer}, \textit{Update features}, \textit{Update model} y
+\textit{Retrain all} permite estudiar el \textit{pipeline} como un sistema
+compuesto, en lugar de tratar el preprocesamiento y el modelo como componentes
+independientes.
+
+Los resultados preliminares sobre PhysioNet con XGBoost respaldan esta
+motivación de manera inicial. La tabla empírica de actualización selectiva
+muestra que el reentrenamiento completo no domina en todos los escenarios, aun
+cuando puede alcanzar un rendimiento alto. En varios casos, una acción parcial
+recupera una proporción similar del AUC con menor costo relativo. Esto sugiere
+que la acción óptima depende del balance entre recuperación y recursos, no solo
+del mayor AUC absoluto. Asimismo, los resultados muestran que actualizar solo
+\textit{features} no siempre mejora el desempeño, porque modificar la
+representación de entrada puede desalinear al modelo predictivo si la relación
+aprendida entre variables y etiqueta no se corrige.
+
+La demostración PPO implementada con Stable-Baselines3 valida la consistencia
+inicial del ciclo POMDP propuesto. El agente aprende una política sobre
+observaciones resumidas y, durante la evaluación determinística, selecciona
+acciones parciales con reward promedio positivo. Esta evidencia no debe
+interpretarse como una prueba definitiva de superioridad frente a otros métodos,
+porque la demo usa escenarios sintéticos, deterministas y livianos. Sin embargo,
+sí muestra que la formulación es ejecutable, que el espacio de acciones es
+compatible con aprendizaje por refuerzo y que la función de recompensa captura
+el trade-off entre recuperación predictiva y costo computacional.
+
+En síntesis, se deja establecido el diseño conceptual, matemático y
+experimental de DARL, junto con una primera validación empírica de plausibilidad.
+El principal aprendizaje es que la actualización selectiva debe evaluarse como
+una decisión contextual sobre el \textit{pipeline} completo: el mismo patrón de
+drift puede justificar acciones distintas según severidad, costo relativo y
+efecto conjunto entre Stage 1 y Stage 2. Por ello, la contribución de DARL no se
+limita a detectar drift, sino a transformar esas señales en una decisión de
+mantenimiento consciente del costo.
+
+\section*{Trabajo futuro}
+
+El trabajo debe convertir esta validación preliminar en una evaluación
+empírica completa. La primera línea de trabajo consiste en ejecutar el flujo
+experimental completo sobre los dos conjuntos de datos definidos en el alcance:
+\texttt{physionet} y \texttt{diabetes\_readmission}. Esto implica generar
+escenarios de \textit{covariate shift}, \textit{concept drift} y drift combinado
+en severidades controladas, repetir las corridas con semillas fijas y reportar
+recuperación de AUC, F1-score, tiempo de actualización y memoria máxima bajo una
+misma definición de costo relativo.
+
+La segunda línea de trabajo es comparar DARL contra estrategias alternativas.
+Además de la tabla empírica actual, se deben incluir \textit{baselines} como
+reentrenar todo siempre, diferir siempre, actualizar solo \textit{features} con
+reglas fijas, actualizar solo el modelo con reglas fijas, políticas basadas en
+umbrales de drift/AUC y un clasificador supervisado que prediga directamente una
+de las cuatro acciones a partir de señales de drift, AUC/F1 y costos. Esta
+comparación permitirá separar si el beneficio proviene del contexto de dos
+etapas, de la función de recompensa o simplemente de una regla de decisión más
+sencilla.
+
+La tercera línea de trabajo es fortalecer la evaluación visual y cuantitativa
+del trade-off costo--rendimiento. En particular, se deben incorporar gráficos de
+costo agregado frente a desempeño agregado, incluyendo rangos mínimos y máximos
+por episodio o escenario. Este tipo de visualización permitiría comparar la
+política DARL contra el baseline de reentrenamiento completo y contra reglas por
+umbral, mostrando si una recuperación similar puede obtenerse con menor costo
+computacional.
+
+Finalmente, se debe mejorar la fidelidad del entorno de aprendizaje por
+refuerzo. La demo actual valida la mecánica de inferencia, pero los pasos del
+episodio todavía representan escenarios sintéticos independientes. Para
+justificar con mayor fuerza el uso de RL frente a un clasificador supervisado,
+el entorno debe incorporar dependencia temporal más explícita: historial de
+acciones, costos acumulados, persistencia del drift y consecuencias futuras de
+diferir o reentrenar. Con ello, DARL podría evaluarse no solo como selector de
+acciones inmediatas, sino como una política secuencial de mantenimiento para
+\textit{pipelines} tabulares bajo drift.

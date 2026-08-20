@@ -50,7 +50,16 @@ tiende a superar a actualizar los features (A2) en casos de Covariate shift.
 
 Esta evidencia preliminar respalda la motivación central de DARL: la
 acción de mantenimiento debe elegirse por balance costo-beneficio y no solo por
-maximización del rendimiento absoluto.
+maximización del rendimiento absoluto. Es decir, la decisión no debe reducirse
+a ordenar las acciones por el mayor AUC
+recuperado. Si ese fuera el único criterio, el reentrenamiento completo (A4)
+tendería a imponerse por ser la acción más exhaustiva; sin embargo, los tiempos
+de ejecución normalizados muestran que esta mejora marginal puede no compensar
+su costo. En XGBoost, A3 alcanza una recuperación de $96.6\%$ frente a
+$96.7\%$ de A4 en \textit{covariate shift} moderado, pero con un costo relativo
+de $0.45x$ frente a $1.00x$. Por ello, el criterio relevante para DARL no es escoger la
+acción con máximo rendimiento aislado, sino aquella que entrega suficiente
+recuperación por unidad de costo computacional.
 
 % ------------------------------------------------------------
 \section{Demostración PPO para la aproximación POMDP}
@@ -73,8 +82,16 @@ $0.0334$ y el reward acumulado medio por episodio fue $3.3390$ con desviación
 estándar $0.4155$. La política final seleccionó principalmente
 \textit{Update features} en el $59.86\%$ de los pasos y \textit{Update model} en
 el $40.14\%$ restante; no seleccionó \textit{Defer} ni \textit{Retrain all} en
-esta evaluación final, ya que las estrategias A1 y A4 son los que tienen menor
-reward al ser escogido.
+esta evaluación final. Esto indica que, bajo la función de recompensa definida
+en la Ecuación~\ref{eq:darl_reward}, los extremos del espacio de acciones
+resultan menos atractivos que las actualizaciones selectivas. A1
+(\textit{Defer}) tiene costo computacional nulo, pero cuando el drift produce
+degradación de AUC no recupera desempeño y por tanto recibe poca recompensa. En
+el otro extremo, A4 (\textit{Retrain all}) puede recuperar rendimiento, pero
+también concentra el mayor costo de tiempo y memoria; si su ganancia adicional
+frente a A2 o A3 es marginal, la penalización de costo reduce su reward neto.
+El trade-off aprendido por PPO favorece entonces acciones parciales que
+recuperan suficiente desempeño sin pagar el costo completo del reentrenamiento.
 
 \begin{figure}[H]
     \centering
@@ -97,11 +114,18 @@ reward acumulado durante la evaluación final. La subfigura (a) muestra el
 reward total obtenido en cada episodio y una media móvil que permite observar la
 tendencia sin asumir monotonía. La curva se mantiene en valores positivos,
 aunque con fluctuaciones, lo cual es esperable porque cada episodio recorre una
-secuencia distinta de escenarios sintéticos de drift. La subfigura (b) muestra
-la distribución del reward acumulado; la concentración alrededor de valores
-positivos indica que la política aprendida tiende a obtener beneficio neto bajo
-la función de recompensa definida, pero todavía conserva dispersión entre
-episodios.
+secuencia distinta de escenarios sintéticos de drift. En particular, la demo
+combina tres condiciones: \textit{covariate shift}, \textit{concept drift} y
+drift combinado; cada una aparece con severidad baja, media y alta, codificada
+como $0.25$, $0.60$ y $0.90$, respectivamente. Estos escenarios no representan
+un único experimento fijo, sino una mezcla controlada de estados donde cambian
+las señales de PSI/KS/C2ST, la caída de AUC/F1 y el costo esperado de cada
+acción. Por ello, la variación entre episodios refleja que PPO enfrenta
+secuencias distintas de tipo y severidad de drift, no ruido de una sola curva de
+aprendizaje. La subfigura (b) muestra la distribución del reward acumulado; la
+concentración alrededor de valores positivos indica que la política aprendida
+tiende a obtener beneficio neto bajo la función de recompensa definida, pero
+todavía conserva dispersión entre episodios.
 
 \begin{figure}[H]
     \centering
@@ -111,12 +135,16 @@ episodios.
 \end{figure}
 
 La Figura~\ref{fig:ppo_reward_promedio_step} presenta el reward promedio por
-paso agregado sobre los 50 episodios. Esta gráfica no debe interpretarse como
-una curva de aprendizaje temporal dentro del episodio. En esta demo, cada paso
-corresponde a un escenario de drift sintético, no a una dinámica física donde el
-estado necesariamente mejora con el tiempo. Por ello, las oscilaciones reflejan
-variabilidad entre escenarios y severidades. La media suavizada y la banda de
-error estándar ayudan a distinguir la señal promedio del ruido de evaluación.
+paso agregado sobre los 50 episodios. Esta gráfica representa la fase de
+inferencia o evaluación determinística de una política PPO ya entrenada, no el
+periodo de aprendizaje del agente. Por tanto, no debe interpretarse como una
+curva de entrenamiento donde el reward necesariamente aumenta con el tiempo. En
+esta demo, cada paso corresponde a un escenario de drift sintético distinto, no
+a una dinámica física donde el estado deba mejorar de forma progresiva. Por
+ello, las oscilaciones reflejan variabilidad entre escenarios y severidades, así
+como la respuesta de la política aprendida ante cada observación. La media
+suavizada y la banda de error estándar ayudan a distinguir la señal promedio del
+ruido de evaluación.
 
 \begin{figure}[H]
     \centering
@@ -144,11 +172,35 @@ acción óptima cambia según tipo y severidad de drift, y que el costo computac
 puede cambiar la decisión incluso cuando una estrategia obtiene mayor AUC
 absoluto. La demo PPO, por su parte, verifica que un agente puede aprender una
 política sobre señales resumidas y seleccionar acciones parciales con reward
-positivo promedio.
+positivo promedio. Estos resultados no prueban todavía superioridad frente a
+otros métodos, pero sí delimitan la hipótesis que debe validarse: la decisión de
+mantenimiento debe depender simultáneamente del tipo de drift, la degradación de
+desempeño y el costo relativo de intervenir cada etapa.
+
+Esta lectura también justifica por qué DARL modela el \textit{pipeline} de dos
+etapas como una decisión conjunta y no como dos decisiones independientes. La
+etapa de preprocesamiento no produce un efecto aislado: al actualizar
+\textit{features}, cambia la representación que recibe el modelo predictivo. Por
+ello, una corrección de Stage 1 puede reducir señales de \textit{covariate shift},
+pero también desalinear al modelo si la relación aprendida entre
+variables y etiqueta no se actualiza. De forma análoga, actualizar solo Stage 2
+puede ser suficiente ante señales conceptuales, pero no necesariamente corrige
+una representación de entrada degradada. El contexto conjunto beneficia la
+decisión porque permite evaluar cada acción por su efecto final sobre el
+\textit{pipeline} completo: recuperación de AUC/F1, costo de tiempo y memoria, y
+compatibilidad entre la representación producida por Stage 1 y la función
+predictiva aprendida por Stage 2.
 
 La principal limitación es que la demo PPO usa escenarios sintéticos
 deterministas y livianos, diseñados para validar el flujo POMDP y no para
-demostrar convergencia definitiva. La comparación empírica completa deberá
-integrar los resultados del baseline XGBoost con una evaluación del agente sobre
-escenarios derivados directamente del experimento PhysioNet, manteniendo la
-misma definición de recuperación de AUC y costo relativo.
+demostrar convergencia definitiva ni superioridad empírica. Como se desprende de
+la brecha identificada en el Capítulo I, la validación completa deberá comparar
+DARL contra estrategias externas y \textit{baselines} más simples: reentrenar
+todo siempre, diferir siempre o aplicar umbrales simples de no acción, actualizar
+solo \textit{features} con una regla fija, actualizar solo el modelo con una
+regla fija, usar políticas basadas en umbrales de drift/AUC y entrenar un
+clasificador supervisado que prediga una de las cuatro acciones a partir de
+señales de drift, AUC/F1 y costos. Esa comparación deberá mantener la misma
+definición de recuperación de AUC y costo relativo para separar qué parte del
+beneficio proviene del contexto de dos etapas y qué parte proviene únicamente de
+la regla de decisión usada.
