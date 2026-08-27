@@ -20,10 +20,10 @@ tesis-darl/
 │       ├── context7-mcp/
 │       ├── latex-thesis/
 │       ├── formula-explanation/
-│       ├── literature-review/
 │       ├── experiment-workflow/
 │       ├── results-to-latex/
 │       ├── python-style/
+│       ├── tikz-diagrams/
 │       └── citation-rules/
 ├── thesis/
 │   ├── chapters/
@@ -66,8 +66,7 @@ tesis-darl/
 
 Reglas de trabajo:
 
-- `thesis/` contiene la tesis en LaTeX. Mantener la redacción académica en
-  español y no editar manualmente archivos generados.
+- `thesis/` contiene la tesis en LaTeX. Mantener la redacción académica en español y no editar manualmente archivos generados.
 - Cuando se agreguen fórmulas en la tesis, usar el patrón: fórmula, `Donde:`,
   explicación de símbolos y explicación conceptual.
 - `code/` contiene el paquete Python y experimentos. El código Python debe ser
