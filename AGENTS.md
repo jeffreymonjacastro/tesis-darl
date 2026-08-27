@@ -20,10 +20,10 @@ tesis-darl/
 │       ├── context7-mcp/
 │       ├── latex-thesis/
 │       ├── formula-explanation/
-│       ├── literature-review/
 │       ├── experiment-workflow/
 │       ├── results-to-latex/
 │       ├── python-style/
+│       ├── tikz-diagrams/
 │       └── citation-rules/
 ├── thesis/
 │   ├── chapters/
