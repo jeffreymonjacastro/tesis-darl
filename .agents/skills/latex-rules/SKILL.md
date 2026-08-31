@@ -19,13 +19,6 @@ Usar esta skill al crear, revisar o integrar contenido de la tesis DARL. Mantene
 
 - Para bibliografía, afirmaciones sustentadas o ecuaciones, leer [citas y fórmulas](references/citations-and-formulas.md).
 - Para diseñar evidencia experimental que se entregará a la tesis, validar resultados o exportar tablas/figuras, leer [evidencia y artefactos](references/evidence-and-artifacts.md).
-
-## Reglas editoriales y de evidencia
-
-- No inventar cifras, fuentes, claves BibTeX, resultados o cobertura experimental. Si falta evidencia, dejar texto metodológico o un marcador explícito que indique qué falta.
-- Preservar la notación vigente de DARL y diferenciar covariate shift, concept drift y performance drift. Definir cualquier símbolo nuevo.
-- Distinguir métricas de utilidad del pipeline (recuperación de AUC, calidad de la decisión/política, retorno y costo) de diagnósticos internos de entrenamiento PPO. Estos últimos no prueban por sí solos la eficacia de DARL.
-- Al incorporar una tabla o figura, dejar trazabilidad entre archivo fuente en `outputs/`, artefacto curado en `thesis/` y afirmación que lo interpreta.
 - Evitar reescrituras amplias ante una edición localizada. Antes de borrar o mover artefactos existentes, confirmar su uso mediante referencias e `git status`.
 
 ## Límites
