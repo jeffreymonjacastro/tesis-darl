@@ -1,48 +1,33 @@
 ---
 name: latex-rules
-description: Editar, revisar, estructurar y compilar automáticamente el informe de LaTeX en español académico. Usar cuando Antigravity deba modificar secciones, estilo argumentativo, numeración, referencias cruzadas, figuras, tablas o consistencia formal del informe. Se compilará el documento usando latexmk de forma obligatoria tras cada cambio.
+description: "Edita y valida la tesis DARL en LaTeX: redacción académica, estructura, citas, fórmulas y la incorporación trazable de resultados experimentales en tablas y figuras. Usar para cambios que llegan a thesis/; no para desarrollar experimentos sin una entrega para la tesis."
 ---
 
-# latex-rules
+# Escritura LaTeX para la tesis DARL
 
-## Alcance
+Usar esta skill al crear, revisar o integrar contenido de la tesis DARL. Mantener una cadena de evidencia: resultados reproducibles en `outputs/` antes de tablas, figuras o afirmaciones empíricas en `thesis/`.
 
-Trabajar solo sobre fuentes LaTeX versionables dentro del repositorio, especialmente en la carpeta `thesis`, en las subcarpetas `thesis/main.tex`, `thesis/sections/`, `thesis/tables/`, `thesis/figures` e `thesis/images/`.
+## Flujo común
 
-No editar manualmente archivos auxiliares generados en `build/`. Tras cada cambio en los archivos fuente del informe o `main.tex`, se debe ejecutar obligatoriamente la compilación con latexmk para validar que el documento compila sin errores y mantener el PDF actualizado en `build/`.
+1. Revisar `git status --short`, el archivo fuente y el contexto antes de editar o mover contenido.
+2. Seguir la estructura y convenciones reales del repositorio; consultar [estructura de la tesis](references/thesis-structure.md) para cambios de organización, inclusiones, figuras, tablas o compilación.
+3. Redactar en español académico: afirmación clara, evidencia verificable e implicación. No presentar diseño metodológico, diagnósticos internos o resultados preliminares como hallazgos concluyentes.
+4. Mantener etiquetas, citas y comandos existentes salvo que estén rotos. Usar etiquetas únicas y referencias cruzadas (`\label`, `\ref`, `\eqref`) en lugar de numeración escrita a mano.
+5. Tras modificar fuentes LaTeX, compilar desde `thesis/` con `latexmk -pdf -outdir=build main.tex`. Corregir errores propios y reportar los errores externos que impidan compilar.
 
-## Flujo
+## Rutas especializadas
 
-1. Revisar `git status --short` antes de mover, borrar o sobrescribir contenido.
-2. Leer el archivo `.tex` y el contexto cercano antes de proponer cambios.
-3. Mantener redacción académica en español, con tono formal, preciso y directo.
-4. Preservar la terminología del proyecto: MLOps, Amazon Bedrock, AWS Lambda, AWS Step Functions, Amazon Athena, Amazon QuickSight, SPICE, Dataset QuickSight, Gini, Population Stability Index (PSI), volumetría, calidad de datos, data drift, reproceso inteligente, auto-sanación (self-healing), Time To Recovery (TTR), Centro de Excelencia de Analítica (ACoE), Interbank.
-5. Evitar reescrituras amplias si el usuario pide modificar una sección puntual.
-6. Mantener etiquetas, citas y comandos LaTeX existentes salvo que estén claramente rotos.
+- Para bibliografía, afirmaciones sustentadas o ecuaciones, leer [citas y fórmulas](references/citations-and-formulas.md).
+- Para diseñar evidencia experimental que se entregará a la tesis, validar resultados o exportar tablas/figuras, leer [evidencia y artefactos](references/evidence-and-artifacts.md).
 
-## Estilo del informe
+## Reglas editoriales y de evidencia
 
-- El documento utiliza la clase de documento `article`. Por lo tanto, no se usan capítulos (`\chapter`), sino secciones (`\section`), subsecciones (`\subsection`), subsubsecciones (`\subsubsection`), etc.
-- Usar párrafos con tesis clara, evidencia y cierre conceptual.
-- Evitar promesas empíricas que aún no estén implementadas o evaluadas.
-- Distinguir claramente entre el diagnóstico de drift/vacíos en Athena, la orquestación del reproceso mediante Step Functions, la actualización del dataset en QuickSight, y la fase de notificación.
-- Cuando se mencione una contribución o justificación, conectarla con la eficiencia operativa (ej. ahorro de horas-hombre, reducción del TTR) y el mandato regulatorio (SBS).
+- No inventar cifras, fuentes, claves BibTeX, resultados o cobertura experimental. Si falta evidencia, dejar texto metodológico o un marcador explícito que indique qué falta.
+- Preservar la notación vigente de DARL y diferenciar covariate shift, concept drift y performance drift. Definir cualquier símbolo nuevo.
+- Distinguir métricas de utilidad del pipeline (recuperación de AUC, calidad de la decisión/política, retorno y costo) de diagnósticos internos de entrenamiento PPO. Estos últimos no prueban por sí solos la eficacia de DARL.
+- Al incorporar una tabla o figura, dejar trazabilidad entre archivo fuente en `outputs/`, artefacto curado en `thesis/` y afirmación que lo interpreta.
+- Evitar reescrituras amplias ante una edición localizada. Antes de borrar o mover artefactos existentes, confirmar su uso mediante referencias e `git status`.
 
-## Figuras y tablas
+## Límites
 
-- Para insertar imágenes o figuras, **usar el comando personalizado correspondiente** (ej. `\figura` o el macro definido en la tesis):
-  `\figura{nombre_archivo}{descripción_caption}{etiqueta_label}`
-- **Organización de archivos y carpetas obligatoria**:
-  - Las **imágenes y figuras manuales/diagramas** deben guardarse en `thesis/figures/manual/`.
-  - Las **figuras generadas por código/experimentos** deben guardarse primero en `outputs/figures/` y luego exportarse a `thesis/figures/generated/`.
-  - Las **tablas generadas por código/experimentos** deben guardarse primero en `outputs/tables/` y luego exportarse a `thesis/tables/generated/`.
-  - No colocar archivos de imágenes, figuras o tablas sueltos en la raíz de `thesis/` o en carpetas no autorizadas.
-- Para diagramas o flujogramas complejos, usar TikZ. Asegurarse de cargar e incluir la librería babel (`\usetikzlibrary{babel}`) si se usan nodos de texto en español para evitar colisiones de caracteres especiales.
-- No inventar resultados numéricos. Si faltan datos o KPIs, dejar texto metodológico o un marcador explícito para el usuario.
-
-## Compilación y Validación
-
-- Tras cada modificación del informe o de `main.tex`, **ejecutar obligatoriamente el siguiente comando** para compilar el documento y verificar que no hay errores de sintaxis o referencias rotas:
-  `latexmk -pdf -outdir=build main.tex`
-- Asegurarse de que el PDF y los metadatos auxiliares se escriban en la carpeta `build/` sin generar archivos auxiliares huérfanos en la raíz.
-- Si la compilación falla (por ejemplo, por paquetes o archivos faltantes), se debe corregir el problema de inmediato y reportarlo.
+Esta skill gobierna la escritura y la evidencia que llega a `thesis/`. Para cambios de implementación que no produzcan un artefacto o una afirmación para la tesis, trabajar con las reglas de Python o del experimento aplicables, sin forzar una edición LaTeX.
