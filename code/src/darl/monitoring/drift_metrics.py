@@ -1,8 +1,9 @@
 """
-darl.evaluation.drift_metrics
+darl.monitoring.drift_metrics
 ------------------------------
-Drift metrics for numeric and categorical variables.
+Drift metrics for monitoring data drift.
 """
+
 import numpy as np
 import pandas as pd
 from scipy import stats
@@ -11,6 +12,7 @@ EPS = 1e-10
 
 
 # ─── Numeric ──────────────────────────────────────────────────────────────────
+
 
 def ks_stat(before: pd.Series, after: pd.Series) -> dict:
     """Two-sample KS test."""
@@ -30,11 +32,16 @@ def psi_numeric(before: pd.Series, after: pd.Series, n_bins: int = 10) -> float:
 
 # ─── Categorical ──────────────────────────────────────────────────────────────
 
+
 def _align(p0: pd.Series, p1: pd.Series) -> tuple[np.ndarray, np.ndarray]:
     """Align two frequency series to same index, fill missing with EPS."""
     idx = p0.index.union(p1.index)
-    a = np.asarray(p0.reindex(idx, fill_value=0).to_numpy(dtype=np.float64), dtype=np.float64) + float(EPS)
-    b = np.asarray(p1.reindex(idx, fill_value=0).to_numpy(dtype=np.float64), dtype=np.float64) + float(EPS)
+    a = np.asarray(
+        p0.reindex(idx, fill_value=0).to_numpy(dtype=np.float64), dtype=np.float64
+    ) + float(EPS)
+    b = np.asarray(
+        p1.reindex(idx, fill_value=0).to_numpy(dtype=np.float64), dtype=np.float64
+    ) + float(EPS)
     return a / a.sum(), b / b.sum()
 
 

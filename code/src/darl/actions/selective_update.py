@@ -65,6 +65,81 @@ def apply_reference_quantile_map(
     return out
 
 
+def fit_reference_location_scale_map(
+    source_df: pd.DataFrame,
+    reference_df: pd.DataFrame,
+    cols: list[str],
+    *,
+    robust: bool = False,
+) -> dict[str, tuple[float, float, float, float]]:
+    """Learn source-to-reference location and scale corrections per column.
+
+    When ``robust`` is false, each correction matches mean and standard
+    deviation.  When true, it matches median and interquartile range (IQR),
+    which is less sensitive to Beta-injected extreme values.  The fitted
+    statistics use no labels and do not alter the predictive model.
+    """
+    maps: dict[str, tuple[float, float, float, float]] = {}
+
+    for col in cols:
+        if col not in source_df.columns or col not in reference_df.columns:
+            continue
+
+        source = source_df[col].dropna().to_numpy(dtype=float)
+        reference = reference_df[col].dropna().to_numpy(dtype=float)
+        if len(source) < 2 or len(reference) < 2:
+            continue
+
+        if robust:
+            source_location = float(np.median(source))
+            reference_location = float(np.median(reference))
+            source_scale = float(np.subtract(*np.percentile(source, [75, 25])))
+            reference_scale = float(
+                np.subtract(*np.percentile(reference, [75, 25]))
+            )
+        else:
+            source_location = float(np.mean(source))
+            reference_location = float(np.mean(reference))
+            source_scale = float(np.std(source))
+            reference_scale = float(np.std(reference))
+
+        if source_scale > np.finfo(float).eps and reference_scale > 0:
+            maps[col] = (
+                source_location,
+                source_scale,
+                reference_location,
+                reference_scale,
+            )
+
+    return maps
+
+
+def apply_reference_location_scale_map(
+    df: pd.DataFrame,
+    maps: dict[str, tuple[float, float, float, float]],
+) -> pd.DataFrame:
+    """Align mapped columns to reference location and scale, preserving NaNs."""
+    out = df.copy()
+
+    for col, (
+        source_location,
+        source_scale,
+        reference_location,
+        reference_scale,
+    ) in maps.items():
+        values = out[col].to_numpy(dtype=float, copy=True)
+        mask = np.isfinite(values)
+        values[mask] = (
+            (values[mask] - source_location)
+            / source_scale
+            * reference_scale
+            + reference_location
+        )
+        out[col] = values
+
+    return out
+
+
 def run_a1(
     df_drifted_target,
     qt,

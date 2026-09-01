@@ -1,4 +1,4 @@
-from darl.evaluation.drift_metrics import (
+from darl.monitoring.drift_metrics import (
     ks_stat,
     psi_numeric,
     psi_categorical,

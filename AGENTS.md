@@ -92,7 +92,7 @@ Reglas de trabajo:
   checkpoint, builds de LaTeX ni resultados temporales.
 - Antes de borrar o mover contenido existente, revisar el estado de Git y
   preservar cambios del usuario.
-- Cualquier script temporal o de prueba debe ir en `.temp/` y no versionarse. No subir scripts de prueba a `code/src/darl/`.
+- Cualquier script temporal o de prueba debe ir en `.tmp/` y no versionarse. No subir scripts de prueba a `code/src/darl/`.
 
 ### Requirements
 
