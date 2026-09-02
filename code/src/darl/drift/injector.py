@@ -22,7 +22,7 @@ import scipy.stats as stats
 
 from darl.types.types import _NumericMeta, _CatMeta, _LabelMeta
 
-from darl.evaluation import (
+from darl.monitoring import (
     ks_stat,
     psi_numeric,
     psi_categorical,

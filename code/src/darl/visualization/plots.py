@@ -30,7 +30,9 @@ def plot_beta_distributions(
     for i, col in enumerate(columns):
         ax = axes[i]
 
-        α, β, _, data_scaled, col_min, col_max = beta_distribution(data, col)
+        α, β, _, data_scaled, col_min, col_max = beta_distribution(
+            data[col].dropna(), EPS=1e-6
+        )
 
         # Histograma de datos reales
         ax.hist(

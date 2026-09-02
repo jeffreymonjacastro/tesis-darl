@@ -16,7 +16,15 @@ def passthrough_preprocessor() -> PreprocessorConfig:
 
 
 def load_dataset(dataset_name: str):
-    """Load a TableShift dataset by name and return it."""
+    """
+    Load a TableShift dataset by name
+
+    input:
+    - dataset_name: str, name of the dataset to load
+
+    output:
+    - dataset: TableShift dataset object
+    """
     project_root = find_project_root()
     cache_dir = project_root / "data" / "raw" / "tableshift_cache"
 
