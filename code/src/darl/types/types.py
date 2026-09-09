@@ -42,3 +42,15 @@ class _LabelMeta:
     before_prevalence: float
     after_prevalence: float
     extra: dict = field(default_factory=dict)
+
+
+@dataclass
+class _ConceptMeta:
+    col: str  # label column name
+    mechanism: str  # "logit_shift" | "noise_control"
+    drift_severity: float
+    p_flip_mean: float
+    n_flipped: int
+    before_prevalence: float
+    after_prevalence: float
+    extra: dict = field(default_factory=dict)
