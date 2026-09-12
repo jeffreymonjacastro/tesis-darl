@@ -27,6 +27,13 @@ from darl.types.types import _ConceptMeta
 
 EPS = 1e-6
 
+# Log-odds added to the intercept per unit of severity in "logit_shift_recentered".
+# Rare-outcome tasks (e.g. sepsis at ~1.2% prevalence) sit deep in the sigmoid's
+# saturated region, where amplifying only the slope (plain "logit_shift") barely
+# moves any probability. Shifting the intercept too moves the whole population off
+# the floor, so the same slope amplification actually changes predictions.
+INTERCEPT_SHIFT_SCALE = 3.0
+
 
 def _sigmoid(x: np.ndarray) -> np.ndarray:
     return 1.0 / (1.0 + np.exp(-x))
@@ -111,7 +118,21 @@ class ConceptDriftInjector:
         ----------
         df_target : DataFrame to perturb.
         severity : float — drift severity (0 = no drift).
-        mechanism : "logit_shift" | "noise_control"
+        mechanism : "logit_shift" | "logit_shift_recentered" | "logit_reweight" |
+            "logit_reweight_recentered" | "noise_control"
+            "logit_shift"/"logit_shift_recentered" amplify the *same* learned
+            relationship (stronger, more prevalent) — a frozen model's AUC does
+            not degrade under these, since the drifted labels stay a monotonic
+            function of the frozen score. "logit_reweight" instead rotates the
+            relationship itself: at severity=0 it's the original coefficients,
+            at severity=0.5 all variables carry zero weight (relationship
+            vanishes), at severity=1 the relationship is fully inverted — but
+            with a rare outcome most rows still sit at the sigmoid floor, so the
+            effect is weak in absolute AUC terms. "logit_reweight_recentered"
+            combines the reweighting with the same intercept shift as
+            "logit_shift_recentered" to also lift rows off the floor, giving a
+            frozen model's AUC a much more pronounced, ordered degradation
+            toward — and past — 0.5.
         """
         if self.label_col is None:
             raise RuntimeError("ConceptDriftInjector must be fit() before transform().")
@@ -123,14 +144,29 @@ class ConceptDriftInjector:
 
         logit0 = self._logit0(df)
 
-        if mechanism == "logit_shift":
+        if mechanism in ("logit_shift", "logit_shift_recentered"):
             delta = logit0 - self.intercept_
-            logit_new = logit0 + severity * delta
+            intercept_shift = severity * INTERCEPT_SHIFT_SCALE if mechanism == "logit_shift_recentered" else 0.0
+            logit_true = logit0 + intercept_shift + severity * delta
             p0 = _sigmoid(logit0)
-            p_new = _sigmoid(logit_new)
-            p_flip = np.abs(p_new - p0)
+            p_true = _sigmoid(logit_true)
+            p_flip = np.abs(p_true - p0)
             resample_mask = self._rng.binomial(1, p_flip).astype(bool)
-            resampled_labels = self._rng.binomial(1, p_new)
+            resampled_labels = self._rng.binomial(1, p_true)
+            y_drift = np.where(resample_mask, resampled_labels, y)
+        elif mechanism in ("logit_reweight", "logit_reweight_recentered"):
+            Z = self._standardize(df)
+            coefs0 = pd.Series(self.coef_)
+            mix_factor = 1.0 - 2.0 * severity  # 0->1 (original), 0.5->0 (no relation), 1->-1 (inverted)
+            intercept_shift = severity * INTERCEPT_SHIFT_SCALE if mechanism == "logit_reweight_recentered" else 0.0
+            logit_true = (
+                self.intercept_ + intercept_shift + Z.mul(coefs0 * mix_factor).sum(axis=1)
+            ).to_numpy()
+            p0 = _sigmoid(logit0)
+            p_true = _sigmoid(logit_true)
+            p_flip = np.abs(p_true - p0)
+            resample_mask = self._rng.binomial(1, p_flip).astype(bool)
+            resampled_labels = self._rng.binomial(1, p_true)
             y_drift = np.where(resample_mask, resampled_labels, y)
         elif mechanism == "noise_control":
             p_flip_scalar = 0.45 * severity
