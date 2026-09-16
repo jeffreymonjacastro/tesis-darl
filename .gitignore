@@ -281,3 +281,7 @@ literature/papers/*
 !literature/papers/README.md
 
 .gemini/antigravity/brain/*
+asesorias/audio/*
+code/src/notebooks/outputs/
+kaggle/audio_to_script/*/outputs/*
+!kaggle/audio_to_script/*/outputs/.gitkeep
