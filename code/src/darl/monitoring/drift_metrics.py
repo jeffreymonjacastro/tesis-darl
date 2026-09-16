@@ -16,16 +16,28 @@ EPS = 1e-10
 
 def ks_stat(before: pd.Series, after: pd.Series) -> dict:
     """Two-sample KS test."""
-    stat, pval = stats.ks_2samp(before.dropna(), after.dropna())
+    clean_before = before.dropna()
+    clean_after = after.dropna()
+    if clean_before.empty or clean_after.empty:
+        return {"ks_stat": 0.0, "ks_pval": 1.0}
+    stat, pval = stats.ks_2samp(clean_before, clean_after)
     return {"ks_stat": stat, "ks_pval": pval}
 
 
 def psi_numeric(before: pd.Series, after: pd.Series, n_bins: int = 10) -> float:
-    """PSI over equal-width bins computed from *before* distribution."""
-    lo, hi = before.min(), before.max()
-    bins = np.linspace(lo, hi, n_bins + 1)
-    p0 = np.histogram(before.dropna(), bins=bins)[0] / len(before.dropna()) + EPS
-    p1 = np.histogram(after.dropna(), bins=bins)[0] / len(after.dropna()) + EPS
+    """PSI using reference quantile bins with open extreme intervals."""
+    b_clean = before.dropna().to_numpy(dtype=float)
+    a_clean = after.dropna().to_numpy(dtype=float)
+    if len(b_clean) == 0 or len(a_clean) == 0:
+        return 0.0
+    bins = np.unique(np.quantile(b_clean, np.linspace(0.0, 1.0, n_bins + 1)))
+    if len(bins) < 2:
+        return 0.0
+    bins = bins.astype(float)
+    bins[0] = -np.inf
+    bins[-1] = np.inf
+    p0 = np.histogram(b_clean, bins=bins)[0] / len(b_clean) + EPS
+    p1 = np.histogram(a_clean, bins=bins)[0] / len(a_clean) + EPS
     p0, p1 = p0 / p0.sum(), p1 / p1.sum()
     return float(np.sum((p1 - p0) * np.log(p1 / p0)))
 
