@@ -11,8 +11,6 @@ import pandas as pd
 from sklearn.model_selection import train_test_split
 from darl.utils import find_project_root
 
-from tableshift import get_dataset
-from tableshift.core.features import PreprocessorConfig
 
 SEED = 42
 PHYSIONET_RELATIVE_ROOT = Path(
@@ -47,6 +45,7 @@ class PatientSplit:
 
 def passthrough_preprocessor() -> Any:
     """Return a TableShift preprocessor that preserves original columns."""
+    from tableshift.core.features import PreprocessorConfig
 
     return PreprocessorConfig(
         categorical_features="passthrough",
@@ -57,6 +56,7 @@ def passthrough_preprocessor() -> Any:
 
 def load_dataset(dataset_name: str):
     """Load a conventional TableShift dataset by name."""
+    from tableshift import get_dataset
     cache_dir = find_project_root() / "data" / "raw" / "tableshift_cache"
 
     return get_dataset(

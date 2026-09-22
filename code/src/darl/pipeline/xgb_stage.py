@@ -21,16 +21,18 @@ class XGBStage2:
         learning_rate: float = 0.05,
         seed: int = 42,
         n_jobs: int = -1,
+        device: str = "cpu",
     ):
         self.n_estimators = int(n_estimators)
         self.max_depth = int(max_depth)
         self.learning_rate = float(learning_rate)
         self.seed = int(seed)
         self.n_jobs = int(n_jobs)
+        self.device = device
         self.model: XGBClassifier | None = None
         self.feature_names_: list[str] | None = None
 
-    def fit(self, X: np.ndarray | pd.DataFrame, y: np.ndarray) -> "XGBStage2":
+    def fit(self, X: np.ndarray | pd.DataFrame, y: np.ndarray, sample_weight: np.ndarray | None = None) -> "XGBStage2":
         """Fit the binary classifier and retain optional feature names."""
         labels = np.asarray(y)
         classes, counts = np.unique(labels, return_counts=True)
@@ -49,8 +51,9 @@ class XGBStage2:
             scale_pos_weight=float(scale_pos_weight),
             random_state=self.seed,
             n_jobs=self.n_jobs,
+            device=self.device,
         )
-        self.model.fit(X, labels)
+        self.model.fit(X, labels, sample_weight=sample_weight)
         return self
 
     def _require_model(self) -> XGBClassifier:

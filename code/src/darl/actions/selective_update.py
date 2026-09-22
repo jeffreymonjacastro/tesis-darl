@@ -165,6 +165,7 @@ def _new_xgb_like(model: XGBStage2, seed: int) -> XGBStage2:
         learning_rate=model.learning_rate,
         seed=seed,
         n_jobs=model.n_jobs,
+        device=model.device,
     )
 
 
