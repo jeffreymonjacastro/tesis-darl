@@ -8,32 +8,21 @@ La estructura autorizada del proyecto es:
 
 ```text
 tesis-darl/
-├── AGENTS.md
-├── README.md
-├── .gitignore
 ├── .temp/
-├── pyproject.toml
-├── uv.lock
 ├── .agents/
 │   └── skills/
-│       ├── kaggle/
+│       ├── book-to-skill/
+│       ├── commit-message-writer/
 │       ├── context7-mcp/
-│       ├── latex-thesis/
-│       ├── formula-explanation/
-│       ├── experiment-workflow/
-│       ├── results-to-latex/
+│       ├── darl-papers/
+│       ├── git-change-publisher/
+│       ├── kaggle/
+│       ├── latex-rules/
+│       ├── maker/
 │       ├── python-style/
-│       ├── tikz-diagrams/
-│       └── citation-rules/
-├── thesis/
-│   ├── chapters/
-│   ├── figures/
-│   │   ├── manual/
-│   │   └── generated/
-│   ├── tables/
-│   │   └── generated/
-│   ├── styles/
-│   └── build/
+│       ├── rl-book/
+│       └── tikz-diagrams/
+├── asesorias/
 ├── code/
 │   ├── src/
 │   │   ├── darl/
@@ -45,12 +34,18 @@ tesis-darl/
 │   │   │   ├── evaluation/
 │   │   │   └── visualization/
 │   │   └── notebooks/
-│   ├── experiments/
-│   │   └── configs/
 │   └── tests/
 ├── data/
 │   ├── raw/
 │   └── processed/
+├── kaggle/
+│   └── vn/
+│       ├── inputs/
+│       └── outputs/
+├── literature/
+│   ├── papers/
+│   ├── notes/
+│   └── bibtex/
 ├── outputs/
 │   ├── data_profiling/
 │   ├── models/
@@ -58,10 +53,21 @@ tesis-darl/
 │   ├── logs/
 │   ├── figures/
 │   └── tables/
-└── literature/
-    ├── papers/
-    ├── notes/
-    └── bibtex/
+├── plan/
+├── thesis/
+│   ├── build/
+│   ├── encabezados/
+│   ├── figures/
+│   │   ├── generated/
+│   │   └── manual/
+│   ├── images/
+│   ├── secciones/
+│   └── tables/
+├── .gitignore
+├── AGENTS.md
+├── pyproject.toml
+├── README.md
+└── uv.lock
 ```
 
 Reglas de trabajo:
@@ -86,7 +92,7 @@ Reglas de trabajo:
   checkpoint, builds de LaTeX ni resultados temporales.
 - Antes de borrar o mover contenido existente, revisar el estado de Git y
   preservar cambios del usuario.
-- Cualquier script temporal o de prueba debe ir en `.temp/` y no versionarse. No subir scripts de prueba a `code/src/darl/`.
+- Cualquier script temporal o de prueba debe ir en `.tmp/` y no versionarse. No subir scripts de prueba a `code/src/darl/`.
 
 ### Requirements
 

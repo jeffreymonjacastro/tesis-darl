@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import warnings
+
 import pandas as pd
 from sklearn.impute import SimpleImputer
 from sklearn.linear_model import LogisticRegression
@@ -40,7 +42,13 @@ def apply_stage1(
 ) -> pd.DataFrame:
     """Apply QT over vitals, then impute and scale numeric columns."""
     out = apply_qt(df, qt, vitals)
-    x_imp = imputer.transform(out[numeric_cols])
+    with warnings.catch_warnings():
+        warnings.filterwarnings(
+            "ignore",
+            message="Skipping features without any observed values",
+            category=UserWarning,
+        )
+        x_imp = imputer.transform(out[numeric_cols])
     out[numeric_cols] = scaler.transform(x_imp)
     return out
 
@@ -53,7 +61,7 @@ def fit_stage1(
 ) -> tuple[QuantileTransformer, SimpleImputer, StandardScaler]:
     """Fit QT on vitals, then median imputer and scaler on numeric columns."""
     qt = QuantileTransformer(
-        n_quantiles=500,
+        n_quantiles=min(500, max(2, len(df_fit))),
         output_distribution="normal",
         random_state=seed,
     )
@@ -61,10 +69,15 @@ def fit_stage1(
     qt.fit(df_fit[vitals_present])
 
     df_qt = apply_qt(df_fit, qt, vitals)
-    imputer = SimpleImputer(strategy="median")
-    imputer.fit(df_qt[numeric_cols])
-
+    imputer = SimpleImputer(strategy="median", keep_empty_features=True)
+    with warnings.catch_warnings():
+        warnings.filterwarnings(
+            "ignore",
+            message="Skipping features without any observed values",
+            category=UserWarning,
+        )
+        imputer.fit(df_qt[numeric_cols])
+        x_imp = imputer.transform(df_qt[numeric_cols])
     scaler = StandardScaler()
-    x_imp = imputer.transform(df_qt[numeric_cols])
     scaler.fit(x_imp)
     return qt, imputer, scaler

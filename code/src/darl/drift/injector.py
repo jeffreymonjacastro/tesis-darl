@@ -16,13 +16,14 @@ summary = inj.summary(metadata)
 
 from typing import Any
 
+import copy
 import numpy as np
 import pandas as pd
 import scipy.stats as stats
 
 from darl.types.types import _NumericMeta, _CatMeta, _LabelMeta
 
-from darl.evaluation import (
+from darl.monitoring import (
     ks_stat,
     psi_numeric,
     psi_categorical,
@@ -39,6 +40,12 @@ BETA_TARGETS = {
     "low": (2.0, 5.0),
     "central": (8.0, 8.0),
     "extreme": (0.5, 0.5),
+}
+
+SCENARIOS = {
+    "localized": {"feature_fraction": 0.2, "selection_strategy": "important"},
+    "control": {"feature_fraction": 0.2, "selection_strategy": "random"},
+    "stress": {"feature_fraction": 1.0, "selection_strategy": "all"},
 }
 
 
@@ -74,10 +81,19 @@ class DriftInjector:
 
         for col in self._numeric_cols:
             clean = df_train[col].dropna()
-            col_min, col_max = float(clean.min()), float(clean.max())
-            z = np.clip((clean - col_min) / (col_max - col_min + EPS), EPS, 1 - EPS)
-
-            a0, b0, _, _ = stats.beta.fit(z, floc=0, fscale=1)
+            if clean.empty:
+                col_min, col_max, a0, b0 = 0.0, 1.0, 1.0, 1.0
+            else:
+                col_min, col_max = float(clean.min()), float(clean.max())
+                z = np.clip(
+                    (clean - col_min) / (col_max - col_min + EPS),
+                    EPS,
+                    1 - EPS,
+                )
+                try:
+                    a0, b0, _, _ = stats.beta.fit(z, floc=0, fscale=1)
+                except (ValueError, RuntimeError):
+                    a0, b0 = 1.0, 1.0
 
             self._numeric_meta[col] = _NumericMeta(
                 col=col,
@@ -108,81 +124,63 @@ class DriftInjector:
         categorical_drift_config: dict[str, dict] | None = None,
         label_col: str | None = None,
         drift_type: str = "covariate",
+        selection_strategy: str = "all",
+        concept_drift_method: str = "label_flip_control",
+        important_features: list[str] | None = None,
+        feature_fraction: float = 1.0,
+        model_for_probs=None,
     ) -> tuple[pd.DataFrame, dict[str, Any]]:
-        """
-        Apply synthetic drift.
-
-        Parameters
-        ----------
-        df_target : DataFrame to perturb.
-        drift_severity : float in [0, 1] — drift severity.
-        numeric_drift_config : {col: direction} where direction ∈
-            {"high", "low", "central", "extreme"}.  Defaults to "high".
-        categorical_drift_config : {col: config_dict}.
-            Each config_dict may have keys:
-              strategy: "uniform" | "manual_boost" | "rare" | "swap_top"
-              increase: {cat: multiplier}   (manual_boost only)
-              decrease: {cat: multiplier}   (manual_boost only)
-        label_col : str | None
-            The binary label column name to apply label flipping to.
-        drift_type : "covariate" | "concept" | "both"
-            The type of drift to inject.
-        """
+        """Apply controlled drift without mutating fitted injector metadata."""
+        if not 0.0 <= drift_severity <= 1.0:
+            raise ValueError("drift_severity must be between zero and one")
+        if not 0.0 < feature_fraction <= 1.0:
+            raise ValueError("feature_fraction must be in (0, 1]")
+        if drift_type not in {"none", "covariate", "concept", "both"}:
+            raise ValueError(f"Unknown drift_type: {drift_type}")
         numeric_drift_config = numeric_drift_config or {}
         categorical_drift_config = categorical_drift_config or {}
 
         df = df_target.copy()
         metadata: dict[str, Any] = {}
+        numeric_before = {
+            col: df[col].copy() for col in self._numeric_cols if col in df.columns
+        }
 
-        # ── concept / label shift (label flipping) ──
-        if (
-            (drift_type in ("concept", "both"))
-            and label_col
-            and (label_col in df.columns)
-        ):
-            p_flip = 0.45 * drift_severity
-            before_prev = float(df[label_col].mean())
+        active_cols: list[str] = []
+        if drift_type in ("covariate", "both"):
+            n_select = max(1, int(len(self._numeric_cols) * feature_fraction))
+            if selection_strategy == "all":
+                active_cols = self._numeric_cols.copy()
+            elif selection_strategy == "random":
+                active_cols = self._rng.choice(
+                    self._numeric_cols, size=n_select, replace=False
+                ).tolist()
+            elif selection_strategy == "domain":
+                domain_cols = ["HR", "SBP", "MAP", "Resp", "Temp"]
+                active_cols = [c for c in self._numeric_cols if c in domain_cols]
+            elif selection_strategy == "important":
+                if not important_features:
+                    raise ValueError("important_features required for 'important' strategy")
+                active_cols = [c for c in important_features if c in self._numeric_cols][:n_select]
+            else:
+                raise ValueError(f"Unknown selection_strategy: {selection_strategy}")
 
-            n = len(df)
-            mask = self._rng.binomial(1, p_flip, n).astype(bool)
-            df.loc[mask, label_col] = 1 - df.loc[mask, label_col]
-
-            after_prev = float(df[label_col].mean())
-            metadata[label_col] = _LabelMeta(
-                col=label_col,
-                drift_severity=drift_severity,
-                p_flip=p_flip,
-                before_prevalence=before_prev,
-                after_prevalence=after_prev,
-                extra={"psi": 0.0},
-            )
-
-        # ── numeric ──
         if drift_type in ("covariate", "both"):
             for col in self._numeric_cols:
                 if col not in df.columns:
                     continue
-                meta = self._numeric_meta[col]
-                direction = numeric_drift_config.get(col, "high")
-                aq, bq = BETA_TARGETS[direction]
-                meta.direction, meta.alpha_q, meta.beta_q, meta.drift_severity = (
-                    direction,
-                    aq,
-                    bq,
-                    drift_severity,
-                )
-
-                before = df[col].copy()
-                df[col] = self._apply_numeric(df[col], meta, drift_severity)
-                after = df[col].copy()
-
-                meta.extra = {
-                    **ks_stat(before.dropna(), after.dropna()),
-                    "psi": psi_numeric(before.dropna(), after.dropna()),
-                }
+                meta = copy.deepcopy(self._numeric_meta[col])
+                if col in active_cols:
+                    direction = numeric_drift_config.get(col, "high")
+                    if direction not in BETA_TARGETS:
+                        raise ValueError(f"Unknown numeric drift direction: {direction}")
+                    aq, bq = BETA_TARGETS[direction]
+                    meta.direction, meta.alpha_q, meta.beta_q, meta.drift_severity = (
+                        direction, aq, bq, drift_severity
+                    )
+                    df[col] = self._apply_numeric(df[col], meta, drift_severity)
                 metadata[col] = meta
 
-        # ── categorical — resample rows ──
         if (
             (drift_type in ("covariate", "both"))
             and self._categorical_cols
@@ -193,7 +191,86 @@ class DriftInjector:
             )
             metadata.update(cat_metas)
 
+        if (
+            (drift_type in ("concept", "both"))
+            and label_col
+            and (label_col in df.columns)
+        ):
+            before_prev = float(df[label_col].mean())
+            n = len(df)
+            if concept_drift_method == "label_flip_control":
+                p_flip = 0.45 * drift_severity
+                mask = self._rng.binomial(1, p_flip, n).astype(bool)
+                df.loc[mask, label_col] = 1 - df.loc[mask, label_col]
+                strategy_str = f"label_flip_control (p={p_flip:.2f})"
+            elif concept_drift_method == "boundary_shift":
+                if model_for_probs is None:
+                    raise ValueError("model_for_probs required for boundary_shift")
+                y_prob = model_for_probs.predict_proba(df)[:, 1]
+                boundary_mask = (y_prob >= 0.4) & (y_prob <= 0.6)
+                flip_mask = boundary_mask & self._rng.binomial(
+                    1, drift_severity, n
+                ).astype(bool)
+                df.loc[flip_mask, label_col] = 1 - df.loc[flip_mask, label_col]
+                p_flip = float(flip_mask.mean())
+                strategy_str = f"boundary_shift (flips={flip_mask.sum()})"
+            elif concept_drift_method == "feature_swap":
+                swap_features = active_cols or [
+                    col for col in (important_features or []) if col in df.columns
+                ]
+                if not swap_features:
+                    raise ValueError("important_features required for feature_swap")
+                df, p_flip = self._apply_feature_swap(
+                    df, label_col, swap_features, drift_severity
+                )
+                strategy_str = f"feature_swap (fraction={p_flip:.2f})"
+            else:
+                raise ValueError(f"Unknown concept_drift_method: {concept_drift_method}")
+
+            after_prev = float(df[label_col].mean())
+            metadata[label_col] = _LabelMeta(
+                col=label_col,
+                drift_severity=drift_severity,
+                p_flip=float(p_flip),
+                before_prevalence=before_prev,
+                after_prevalence=after_prev,
+                extra={"psi": 0.0, "strategy": strategy_str},
+            )
+
+        for col, before in numeric_before.items():
+            meta = metadata.get(col, copy.deepcopy(self._numeric_meta[col]))
+            after = df[col]
+            meta.extra = {
+                **ks_stat(before.dropna(), after.dropna()),
+                "psi": psi_numeric(before.dropna(), after.dropna()),
+            }
+            metadata[col] = meta
+
         return df, metadata
+
+    def _apply_feature_swap(
+        self,
+        df: pd.DataFrame,
+        label_col: str,
+        features: list[str],
+        severity: float,
+    ) -> tuple[pd.DataFrame, float]:
+        """Swap selected feature values between binary label groups."""
+        out = df.copy()
+        class_zero = np.flatnonzero(out[label_col].to_numpy() == 0)
+        class_one = np.flatnonzero(out[label_col].to_numpy() == 1)
+        n_pairs = int(min(len(class_zero), len(class_one)) * severity)
+        if n_pairs == 0:
+            return out, 0.0
+        zero_idx = self._rng.choice(class_zero, size=n_pairs, replace=False)
+        one_idx = self._rng.choice(class_one, size=n_pairs, replace=False)
+        for feature in features:
+            zero_values = out.iloc[zero_idx][feature].to_numpy(copy=True)
+            one_values = out.iloc[one_idx][feature].to_numpy(copy=True)
+            column_index = out.columns.get_loc(feature)
+            out.iloc[zero_idx, column_index] = one_values
+            out.iloc[one_idx, column_index] = zero_values
+        return out, float(2 * n_pairs / len(out))
 
     # ─── Numeric internals ────────────────────────────────────────────────────
 
