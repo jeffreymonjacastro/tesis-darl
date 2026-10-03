@@ -1,0 +1,53 @@
+[{"stream_name":"stderr","time":7.6765753740000005,"data":"0.00s - Debugger warning: It seems that frozen modules are being used, which may\n"}
+,{"stream_name":"stderr","time":7.676657904,"data":"0.00s - make the debugger miss breakpoints. Please pass -Xfrozen_modules=off\n"}
+,{"stream_name":"stderr","time":7.676668549,"data":"0.00s - to python to disable frozen modules.\n"}
+,{"stream_name":"stderr","time":7.676672641,"data":"0.00s - Note: Debugging will proceed. Set PYDEVD_DISABLE_FILE_VALIDATION=1 to disable this validation.\n"}
+,{"stream_name":"stderr","time":8.290832436,"data":"0.00s - Debugger warning: It seems that frozen modules are being used, which may\n"}
+,{"stream_name":"stderr","time":8.290862997,"data":"0.00s - make the debugger miss breakpoints. Please pass -Xfrozen_modules=off\n"}
+,{"stream_name":"stderr","time":8.290868425,"data":"0.00s - to python to disable frozen modules.\n"}
+,{"stream_name":"stderr","time":8.290872542,"data":"0.00s - Note: Debugging will proceed. Set PYDEVD_DISABLE_FILE_VALIDATION=1 to disable this validation.\n"}
+,{"stream_name":"stdout","time":23.776026054,"data":"Filas: 1552210 | pacientes: 40336\n"}
+,{"stream_name":"stdout","time":27.659194552,"data":"Particiones disjuntas; prevalencia dummy: 0.467 | acuerdo y_dummy vs etapas: [0.63  0.505 0.792]\n"}
+,{"stream_name":"stdout","time":30.340657531,"data":"A-test AUC dummy: 0.9443\n"}
+,{"stream_name":"stdout","time":30.340682785,"data":"Costo en reward por acción: {'A1': 0.0, 'A2': 0.0086, 'A3': 0.0421, 'A4': 0.05}\n"}
+,{"stream_name":"stdout","time":38.451256938,"data":"Calibración B-train: 3.0 1.4 criterio: True\n"}
+,{"stream_name":"stdout","time":640.440217211,"data":"Estado: complete | gates: {'all_four_actions_functional': True, 'positive_dqn_return': True, 'dqn_above_a1_random_drift': True, 'oracle_near_rate_80pct': True, 'dqn_used_a2_and_a3': True, 'dqn_selected_four_actions': True, 'validation_converged': True, 'calibration_qualified': True}\n"}
+,{"stream_name":"stdout","time":640.44026605,"data":"Acciones DQN: {'A1': 36, 'A2': 16, 'A3': 5, 'A4': 3} | oracle: {'A1': 42, 'A2': 11, 'A3': 6, 'A4': 1}\n"}
+,{"stream_name":"stdout","time":640.440270788,"data":" scenario    policy  mean_auc  return  cost\n"}
+,{"stream_name":"stdout","time":640.440273902,"data":"   stable       dqn     0.940  14.106 0.000\n"}
+,{"stream_name":"stdout","time":640.440276827,"data":"   stable        A1     0.940  14.106 0.000\n"}
+,{"stream_name":"stdout","time":640.440279708,"data":"   stable        A2     0.936  13.906 0.132\n"}
+,{"stream_name":"stdout","time":640.440282543,"data":"   stable        A3     0.932  13.336 0.644\n"}
+,{"stream_name":"stdout","time":640.440285387,"data":"   stable        A4     0.933  13.196 0.792\n"}
+,{"stream_name":"stdout","time":640.440288138,"data":"   stable    random     0.932  13.539 0.435\n"}
+,{"stream_name":"stdout","time":640.440290893,"data":"   stable heuristic     0.940  14.106 0.000\n"}
+,{"stream_name":"stdout","time":640.440293584,"data":"covariate       dqn     0.876  13.008 0.069\n"}
+,{"stream_name":"stdout","time":640.440296266,"data":"covariate        A1     0.639   9.294 0.000\n"}
+,{"stream_name":"stdout","time":640.440298959,"data":"covariate        A2     0.879  12.993 0.135\n"}
+,{"stream_name":"stdout","time":640.440301648,"data":"covariate        A3     0.670   9.251 0.534\n"}
+,{"stream_name":"stdout","time":640.440304328,"data":"covariate        A4     0.880  12.381 0.763\n"}
+,{"stream_name":"stdout","time":640.440307097,"data":"covariate    random     0.844  12.143 0.434\n"}
+,{"stream_name":"stdout","time":640.440309797,"data":"covariate heuristic     0.880  12.985 0.153\n"}
+,{"stream_name":"stdout","time":640.440312498,"data":"  concept       dqn     0.884  13.051 0.164\n"}
+,{"stream_name":"stdout","time":640.440322398,"data":"  concept        A1     0.732  10.775 0.000\n"}
+,{"stream_name":"stdout","time":640.440324927,"data":"  concept        A2     0.723  10.477 0.148\n"}
+,{"stream_name":"stdout","time":640.44032707,"data":"  concept        A3     0.884  12.532 0.675\n"}
+,{"stream_name":"stdout","time":640.440329285,"data":"  concept        A4     0.885  12.455 0.764\n"}
+,{"stream_name":"stdout","time":640.440331437,"data":"  concept    random     0.854  12.274 0.449\n"}
+,{"stream_name":"stdout","time":640.440333593,"data":"  concept heuristic     0.887  13.126 0.131\n"}
+,{"stream_name":"stdout","time":640.440335744,"data":" combined       dqn     0.837  12.184 0.274\n"}
+,{"stream_name":"stdout","time":640.44033788,"data":" combined        A1     0.642   9.334 0.000\n"}
+,{"stream_name":"stdout","time":640.440340022,"data":" combined        A2     0.725  10.533 0.129\n"}
+,{"stream_name":"stdout","time":640.440342162,"data":" combined        A3     0.654   8.993 0.531\n"}
+,{"stream_name":"stdout","time":640.440344296,"data":" combined        A4     0.838  11.723 0.757\n"}
+,{"stream_name":"stdout","time":640.440346506,"data":" combined    random     0.794  11.333 0.432\n"}
+,{"stream_name":"stdout","time":640.440348669,"data":" combined heuristic     0.841  12.241 0.280\n"}
+,{"stream_name":"stderr","time":646.295529642,"data":"/usr/local/lib/python3.13/dist-packages/mistune.py:435: SyntaxWarning: invalid escape sequence '\\|'\n"}
+,{"stream_name":"stderr","time":646.295567224,"data":"  cells[i][c] = re.sub('\\\\\\\\\\|', '|', cell)\n"}
+,{"stream_name":"stderr","time":646.465320203,"data":"/usr/local/lib/python3.13/dist-packages/nbconvert/filters/filter_links.py:36: SyntaxWarning: invalid escape sequence '\\_'\n"}
+,{"stream_name":"stderr","time":646.465341801,"data":"  text = re.sub(r'_', '\\_', text) # Escape underscores in display text\n"}
+,{"stream_name":"stderr","time":647.23910587,"data":"[NbConvertApp] Converting notebook __notebook__.ipynb to notebook\n"}
+,{"stream_name":"stderr","time":647.324180727,"data":"[NbConvertApp] Writing 86991 bytes to __notebook__.ipynb\n"}
+,{"stream_name":"stderr","time":649.746841155,"data":"[NbConvertApp] Converting notebook __notebook__.ipynb to html\n"}
+,{"stream_name":"stderr","time":650.53011992,"data":"[NbConvertApp] Writing 606641 bytes to __results__.html\n"}
+]

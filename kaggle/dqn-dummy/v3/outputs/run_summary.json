@@ -1,0 +1,158 @@
+{
+  "status": "complete",
+  "stage": "done",
+  "version": "v3",
+  "seed": 42,
+  "device": "cuda",
+  "smoke": false,
+  "design": {
+    "stages": 3,
+    "onset": 5,
+    "stage_len": 4,
+    "cost_lambda": 0.05,
+    "train_cycle": [
+      "stable",
+      "covariate",
+      "concept",
+      "combined",
+      "covariate",
+      "concept",
+      "combined"
+    ],
+    "eps_decay_per_episode": 0.99,
+    "eps_min": 0.05,
+    "episodes": [
+      500,
+      1000
+    ],
+    "lr": [
+      0.0005,
+      5e-05
+    ],
+    "double_dqn": true,
+    "loss": "huber",
+    "select_window": 3,
+    "q_tie": 0.005
+  },
+  "versions": {
+    "python": "3.13.15",
+    "numpy": "2.1.3",
+    "pandas": "2.3.3",
+    "sklearn": "1.6.1",
+    "xgboost": "3.4.1",
+    "torch": "2.11.0+cu128"
+  },
+  "n_rows": 1552210,
+  "n_patients": 40336,
+  "partitions": {
+    "a_train": 14235,
+    "a_val": 3050,
+    "a_test": 3051,
+    "b_train": 12000,
+    "b_val": 4000,
+    "b_test": 4000
+  },
+  "dummy_prevalence": 0.4672415459248426,
+  "target_threshold": 0.14552979171276093,
+  "concept_thresholds": [
+    0.1490771770477295,
+    0.03910115361213684,
+    0.03970101475715637
+  ],
+  "concept_agreement_with_dummy": [
+    0.6296499829275678,
+    0.5054696207343079,
+    0.7918503295301538
+  ],
+  "a_test_auc": 0.9442830291729973,
+  "action_seconds_b_train": {
+    "A1": 9.400002909387695e-08,
+    "A2": 0.004818060999980389,
+    "A3": 0.02344884000001457,
+    "A4": 0.027870177000011154
+  },
+  "cost_unit_s": 0.027870177000011154,
+  "action_cost_units": {
+    "A1": 1.6863909600186488e-07,
+    "A2": 0.008643757447214025,
+    "A3": 0.04206797825504515,
+    "A4": 0.05
+  },
+  "offset_iqr": 3.0,
+  "scale": 1.4,
+  "calibration_qualified": true,
+  "episodes_done": 750,
+  "updates": 11187,
+  "best_validation_return": 13.172681991240161,
+  "selected_episode": 560,
+  "selected_smoothed_return": 13.094920878025716,
+  "episodes": 750,
+  "validation_variation": 0.00588349814274948,
+  "policy_stability": 0.9833333333333333,
+  "policy_stability_q_tie": 1.0,
+  "final_lr": 0.0001625,
+  "final_epsilon": 0.05,
+  "completed_scenarios": "combined",
+  "gates": {
+    "all_four_actions_functional": true,
+    "positive_dqn_return": true,
+    "dqn_above_a1_random_drift": true,
+    "oracle_near_rate_80pct": true,
+    "dqn_used_a2_and_a3": true,
+    "dqn_selected_four_actions": true,
+    "validation_converged": true,
+    "calibration_qualified": true
+  },
+  "dqn_action_counts": {
+    "A1": 36,
+    "A2": 16,
+    "A3": 5,
+    "A4": 3
+  },
+  "oracle_action_counts": {
+    "A1": 42,
+    "A2": 11,
+    "A3": 6,
+    "A4": 1
+  },
+  "dqn_oracle_match": 0.7166666666666667,
+  "oracle_near_rate": 0.9166666666666666,
+  "plots": [
+    "figures/01_ocupacion_recambio.png",
+    "figures/01_ocupacion_recambio.svg",
+    "figures/02_calendario_cambios.png",
+    "figures/02_calendario_cambios.svg",
+    "figures/03_monitoreo_ks_psi_auc.png",
+    "figures/03_monitoreo_ks_psi_auc.svg",
+    "figures/04_entrenamiento_retorno_epsilon.png",
+    "figures/04_entrenamiento_retorno_epsilon.svg",
+    "figures/05_auc_y_reward_politicas.png",
+    "figures/05_auc_y_reward_politicas.svg",
+    "figures/06_acciones_dqn.png",
+    "figures/06_acciones_dqn.svg",
+    "figures/07_utilidad_acciones_regret.png",
+    "figures/07_utilidad_acciones_regret.svg",
+    "figures/08_saturacion_y_recuperacion.png",
+    "figures/08_saturacion_y_recuperacion.svg"
+  ],
+  "files": [
+    "training_history.csv",
+    "daily_metrics.csv",
+    "actions.csv",
+    "action_audit.csv",
+    "policy_comparison.csv",
+    "calibration.csv",
+    "stage_calendar.csv"
+  ],
+  "training": {
+    "selected_episode": 560,
+    "selected_smoothed_return": 13.094920878025716,
+    "updates": 11187,
+    "episodes": 750,
+    "validation_variation": 0.00588349814274948,
+    "policy_stability": 0.9833333333333333,
+    "policy_stability_q_tie": 1.0,
+    "final_lr": 0.0001625,
+    "final_epsilon": 0.05
+  }
+}

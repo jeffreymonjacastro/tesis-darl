@@ -256,17 +256,25 @@ outputs/tables/*
 thesis/build/*
 !thesis/build/
 !thesis/build/README.md
-*.aux
-*.bbl
-*.bcf
-*.blg
-*.fdb_latexmk
-*.fls
-*.log
-*.out
-*.run.xml
-*.synctex.gz
-*.toc
+/thesis/**/*.aux
+/thesis/**/*.bbl
+/thesis/**/*.bcf
+/thesis/**/*.blg
+/thesis/**/*.fdb_latexmk
+/thesis/**/*.fls
+/thesis/**/*.log
+/thesis/**/*.out
+/thesis/**/*.run.xml
+/thesis/**/*.synctex.gz
+/thesis/**/*.toc
+/thesis/**/*.lof
+/thesis/**/*.lot
+/thesis/**/*.nav
+/thesis/**/*.snm
+/thesis/**/*.vrb
+/thesis/**/*.xdv
+/thesis/**/*.synctex(busy)
+/thesis/**/*.synctex.gz(busy)
 
 # --- tesis-darl: sistema operativo ---
 .DS_Store
@@ -283,5 +291,18 @@ literature/papers/*
 .gemini/antigravity/brain/*
 asesorias/audio/*
 code/src/notebooks/outputs/
-kaggle/audio_to_script/*/outputs/*
-kaggle/darl_dqn/*/outputs/*
+
+# Conservar los outputs de todas las versiones de Kaggle, incluidos sus logs.
+!/kaggle/**/outputs/
+!/kaggle/**/outputs/**
+
+# Las caches y temporales siguen excluidos dentro de los outputs de Kaggle.
+__pycache__/
+*.py[codz]
+*$py.class
+.ipynb_checkpoints/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.cache/
+.tmp/

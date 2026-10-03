@@ -1,0 +1,8 @@
+scenario,periodo,DQN,A1,ganancia
+stable,sin cambio,0.94,0.94,0.0
+covariate,con cambio,0.856,0.541,0.315
+covariate,sin cambio,0.936,0.936,0.0
+concept,con cambio,0.867,0.664,0.203
+concept,sin cambio,0.936,0.936,0.0
+combined,con cambio,0.804,0.544,0.26
+combined,sin cambio,0.936,0.936,0.0

@@ -1,0 +1,39 @@
+[{"stream_name":"stderr","time":7.596994817,"data":"0.00s - Debugger warning: It seems that frozen modules are being used, which may\n"}
+,{"stream_name":"stderr","time":7.597695226,"data":"0.00s - make the debugger miss breakpoints. Please pass -Xfrozen_modules=off\n"}
+,{"stream_name":"stderr","time":7.597700168,"data":"0.00s - to python to disable frozen modules.\n"}
+,{"stream_name":"stderr","time":7.5977028319999995,"data":"0.00s - Note: Debugging will proceed. Set PYDEVD_DISABLE_FILE_VALIDATION=1 to disable this validation.\n"}
+,{"stream_name":"stderr","time":8.226525006,"data":"0.00s - Debugger warning: It seems that frozen modules are being used, which may\n"}
+,{"stream_name":"stderr","time":8.226559568,"data":"0.00s - make the debugger miss breakpoints. Please pass -Xfrozen_modules=off\n"}
+,{"stream_name":"stderr","time":8.226563084,"data":"0.00s - to python to disable frozen modules.\n"}
+,{"stream_name":"stderr","time":8.226565647,"data":"0.00s - Note: Debugging will proceed. Set PYDEVD_DISABLE_FILE_VALIDATION=1 to disable this validation.\n"}
+,{"stream_name":"stdout","time":14.861550064,"data":"Montajes: ['datasets']\n"}
+,{"stream_name":"stdout","time":18.670634134,"data":"CUDA: Tesla T4 | parquet: physionet.parquet\n"}
+,{"stream_name":"stdout","time":18.686019012,"data":"{'state_dim': 28, 'actions': 4, 'hidden': 128, 'target_interval': 200, 'device': 'cuda'}\n"}
+,{"stream_name":"stderr","time":20.870173392,"data":"/usr/local/lib/python3.12/dist-packages/xgboost/core.py:751: UserWarning: [19:42:55] WARNING: /__w/xgboost/xgboost/src/common/error_msg.cc:62: Falling back to prediction using DMatrix due to mismatched devices. This might lead to higher memory usage and slower performance. XGBoost is running on: cuda:0, while the input data is on: cpu.\n"}
+,{"stream_name":"stderr","time":20.870214564,"data":"Potential solutions:\n"}
+,{"stream_name":"stderr","time":20.870220699,"data":"- Use a data structure that matches the device ordinal in the booster.\n"}
+,{"stream_name":"stderr","time":20.870225872,"data":"- Set the device for booster before call to inplace_predict.\n"}
+,{"stream_name":"stderr","time":20.870230977,"data":"\n"}
+,{"stream_name":"stderr","time":20.870235519,"data":"This warning will only be shown once.\n"}
+,{"stream_name":"stderr","time":20.870240583,"data":"\n"}
+,{"stream_name":"stderr","time":20.870245084,"data":"  return func(**kwargs)\n"}
+,{"stream_name":"stderr","time":20.870250008,"data":"\n"}
+,{"stream_name":"stderr","time":20.8702547,"data":"/usr/local/lib/python3.12/dist-packages/xgboost/core.py:751: UserWarning: [19:42:55] WARNING: /__w/xgboost/xgboost/src/common/error_msg.cc:62: Falling back to prediction using DMatrix due to mismatched devices. This might lead to higher memory usage and slower performance. XGBoost is running on: cuda:0, while the input data is on: cpu.\n"}
+,{"stream_name":"stderr","time":20.870261034,"data":"Potential solutions:\n"}
+,{"stream_name":"stderr","time":20.870265628,"data":"- Use a data structure that matches the device ordinal in the booster.\n"}
+,{"stream_name":"stderr","time":20.870270756,"data":"- Set the device for booster before call to inplace_predict.\n"}
+,{"stream_name":"stderr","time":20.870275573,"data":"\n"}
+,{"stream_name":"stderr","time":20.870280043,"data":"This warning will only be shown once.\n"}
+,{"stream_name":"stderr","time":20.870284713,"data":"\n"}
+,{"stream_name":"stderr","time":20.870289355,"data":"  return func(**kwargs)\n"}
+,{"stream_name":"stdout","time":109.146915668,"data":"{'status': 'complete', 'version': 'v1', 'n_test_runs': 20, 'dqn_updates': 0}\n"}
+,{"stream_name":"stdout","time":109.16144806,"data":"Archivos: ['__notebook__.ipynb', 'actions.csv', 'final_metrics.csv', 'final_metrics.partial.csv', 'learning_history.csv', 'predictions_clean_42.parquet', 'predictions_combined_42.parquet', 'predictions_label_42.parquet', 'predictions_measurement_42.parquet', 'run_summary.json']\n"}
+,{"stream_name":"stderr","time":115.020132114,"data":"/usr/local/lib/python3.12/dist-packages/mistune.py:435: SyntaxWarning: invalid escape sequence '\\|'\n"}
+,{"stream_name":"stderr","time":115.02016634,"data":"  cells[i][c] = re.sub('\\\\\\\\\\|', '|', cell)\n"}
+,{"stream_name":"stderr","time":115.183477182,"data":"/usr/local/lib/python3.12/dist-packages/nbconvert/filters/filter_links.py:36: SyntaxWarning: invalid escape sequence '\\_'\n"}
+,{"stream_name":"stderr","time":115.183526689,"data":"  text = re.sub(r'_', '\\_', text) # Escape underscores in display text\n"}
+,{"stream_name":"stderr","time":115.798012214,"data":"[NbConvertApp] Converting notebook __notebook__.ipynb to notebook\n"}
+,{"stream_name":"stderr","time":116.100679197,"data":"[NbConvertApp] Writing 11304 bytes to __notebook__.ipynb\n"}
+,{"stream_name":"stderr","time":118.440113575,"data":"[NbConvertApp] Converting notebook __notebook__.ipynb to html\n"}
+,{"stream_name":"stderr","time":119.248813306,"data":"[NbConvertApp] Writing 291809 bytes to __results__.html\n"}
+]
