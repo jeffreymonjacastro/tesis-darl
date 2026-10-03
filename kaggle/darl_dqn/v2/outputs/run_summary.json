@@ -1,0 +1,309 @@
+{
+  "status": "complete",
+  "version": "v2",
+  "device": "cuda",
+  "n_input_rows": 1552210,
+  "n_input_patients": 40336,
+  "n_beds": 200,
+  "days": 21,
+  "test_seeds": [
+    42,
+    43,
+    44,
+    45,
+    46
+  ],
+  "partitions": {
+    "a_train": 14235,
+    "a_val": 3050,
+    "a_test": 3051,
+    "b_train_update": 6000,
+    "b_train_eval": 6000,
+    "b_val_update": 2000,
+    "b_val_eval": 2000,
+    "b_test_update": 2000,
+    "b_test_eval": 2000
+  },
+  "a_metrics": {
+    "a_val": {
+      "prevalence": 0.021628874505270086,
+      "auprc_hour": 0.03551526015802698,
+      "auroc_hour": 0.623107947457981,
+      "auprc_patient": 0.05932846185527084,
+      "auroc_patient": 0.6456386057590058,
+      "physionet_utility_observed_segment": -0.11846118622724895
+    },
+    "a_test": {
+      "prevalence": 0.021620985963998623,
+      "auprc_hour": 0.041335007426130256,
+      "auroc_hour": 0.6405598054550208,
+      "auprc_patient": 0.07458114671920082,
+      "auroc_patient": 0.657611279727369,
+      "physionet_utility_observed_segment": -0.11497640459442413
+    }
+  },
+  "n_training_episodes": 12,
+  "n_test_runs": 100,
+  "dqn_updates": 219,
+  "selected_checkpoint": 1,
+  "test_aggregate": [
+    {
+      "scenario": "clean",
+      "policy": "a1",
+      "auprc_hour": 0.025394,
+      "auprc_patient": 0.041548,
+      "auroc_hour": 0.629074,
+      "physionet_utility_observed_segment": -0.751135,
+      "return": 0.0,
+      "n_updates": 0.0,
+      "time_s": 4e-05,
+      "drift_detection_day": 13.5
+    },
+    {
+      "scenario": "clean",
+      "policy": "a4",
+      "auprc_hour": 0.020199,
+      "auprc_patient": 0.033573,
+      "auroc_hour": 0.574182,
+      "physionet_utility_observed_segment": -0.396284,
+      "return": -4.76526,
+      "n_updates": 19.0,
+      "time_s": 6.844283,
+      "drift_detection_day": 13.5
+    },
+    {
+      "scenario": "clean",
+      "policy": "dqn",
+      "auprc_hour": 0.025394,
+      "auprc_patient": 0.041548,
+      "auroc_hour": 0.629074,
+      "physionet_utility_observed_segment": -0.751135,
+      "return": 0.0,
+      "n_updates": 0.0,
+      "time_s": 4.4e-05,
+      "drift_detection_day": 13.5
+    },
+    {
+      "scenario": "clean",
+      "policy": "random",
+      "auprc_hour": 0.02168,
+      "auprc_patient": 0.036105,
+      "auroc_hour": 0.575635,
+      "physionet_utility_observed_segment": -0.388527,
+      "return": -2.30186,
+      "n_updates": 11.2,
+      "time_s": 3.902295,
+      "drift_detection_day": 13.5
+    },
+    {
+      "scenario": "clean",
+      "policy": "threshold",
+      "auprc_hour": 0.025394,
+      "auprc_patient": 0.041548,
+      "auroc_hour": 0.629074,
+      "physionet_utility_observed_segment": -0.751135,
+      "return": 0.0,
+      "n_updates": 0.0,
+      "time_s": 4.3e-05,
+      "drift_detection_day": 13.5
+    },
+    {
+      "scenario": "combined",
+      "policy": "a1",
+      "auprc_hour": 0.029742,
+      "auprc_patient": 0.042078,
+      "auroc_hour": 0.628729,
+      "physionet_utility_observed_segment": -0.853627,
+      "return": 0.0,
+      "n_updates": 0.0,
+      "time_s": 3.9e-05,
+      "drift_detection_day": 14.0
+    },
+    {
+      "scenario": "combined",
+      "policy": "a4",
+      "auprc_hour": 0.025408,
+      "auprc_patient": 0.038982,
+      "auroc_hour": 0.591779,
+      "physionet_utility_observed_segment": -0.426394,
+      "return": -4.774415,
+      "n_updates": 19.0,
+      "time_s": 6.949675,
+      "drift_detection_day": 14.0
+    },
+    {
+      "scenario": "combined",
+      "policy": "dqn",
+      "auprc_hour": 0.029742,
+      "auprc_patient": 0.042078,
+      "auroc_hour": 0.628729,
+      "physionet_utility_observed_segment": -0.853627,
+      "return": 0.0,
+      "n_updates": 0.0,
+      "time_s": 3.7e-05,
+      "drift_detection_day": 14.0
+    },
+    {
+      "scenario": "combined",
+      "policy": "random",
+      "auprc_hour": 0.02688,
+      "auprc_patient": 0.041936,
+      "auroc_hour": 0.593368,
+      "physionet_utility_observed_segment": -0.406776,
+      "return": -2.244652,
+      "n_updates": 11.2,
+      "time_s": 3.979042,
+      "drift_detection_day": 14.0
+    },
+    {
+      "scenario": "combined",
+      "policy": "threshold",
+      "auprc_hour": 0.029742,
+      "auprc_patient": 0.042078,
+      "auroc_hour": 0.628729,
+      "physionet_utility_observed_segment": -0.853627,
+      "return": 0.0,
+      "n_updates": 0.0,
+      "time_s": 4e-05,
+      "drift_detection_day": 14.0
+    },
+    {
+      "scenario": "label",
+      "policy": "a1",
+      "auprc_hour": 0.030041,
+      "auprc_patient": 0.046206,
+      "auroc_hour": 0.620887,
+      "physionet_utility_observed_segment": -0.719033,
+      "return": 0.0,
+      "n_updates": 0.0,
+      "time_s": 3.6e-05,
+      "drift_detection_day": 14.0
+    },
+    {
+      "scenario": "label",
+      "policy": "a4",
+      "auprc_hour": 0.024604,
+      "auprc_patient": 0.038443,
+      "auroc_hour": 0.581062,
+      "physionet_utility_observed_segment": -0.367206,
+      "return": -4.769305,
+      "n_updates": 19.0,
+      "time_s": 6.904236,
+      "drift_detection_day": 14.0
+    },
+    {
+      "scenario": "label",
+      "policy": "dqn",
+      "auprc_hour": 0.030041,
+      "auprc_patient": 0.046206,
+      "auroc_hour": 0.620887,
+      "physionet_utility_observed_segment": -0.719033,
+      "return": 0.0,
+      "n_updates": 0.0,
+      "time_s": 4.1e-05,
+      "drift_detection_day": 14.0
+    },
+    {
+      "scenario": "label",
+      "policy": "random",
+      "auprc_hour": 0.025877,
+      "auprc_patient": 0.040551,
+      "auroc_hour": 0.582702,
+      "physionet_utility_observed_segment": -0.369549,
+      "return": -2.294763,
+      "n_updates": 11.2,
+      "time_s": 3.912672,
+      "drift_detection_day": 14.0
+    },
+    {
+      "scenario": "label",
+      "policy": "threshold",
+      "auprc_hour": 0.030041,
+      "auprc_patient": 0.046206,
+      "auroc_hour": 0.620887,
+      "physionet_utility_observed_segment": -0.719033,
+      "return": 0.0,
+      "n_updates": 0.0,
+      "time_s": 4.1e-05,
+      "drift_detection_day": 14.0
+    },
+    {
+      "scenario": "measurement",
+      "policy": "a1",
+      "auprc_hour": 0.023746,
+      "auprc_patient": 0.036682,
+      "auroc_hour": 0.620772,
+      "physionet_utility_observed_segment": -0.898759,
+      "return": 0.0,
+      "n_updates": 0.0,
+      "time_s": 3.8e-05,
+      "drift_detection_day": 13.5
+    },
+    {
+      "scenario": "measurement",
+      "policy": "a4",
+      "auprc_hour": 0.020041,
+      "auprc_patient": 0.033762,
+      "auroc_hour": 0.578594,
+      "physionet_utility_observed_segment": -0.461116,
+      "return": -4.770458,
+      "n_updates": 19.0,
+      "time_s": 6.947247,
+      "drift_detection_day": 13.5
+    },
+    {
+      "scenario": "measurement",
+      "policy": "dqn",
+      "auprc_hour": 0.023746,
+      "auprc_patient": 0.036682,
+      "auroc_hour": 0.620772,
+      "physionet_utility_observed_segment": -0.898759,
+      "return": 0.0,
+      "n_updates": 0.0,
+      "time_s": 4e-05,
+      "drift_detection_day": 13.5
+    },
+    {
+      "scenario": "measurement",
+      "policy": "random",
+      "auprc_hour": 0.021463,
+      "auprc_patient": 0.036796,
+      "auroc_hour": 0.57849,
+      "physionet_utility_observed_segment": -0.444788,
+      "return": -2.272785,
+      "n_updates": 11.2,
+      "time_s": 3.940367,
+      "drift_detection_day": 13.5
+    },
+    {
+      "scenario": "measurement",
+      "policy": "threshold",
+      "auprc_hour": 0.023746,
+      "auprc_patient": 0.036682,
+      "auroc_hour": 0.620772,
+      "physionet_utility_observed_segment": -0.898759,
+      "return": 0.0,
+      "n_updates": 0.0,
+      "time_s": 3.8e-05,
+      "drift_detection_day": 13.5
+    }
+  ],
+  "files": [
+    "final_metrics.csv",
+    "actions.csv",
+    "learning_history.csv"
+  ],
+  "limitations": [
+    "Simulated days are not calendar dates",
+    "Last observed row is not a confirmed discharge",
+    "Synthetic label drift has no clinical interpretation"
+  ],
+  "presentation_figures": [
+    "figures/01_camas_y_recambio.png",
+    "figures/02_rotacion_por_cama.png",
+    "figures/03_calendario_drift.png",
+    "figures/04_auprc_politicas.png",
+    "figures/05_recompensa_acumulada.png",
+    "figures/06_decisiones_dqn.png"
+  ]
+}

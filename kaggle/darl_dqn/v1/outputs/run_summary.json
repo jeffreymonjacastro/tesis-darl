@@ -1,0 +1,54 @@
+{
+  "status": "complete",
+  "version": "v1",
+  "device": "cuda",
+  "n_input_rows": 1552210,
+  "n_input_patients": 40336,
+  "n_beds": 200,
+  "days": 3,
+  "test_seeds": [
+    42
+  ],
+  "partitions": {
+    "a_train": 14235,
+    "a_val": 3050,
+    "a_test": 3051,
+    "b_train_update": 6000,
+    "b_train_eval": 6000,
+    "b_val_update": 2000,
+    "b_val_eval": 2000,
+    "b_test_update": 2000,
+    "b_test_eval": 2000
+  },
+  "a_metrics": {
+    "a_val": {
+      "prevalence": 0.021628874505270086,
+      "auprc_hour": 0.02787096701277087,
+      "auroc_hour": 0.5643788569182734,
+      "auprc_patient": 0.0418766523087467,
+      "auroc_patient": 0.5707177522934971,
+      "physionet_utility_observed_segment": -0.053179256922627725
+    },
+    "a_test": {
+      "prevalence": 0.021620985963998623,
+      "auprc_hour": 0.028809729878075074,
+      "auroc_hour": 0.574865666227051,
+      "auprc_patient": 0.047723910298054076,
+      "auroc_patient": 0.5760596826929205,
+      "physionet_utility_observed_segment": -0.03535494867522133
+    }
+  },
+  "n_training_episodes": 2,
+  "n_test_runs": 20,
+  "dqn_updates": 0,
+  "files": [
+    "final_metrics.csv",
+    "actions.csv",
+    "learning_history.csv"
+  ],
+  "limitations": [
+    "Simulated days are not calendar dates",
+    "Last observed row is not a confirmed discharge",
+    "Synthetic label drift has no clinical interpretation"
+  ]
+}
