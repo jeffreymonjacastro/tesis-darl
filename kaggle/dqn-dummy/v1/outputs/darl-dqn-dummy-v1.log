@@ -1,0 +1,51 @@
+[{"stream_name":"stderr","time":6.380123515,"data":"0.00s - Debugger warning: It seems that frozen modules are being used, which may\n"}
+,{"stream_name":"stderr","time":6.380170332,"data":"0.00s - make the debugger miss breakpoints. Please pass -Xfrozen_modules=off\n"}
+,{"stream_name":"stderr","time":6.380174412,"data":"0.00s - to python to disable frozen modules.\n"}
+,{"stream_name":"stderr","time":6.380176775,"data":"0.00s - Note: Debugging will proceed. Set PYDEVD_DISABLE_FILE_VALIDATION=1 to disable this validation.\n"}
+,{"stream_name":"stderr","time":6.965760272,"data":"0.00s - Debugger warning: It seems that frozen modules are being used, which may\n"}
+,{"stream_name":"stderr","time":6.965790015,"data":"0.00s - make the debugger miss breakpoints. Please pass -Xfrozen_modules=off\n"}
+,{"stream_name":"stderr","time":6.965795057,"data":"0.00s - to python to disable frozen modules.\n"}
+,{"stream_name":"stderr","time":6.965802357,"data":"0.00s - Note: Debugging will proceed. Set PYDEVD_DISABLE_FILE_VALIDATION=1 to disable this validation.\n"}
+,{"stream_name":"stdout","time":19.474848885,"data":"Filas: 1552210 | pacientes: 40336\n"}
+,{"stream_name":"stdout","time":22.709016576,"data":"Particiones disjuntas; prevalencia dummy: 0.467\n"}
+,{"stream_name":"stdout","time":24.87822488,"data":"A-test AUC dummy: 0.9443\n"}
+,{"stream_name":"stdout","time":31.395267036,"data":"Calibración B-train: 3.0 1.4 criterio: True\n"}
+,{"stream_name":"stdout","time":383.830975815,"data":"Estado: needs_improvement | gates: {'all_four_actions_functional': True, 'positive_dqn_return': True, 'dqn_above_a1_random_drift': True, 'oracle_near_rate_80pct': True, 'dqn_selected_four_actions': False, 'validation_converged': False, 'calibration_qualified': True}\n"}
+,{"stream_name":"stdout","time":383.83103443,"data":" scenario    policy  mean_auc  return  seconds\n"}
+,{"stream_name":"stdout","time":383.831041425,"data":"   stable       dqn     0.940  14.106    0.000\n"}
+,{"stream_name":"stdout","time":383.831046238,"data":"   stable        A1     0.940  14.106    0.000\n"}
+,{"stream_name":"stdout","time":383.831052172,"data":"   stable        A2     0.936  14.031    0.069\n"}
+,{"stream_name":"stdout","time":383.83105694,"data":"   stable        A3     0.932  13.945    0.351\n"}
+,{"stream_name":"stdout","time":383.831060911,"data":"   stable        A4     0.933  13.947    0.419\n"}
+,{"stream_name":"stdout","time":383.831064948,"data":"   stable    random     0.932  13.950    0.251\n"}
+,{"stream_name":"stdout","time":383.831068943,"data":"   stable heuristic     0.940  14.106    0.000\n"}
+,{"stream_name":"stdout","time":383.831073783,"data":"covariate       dqn     0.913  13.665    0.028\n"}
+,{"stream_name":"stdout","time":383.831078669,"data":"covariate        A1     0.669   9.763    0.000\n"}
+,{"stream_name":"stdout","time":383.83108395,"data":"covariate        A2     0.916  13.716    0.070\n"}
+,{"stream_name":"stdout","time":383.831088397,"data":"covariate        A3     0.775  11.439    0.304\n"}
+,{"stream_name":"stdout","time":383.831093133,"data":"covariate        A4     0.914  13.640    0.421\n"}
+,{"stream_name":"stdout","time":383.831097401,"data":"covariate    random     0.911  13.620    0.235\n"}
+,{"stream_name":"stdout","time":383.831101483,"data":"covariate heuristic     0.911  13.631    0.077\n"}
+,{"stream_name":"stdout","time":383.831105867,"data":"  concept       dqn     0.880  13.137    0.029\n"}
+,{"stream_name":"stdout","time":383.831110764,"data":"  concept        A1     0.278   3.508    0.000\n"}
+,{"stream_name":"stdout","time":383.831115145,"data":"  concept        A2     0.280   3.544    0.074\n"}
+,{"stream_name":"stdout","time":383.831119842,"data":"  concept        A3     0.877  13.065    0.350\n"}
+,{"stream_name":"stdout","time":383.831135735,"data":"  concept        A4     0.878  13.064    0.424\n"}
+,{"stream_name":"stdout","time":383.831139667,"data":"  concept    random     0.825  12.241    0.236\n"}
+,{"stream_name":"stdout","time":383.831143608,"data":"  concept heuristic     0.880  13.138    0.023\n"}
+,{"stream_name":"stdout","time":383.831147353,"data":" combined       dqn     0.903  13.508    0.028\n"}
+,{"stream_name":"stdout","time":383.831151007,"data":" combined        A1     0.549   7.852    0.000\n"}
+,{"stream_name":"stdout","time":383.831154546,"data":" combined        A2     0.300   3.860    0.071\n"}
+,{"stream_name":"stdout","time":383.831158533,"data":" combined        A3     0.761  11.215    0.323\n"}
+,{"stream_name":"stdout","time":383.831162435,"data":" combined        A4     0.897  13.368    0.435\n"}
+,{"stream_name":"stdout","time":383.831166069,"data":" combined    random     0.846  12.570    0.242\n"}
+,{"stream_name":"stdout","time":383.831170016,"data":" combined heuristic     0.901  13.474    0.080\n"}
+,{"stream_name":"stderr","time":388.752694615,"data":"/usr/local/lib/python3.13/dist-packages/mistune.py:435: SyntaxWarning: invalid escape sequence '\\|'\n"}
+,{"stream_name":"stderr","time":388.752726038,"data":"  cells[i][c] = re.sub('\\\\\\\\\\|', '|', cell)\n"}
+,{"stream_name":"stderr","time":388.910663662,"data":"/usr/local/lib/python3.13/dist-packages/nbconvert/filters/filter_links.py:36: SyntaxWarning: invalid escape sequence '\\_'\n"}
+,{"stream_name":"stderr","time":388.910710436,"data":"  text = re.sub(r'_', '\\_', text) # Escape underscores in display text\n"}
+,{"stream_name":"stderr","time":389.622089695,"data":"[NbConvertApp] Converting notebook __notebook__.ipynb to notebook\n"}
+,{"stream_name":"stderr","time":389.705288709,"data":"[NbConvertApp] Writing 64091 bytes to __notebook__.ipynb\n"}
+,{"stream_name":"stderr","time":392.160967076,"data":"[NbConvertApp] Converting notebook __notebook__.ipynb to html\n"}
+,{"stream_name":"stderr","time":392.862567366,"data":"[NbConvertApp] Writing 526184 bytes to __results__.html\n"}
+]
