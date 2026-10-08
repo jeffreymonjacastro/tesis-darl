@@ -1,199 +1,211 @@
-\customchapter{INTRODUCCIÓN} 
+\customchapter{INTRODUCCIÓN}
 
 \introsection{Presentación del tema de investigación}
 
-Los modelos de aprendizaje automático ---o \textit{Machine Learning} (ML)--- desplegados
-en producción operan bajo la suposición implícita de que la distribución de los datos de
-entrada permanece estable a lo largo del tiempo. Sin embargo, en entornos reales esta
-suposición rara vez se sostiene: los patrones demográficos evolucionan, los comportamientos
-de los usuarios cambian y los contextos operativos se transforman de manera continua
-\cite{mahadevan2024cost}. Cuando la distribución de los datos se aleja de la distribución de
-entrenamiento, el rendimiento del modelo se degrada de forma silenciosa pero sistemática,
-un fenómeno conocido como \textit{distribution shift} o desplazamiento de la distribución.
- 
-En \textit{pipelines} de ML de dos etapas ---compuestos por una etapa de \textit{feature
-engineering} y una etapa de selección y entrenamiento del modelo predictivo--- esta
-degradación puede originarse en cualquiera de las dos etapas o en ambas simultáneamente.
-La etapa de preprocesamiento aprende estadísticas de la distribución de entrenamiento:
-medias, desviaciones estándar, rangos de valores y frecuencias de categorías. Si la
-distribución de los datos de entrada cambia (\textit{covariate shift}), estas estadísticas
-quedan desactualizadas y el modelo recibe representaciones distorsionadas de los datos
-reales. Por otro lado, si la relación entre las variables de entrada y la variable objetivo
-cambia (\textit{concept drift}), el modelo predictivo habrá aprendido reglas que ya no
-describen el mundo correctamente, independientemente de lo bien que el preprocesamiento
-transforme los datos \cite{cai2023disde}.
- 
-La respuesta convencional ante la degradación del rendimiento es el reentrenamiento
-completo del \textit{pipeline}, que resulta costoso en términos computacionales y
-operativos \cite{mahadevan2024cost}. Esta práctica ignora una distinción fundamental: si el
-origen del problema es únicamente la etapa de preprocesamiento, actualizar solo esa etapa
-podría recuperar el rendimiento a una fracción del costo del reentrenamiento completo. De
-manera análoga, si el problema radica en el modelo predictivo, reentrenar únicamente esa
-etapa puede ser suficiente. La pregunta de cuándo cada estrategia de actualización selectiva
-es suficiente, y a qué costo, no ha sido respondida de forma sistemática en la literatura
-existente.
- 
-Resolver este problema requiere no solo diagnosticar el tipo y la severidad del drift
-observado, sino también aprender una política de decisión que, ante un nuevo escenario de
-degradación, seleccione la acción más eficiente. Esta investigación propone DARL
-(\textit{Drift-Aware Reinforcement Learner}), un framework que formaliza esa política como
-un agente de aprendizaje por refuerzo entrenado sobre un Proceso de Decisión de Markov
-Parcialmente Observable (POMDP), donde el agente aprende a partir de la experiencia
-acumulada sobre múltiples episodios de drift qué acción de actualización maximiza la
-recuperación del rendimiento al menor costo computacional.
+Los modelos de aprendizaje automático ---o \textit{Machine Learning} (ML)--- que se usan
+en producción parten de una suposición que casi nunca se dice en voz alta: que los datos
+que recibirán en el futuro se parecerán a los datos con los que fueron entrenados. En la
+práctica, esta suposición se rompe con frecuencia. Cambian las personas atendidas, cambian
+los equipos de medición, cambian los protocolos de trabajo y cambian los hábitos de quienes
+generan los datos \cite{mahadevan2024cost}. Cuando esto ocurre, el modelo sigue
+funcionando, pero sus predicciones pierden calidad poco a poco y sin dar avisos claros. A
+este fenómeno se le conoce como \textit{distribution shift} o cambio de distribución de los
+datos \cite{gama2014survey}.
+
+Muchos sistemas de ML sobre datos tabulares se organizan como un \textit{pipeline} de dos
+etapas. La primera etapa prepara los datos: completa valores faltantes, ajusta escalas y
+transforma las variables para que el modelo pueda usarlas. La segunda etapa es el modelo
+predictivo, que aprende a relacionar esos datos preparados con el resultado que se quiere
+predecir. Cada etapa aprende algo distinto a partir de los datos de entrenamiento, y por eso
+cada una puede quedar desactualizada por razones distintas. Si cambia la forma en que se
+distribuyen las variables de entrada (\textit{covariate shift}), la preparación de los datos
+deja de ser adecuada. Si cambia la relación entre las variables de entrada y el resultado
+(\textit{concept drift}), es el modelo el que ha aprendido reglas que ya no se cumplen
+\cite{cai2023disde}.
+
+La respuesta habitual ante una caída del rendimiento es volver a entrenar todo el
+\textit{pipeline}. Esta decisión es costosa en tiempo de cómputo, en memoria y en trabajo
+operativo \cite{mahadevan2024cost}, y además no siempre es necesaria. Si el problema está
+solo en la preparación de los datos, podría bastar con corregir esa etapa. Si está solo en el
+modelo, podría bastar con volver a entrenar el modelo. Y si el cambio es pequeño o
+pasajero, quizá lo más conveniente sea esperar. Saber cuál de estas opciones conviene en
+cada momento, y a qué costo, es una pregunta que la literatura todavía no ha respondido de
+forma sistemática.
+
+Esta investigación propone DARL (\textit{Drift-Aware Reinforcement Learner}), un enfoque que
+trata el mantenimiento del \textit{pipeline} como una secuencia de decisiones. Cada día, un
+agente de aprendizaje por refuerzo revisa un conjunto de señales de monitoreo y elige una
+acción de mantenimiento: no hacer nada, corregir solo la preparación de los datos, volver a
+entrenar solo el modelo o volver a entrenar el \textit{pipeline} completo. El agente aprende
+de la experiencia cuál de estas acciones mejora más el rendimiento al menor costo. Como el
+agente no puede ver directamente qué tipo de cambio está ocurriendo, sino solo señales
+indirectas, el problema se formula como un Proceso de Decisión de Markov Parcialmente
+Observable (POMDP) y se resuelve con una red Q profunda (\textit{Deep Q-Network}, DQN)
+\cite{kaelbling1998pomdp,mnih2015dqn}.
+
+El caso de estudio es la detección temprana de sepsis en unidades de cuidados intensivos
+(UCI), a partir de los datos públicos del PhysioNet/Computing in Cardiology Challenge 2019
+\cite{reyna2020sepsis}. Estos datos provienen de dos hospitales distintos, lo que permite
+entrenar el \textit{pipeline} con pacientes de un hospital (hospital A) y observar qué
+ocurre cuando se usa con pacientes de otro (hospital B). Sobre este escenario se simula una
+UCI que recibe pacientes día a día, en la que los resultados reales de cada paciente se
+conocen con un día de retraso, tal como ocurre en la práctica clínica.
 
 
 \introsection{Descripción de la situación problemática}
 
-Los \textit{pipelines} de ML sobre datos tabulares se emplean de manera extensa en
-dominios críticos como la salud, las finanzas y las políticas públicas \cite{gardner2023tableshift}.
-En estos contextos, la degradación del rendimiento del modelo tiene consecuencias directas
-sobre la calidad de las decisiones: un modelo de predicción de mortalidad hospitalaria que
-se deteriora silenciosamente puede comprometer la asignación de recursos clínicos, y un
-modelo de predicción de ingresos sesgado por cambios demográficos puede distorsionar
-políticas de asistencia social.
- 
-La literatura reciente ha avanzado en el diagnóstico del tipo de drift que afecta a un
-modelo \cite{cai2023disde,singh2025shift}, en el estudio de la robustez de distintos modelos frente a
-\textit{distribution shift} en \textit{benchmarks} tabulares \cite{gardner2023tableshift} y en la
-decisión de cuándo reentrenar considerando el costo computacional \cite{mahadevan2024cost,
-shakhovska2025severity}. Sin embargo, estos trabajos presentan una limitación compartida: tratan el
-modelo como una unidad indivisible y no estudian la posibilidad de actualizar selectivamente
-solo una de las dos etapas del \textit{pipeline}.
- 
-Esta brecha tiene consecuencias prácticas importantes. En producción, los equipos de
-\textit{Data Science} enfrentan la decisión de qué actualizar ante una caída de rendimiento
-detectada, sin disponer de un mecanismo que aprenda de manera sistemática cuál es la acción
-óptima en función del tipo y la severidad de la deriva observada. La ausencia de una
-política de decisión aprendida ---que mapee el estado de las distribuciones observadas a la
-acción de actualización más eficiente--- obliga a tomar decisiones \textit{ad hoc},
-frecuentemente costosas e innecesarias.
+Los \textit{pipelines} de ML sobre datos tabulares se usan ampliamente en áreas sensibles
+como la salud, las finanzas y las políticas públicas \cite{gardner2023tableshift}. En estos
+contextos, una caída silenciosa del rendimiento tiene consecuencias directas. En una UCI, un
+modelo de alerta temprana de sepsis que empieza a fallar puede dejar de avisar a tiempo
+sobre pacientes en riesgo, o puede generar tantas falsas alarmas que el personal deje de
+prestarle atención. La sepsis es una de las principales causas de muerte en pacientes
+hospitalizados, y su detección temprana mejora el pronóstico \cite{reyna2020sepsis}.
+
+El problema se agrava cuando un modelo se traslada de un hospital a otro. Cada hospital
+tiene su propio tipo de pacientes, sus propios equipos de medición y sus propias costumbres
+para registrar la información. Un modelo entrenado en un hospital puede encontrar en el
+otro valores de signos vitales con rangos distintos, más datos faltantes o una frecuencia
+diferente de casos positivos. A esto se suma que el resultado real de cada paciente no se
+conoce de inmediato, sino con retraso, por lo que el equipo responsable no puede medir el
+rendimiento del modelo en el mismo momento en que debe decidir qué hacer.
+
+La literatura reciente ha avanzado en tres frentes: en diagnosticar qué tipo de cambio
+afecta a un modelo \cite{cai2023disde,singh2025shift}, en medir la robustez de distintos
+modelos ante cambios de distribución en datos tabulares \cite{gardner2023tableshift} y en
+decidir cuándo conviene volver a entrenar un modelo teniendo en cuenta el costo
+\cite{mahadevan2024cost,shakhovska2025severity}. Sin embargo, estos trabajos comparten una
+limitación: tratan al modelo como una sola pieza y no estudian la posibilidad de actualizar
+solo una de las dos etapas del \textit{pipeline}. Las plataformas comerciales de
+mantenimiento de modelos siguen el mismo criterio, ya que suelen basarse en umbrales fijos
+que, al superarse, activan un nuevo entrenamiento completo.
+
+En consecuencia, los equipos que mantienen estos sistemas deciden qué actualizar sin un
+mecanismo que aprenda de la experiencia cuál es la acción más conveniente según la
+evidencia disponible. Esto lleva a decisiones tomadas caso por caso, que muchas veces son
+más costosas de lo necesario o que llegan tarde.
 
 
 \introsection{Formulación del problema}
 
-La degradación del rendimiento de \textit{pipelines} de ML de dos etapas bajo
-\textit{distribution shift} puede originarse en la etapa de \textit{feature engineering},
-en la etapa del modelo predictivo o en ambas simultáneamente. Aunque existen métodos para
-diagnosticar el tipo de drift \cite{cai2023disde,singh2025shift} y criterios para decidir cuándo
-reentrenar \cite{mahadevan2024cost}, no existe un mecanismo que aprenda de forma sistemática
-cuál de las cuatro posibles acciones de actualización ---no hacer nada, actualizar solo el
-preprocesamiento, actualizar solo el modelo, o reentrenar el \textit{pipeline} completo---
-produce la mejor recuperación del rendimiento al menor costo computacional, en función del
-tipo de shift (\textit{covariate shift} o \textit{concept drift}) y su severidad (leve,
-moderada o severa) sobre datos tabulares reales.
- 
-A partir de ello, se plantea la siguiente pregunta de investigación: ¿Es posible aprender
-una política de decisión mediante aprendizaje por refuerzo que, a partir de señales de
-monitoreo del estado de las distribuciones de un \textit{pipeline} de ML de dos etapas,
-seleccione la estrategia de actualización selectiva que maximiza la recuperación del
-rendimiento predictivo al menor costo computacional, generalizando a escenarios de drift
-no vistos durante el entrenamiento?
+La caída de rendimiento de un \textit{pipeline} de ML de dos etapas ante cambios de
+distribución puede tener su origen en la etapa de preparación de los datos, en el modelo
+predictivo o en ambos. Aunque existen métodos para diagnosticar el tipo de cambio
+\cite{cai2023disde,singh2025shift} y criterios para decidir cuándo volver a entrenar
+\cite{mahadevan2024cost}, no existe un mecanismo que aprenda, a partir de señales de
+monitoreo incompletas y con resultados que llegan con retraso, cuál acción de mantenimiento
+---esperar, corregir la preparación de los datos, volver a entrenar el modelo o volver a
+entrenar todo el \textit{pipeline}--- ofrece la mejor mejora del rendimiento al menor costo
+computacional.
+
+A partir de ello, se plantea la siguiente pregunta de investigación: ¿Es posible aprender,
+mediante aprendizaje por refuerzo, una política de decisión que, a partir de señales de
+monitoreo de un \textit{pipeline} de ML de dos etapas sobre datos tabulares, elija la acción
+de actualización selectiva que mejor equilibra la mejora del rendimiento predictivo y el
+costo computacional, frente a cambios de distribución de tipo y severidad conocidos?
 
 
 \introsection{Objetivos de investigación}
 
-Diseñar, implementar y evaluar empíricamente DARL (\textit{Drift-Aware
-Reinforcement Learner}), un framework de actualización selectiva para \textit{pipelines} de
-ML de dos etapas sobre datos tabulares que aprende una política de decisión mediante
-aprendizaje por refuerzo sobre un POMDP formulado a partir del tipo y la severidad del
-\textit{distribution shift} detectado, y que cuantifica la recuperación de rendimiento y el
-costo computacional asociado a cada acción de actualización.
- 
+Diseñar, implementar y evaluar DARL (\textit{Drift-Aware Reinforcement Learner}), un
+enfoque de actualización selectiva para \textit{pipelines} de ML de dos etapas sobre datos
+tabulares, que aprende una política de mantenimiento mediante aprendizaje por refuerzo a
+partir de señales de monitoreo y que mide la mejora del rendimiento y el costo
+computacional de cada acción de actualización.
+
 \section*{Objetivos específicos}
- 
+
 \begin{enumerate}
-    \item Implementar un módulo de monitoreo que detecte y clasifique el tipo de
-    \textit{data drift} ---\textit{covariate shift} y \textit{concept drift}---
-    mediante el índice de estabilidad poblacional (PSI), el test de
-    Kolmogorov--Smirnov (KS) y el \textit{Classifier Two-Sample Test} (C2ST),
-    y que cuantifique su severidad mediante un \textit{severity score} combinado.
-    Estas métricas constituyen el vector de observación del agente de aprendizaje
-    por refuerzo.
- 
-    \item Formalizar el problema de decisión de actualización selectiva como un
-    Proceso de Decisión de Markov Parcialmente Observable (POMDP), donde el espacio
-    de acciones comprende las cuatro estrategias de actualización ---diferir la acción,
-    actualizar el preprocesamiento, actualizar el modelo predictivo y reentrenar el
-    \textit{pipeline} completo---, y la recompensa combina la recuperación del
-    AUC-ROC y el costo computacional relativo de cada acción.
- 
-    \item Entrenar un agente de aprendizaje por refuerzo mediante el algoritmo
-    \textit{Proximal Policy Optimization} (PPO) sobre episodios de drift sintético
-    controlado, de modo que aprenda una política óptima $\pi^*$ que maximice la
-    recompensa acumulada esperada sobre dos conjuntos de datos del
-    \textit{benchmark} TableShift \cite{gardner2023tableshift}: Hospital Readmission
-    (\texttt{diabetes\_readmission}) y PhysioNet/sepsis (\texttt{physionet}).
- 
-    \item Evaluar la política aprendida bajo condiciones de drift sintético de tipo
-    y severidad conocidos, midiendo la recuperación del AUC-ROC y el costo
-    computacional relativo de cada acción, y comparar su desempeño contra una
-    tabla de decisión empírica construida como \textit{baseline}.
+    \item Implementar un módulo de monitoreo que detecte \textit{covariate shift} y
+    \textit{concept drift} en un \textit{pipeline} de dos etapas, y que cuantifique su
+    severidad a partir de señales sobre las variables de entrada y sobre el rendimiento
+    predictivo.
+
+    \item Formular el problema de actualización selectiva como un Proceso de Decisión de
+    Markov Parcialmente Observable (POMDP), definiendo de forma explícita las
+    observaciones, el conjunto de acciones de actualización, el retraso con el que se
+    conocen los resultados y una recompensa que combine la mejora del rendimiento con el
+    costo de cada acción.
+
+    \item Entrenar un agente de aprendizaje por refuerzo basado en una red Q profunda (DQN)
+    sobre un entorno que simula, día a día, el uso del \textit{pipeline} en un hospital
+    distinto al de entrenamiento, con cambios de distribución inyectados de forma
+    controlada.
+
+    \item Contrastar la política aprendida, bajo cambios de tipo y severidad conocidos,
+    con políticas de referencia ---no actuar nunca, volver a entrenar siempre, elegir al
+    azar y una regla de umbral fijo---, en términos de rendimiento predictivo, recompensa
+    acumulada y costo computacional.
 \end{enumerate}
 
 
 \introsection{Justificación}
 
-Desde una perspectiva científica, la literatura sobre \textit{distribution shift} en
-aprendizaje automático ha avanzado de forma desigual. Los métodos de diagnóstico ---como
-DISDE \cite{cai2023disde} y SHIFT \cite{singh2025shift}--- identifican con rigor el tipo de drift que
-afecta a un modelo, pero no prescriben ninguna acción correctiva sobre el
-\textit{pipeline}. Los métodos de decisión de reentrenamiento ---como CARA
-\cite{mahadevan2024cost} y el framework de severidad de Shakhovska y Pukach
-\cite{shakhovska2025severity}--- razonan sobre cuándo reentrenar considerando el costo, pero asumen
-que el \textit{pipeline} es una unidad monolítica y no distinguen entre sus etapas. Los
-trabajos sobre \textit{self-healing pipelines} \cite{tanna2025selfhealing} proponen estrategias de
-remediación automática, pero no las evalúan empíricamente en función del tipo de deriva.
-Esta investigación cierra ese ciclo al proponer DARL, un framework que conecta el
-diagnóstico del drift con una política de decisión aprendida que selecciona la acción
-correctiva y cuantifica sus consecuencias sobre el rendimiento y el costo, una contribución
-que ninguno de los trabajos previos realiza de forma sistemática.
- 
-Desde una perspectiva práctica, los equipos de MLOps en producción frecuentemente
-reentrenan el \textit{pipeline} completo ante cualquier degradación de rendimiento, sin
-evaluar si una actualización parcial sería suficiente. Esta investigación proporciona un
-agente entrenado que aprende a tomar decisiones más eficientes, reduciendo el tiempo de
-cómputo y los costos operativos en escenarios donde el reentrenamiento selectivo es
-suficiente para recuperar el rendimiento. Adicionalmente, el uso de aprendizaje por
-refuerzo sobre un dominio de mantenimiento de modelos ---en contraste con su aplicación
-habitual en juegos o robótica--- constituye una contribución metodológica con potencial de
-generalización a otros problemas de gestión de \textit{pipelines} en producción.
+Desde una perspectiva científica, la literatura sobre cambios de distribución en ML ha
+avanzado de manera desigual. Los métodos de diagnóstico, como DISDE \cite{cai2023disde} y
+SHIFT \cite{singh2025shift}, identifican con rigor qué tipo de cambio afecta a un modelo,
+pero no indican qué hacer con el \textit{pipeline}. Los métodos que deciden cuándo volver a
+entrenar, como CARA \cite{mahadevan2024cost} y el enfoque basado en severidad de Shakhovska
+y Pukach \cite{shakhovska2025severity}, sí consideran el costo, pero tratan al
+\textit{pipeline} como una sola pieza y no distinguen entre sus etapas. Los trabajos sobre
+\textit{pipelines} que se reparan de forma automática \cite{tanna2025selfhealing} describen
+estrategias de corrección, pero no las evalúan según el tipo de cambio. Esta investigación
+une estas líneas: conecta el monitoreo con una política aprendida que elige qué etapa
+actualizar y mide las consecuencias de esa decisión sobre el rendimiento y el costo.
+
+Desde una perspectiva práctica, los equipos que mantienen modelos en producción suelen
+volver a entrenar todo el \textit{pipeline} ante cualquier caída del rendimiento, sin
+evaluar si una actualización parcial sería suficiente. Un agente que aprenda a distinguir
+estas situaciones puede reducir el tiempo de cómputo y los costos de operación. En el caso
+de la salud, además, evitar actualizaciones innecesarias reduce el riesgo de introducir
+cambios en un modelo que funcionaba bien. Por último, usar aprendizaje por refuerzo para el
+mantenimiento de modelos, en lugar de su uso más conocido en juegos o robótica, es una
+contribución metodológica que puede extenderse a otros problemas de gestión de sistemas
+de ML en producción.
 
 
 \introsection{Alcance}
 
-La investigación se circunscribe a \textit{pipelines} de ML de dos etapas 
-(preprocesamiento y modelo predictivo) aplicados a tareas de clasificación binaria sobre
-datos tabulares en modalidad \textit{batch}. La evaluación empírica se realiza sobre dos
-conjuntos de datos del \textit{benchmark} TableShift: Hospital Readmission
-(\texttt{diabetes\_readmission}) y PhysioNet/sepsis (\texttt{physionet})
-\cite{gardner2023tableshift}. El \textit{distribution shift} se
-inyecta de forma sintética y controlada en tres niveles de severidad (leve, moderada y
-severa) para los tipos \textit{covariate shift}, \textit{concept drift} y su combinación.
-El modelo predictivo empleado en los experimentos es XGBoost, con regresión logística como
-línea base. El preprocesamiento sigue el esquema de la API de TableShift, extendido con
-transformaciones de cuantiles para variables con distribución sesgada y codificación por
-objetivo para variables categóricas de alta cardinalidad.
- 
-El agente de aprendizaje por refuerzo se plantea para entrenamiento mediante PPO,
-con un entorno de simulación construido bajo una interfaz compatible con Gymnasium.
-El entrenamiento se realiza exclusivamente sobre episodios
-de drift sintético generados a partir de los dos datasets seleccionados; no se contempla
-despliegue en entornos de producción en tiempo real ni integración con sistemas de
-orquestación como Airflow o MLflow.
+La investigación se limita a \textit{pipelines} de ML de dos etapas ---preparación de datos
+y modelo predictivo--- aplicados a problemas de clasificación binaria sobre datos
+tabulares. El caso de estudio principal es la predicción de sepsis con los datos del
+PhysioNet/Computing in Cardiology Challenge 2019 \cite{reyna2020sepsis}, que reúne
+registros por hora de pacientes de UCI de dos hospitales. El modelo se entrena con
+pacientes del hospital A y se evalúa con pacientes del hospital B, usando como variables de
+entrada siete signos vitales: frecuencia cardiaca, saturación de oxígeno, temperatura,
+presión arterial sistólica, media y diastólica, y frecuencia respiratoria. El modelo
+predictivo es XGBoost \cite{chen2016xgboost}, precedido por una etapa de preparación que
+completa valores faltantes y ajusta la escala de las variables.
+
+El uso del \textit{pipeline} en el hospital B se simula como una UCI de 200 camas durante
+21 días. Cada cama reproduce, hora a hora, los registros de un paciente y, cuando estos se
+agotan, recibe al siguiente paciente de la lista. Al final de cada día, el agente elige una
+de cuatro acciones: no hacer nada (A1), corregir la preparación de los datos sin tocar el
+modelo (A2), volver a entrenar solo el modelo (A3) o volver a entrenar todo el
+\textit{pipeline} (A4). Las etiquetas de los pacientes se revelan con un día de retraso.
+Sobre esta simulación se comparan cuatro escenarios: hospital B sin cambios añadidos, un
+cambio gradual en la medición de los signos vitales (\textit{covariate shift}), un cambio en
+el momento en que se marca el inicio de la sepsis (\textit{concept drift}) y la combinación
+de ambos. El agente se entrena con un DQN; no se contempla su uso en un hospital real ni su
+integración con herramientas de orquestación como Airflow o MLflow.
 
 
 \introsection{Limitaciones y restricciones}
 
-El framework DARL está orientado a uso académico y experimental. Los experimentos se ejecutan en
-modalidad \textit{batch} y no cubren escenarios de \textit{streaming} con drift gradual y
-continuo. La evaluación se restringe a los dos \textit{datasets} seleccionados y a un
-modelo predictivo principal; la generalización de los resultados a otros dominios y
-arquitecturas requiere validación adicional. Asimismo, se asume disponibilidad de etiquetas
-en el conjunto de datos del dominio objetivo para realizar el reentrenamiento, condición que
-en escenarios reales puede requerir anotación humana o mecanismos de \textit{delayed
-feedback}. La política aprendida por el agente PPO está condicionada a la distribución de
-episodios de entrenamiento generados; su transferencia a dominios con características de
-drift muy distintas a las del entrenamiento requiere fine-tuning o reentrenamiento del
-agente. Finalmente, el estudio no evalúa estrategias de defensa ante drift ni métodos de
-reentrenamiento incremental, que se consideran líneas de trabajo futuro.
+DARL está orientado al uso académico y experimental. La evaluación se realiza sobre un
+único conjunto de datos y un único modelo predictivo principal, por lo que extender los
+resultados a otros dominios y modelos requiere validación adicional. La simulación de la
+UCI es un mecanismo para reproducir los datos en orden: los días simulados no corresponden
+a fechas reales, el último registro de un paciente no confirma su alta y algunos pacientes
+ingresan a la simulación con parte de su historia ya transcurrida. Los cambios de
+distribución se inyectan de forma artificial y controlada; en particular, el cambio en el
+inicio de la sepsis es una prueba estadística de exigencia y no representa una afirmación
+clínica sobre la enfermedad.
+
+Se asume que las etiquetas llegan completas con un día de retraso, condición que en un
+hospital real puede requerir revisión humana o tardar más. La política aprendida depende
+de los episodios usados para entrenarla, por lo que su uso frente a cambios muy distintos
+de los simulados requeriría volver a entrenar el agente. Finalmente, no se estudian
+técnicas de entrenamiento incremental del modelo ni algoritmos de aprendizaje por refuerzo
+distintos de DQN, como \textit{Proximal Policy Optimization} (PPO)
+\cite{schulman2017ppo}, que quedan como trabajo futuro.

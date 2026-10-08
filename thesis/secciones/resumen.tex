@@ -1,7 +1,26 @@
 \customchapter{RESUMEN}
 
-
-
+Los modelos de aprendizaje automático que se usan en producción pierden calidad cuando los
+datos que reciben dejan de parecerse a los datos con los que fueron entrenados. En un
+\textit{pipeline} de dos etapas, formado por una etapa de preparación de datos y un modelo
+predictivo, este problema puede originarse en cualquiera de las dos etapas. Sin embargo, la
+respuesta habitual es volver a entrenar todo el \textit{pipeline}, lo que resulta costoso y
+no siempre es necesario. Esta tesis propone DARL (\textit{Drift-Aware Reinforcement
+Learner}), un enfoque que trata el mantenimiento del \textit{pipeline} como una secuencia de
+decisiones. Cada día, un agente de aprendizaje por refuerzo revisa señales de monitoreo y
+elige entre no hacer nada, corregir solo la preparación de los datos, volver a entrenar solo
+el modelo o volver a entrenar todo el \textit{pipeline}. Como el agente no observa
+directamente el tipo de cambio que ocurre, el problema se formula como un Proceso de
+Decisión de Markov Parcialmente Observable y se resuelve con una red Q profunda (DQN). La
+recompensa combina la mejora en el área bajo la curva de precisión y exhaustividad (AUPRC)
+con el costo de cada acción, y se calcula con un día de retraso, cuando se conocen las
+etiquetas reales. El caso de estudio es la predicción temprana de sepsis con los datos del
+PhysioNet/Computing in Cardiology Challenge 2019: un \textit{pipeline} entrenado con
+pacientes de un hospital se usa en una unidad de cuidados intensivos simulada de 200 camas
+de otro hospital, donde se inyectan de forma controlada cambios en la medición de los
+signos vitales, cambios en el etiquetado de la sepsis y su combinación. La política
+aprendida se contrasta con reglas de referencia, como no actuar nunca, volver a entrenar
+siempre, actuar al azar o seguir un umbral fijo.
 
 \noindent \textbf{Palabras clave:}\\
-\noindent Palabra clave 1; Palabra clave 2; Palabra clave 3; Palabra clave 4
+\noindent Cambio de distribución; Aprendizaje por refuerzo; Mantenimiento de modelos; Predicción de sepsis

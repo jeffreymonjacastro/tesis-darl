@@ -1,25 +1,22 @@
 \chapter{MARCO TEÓRICO}
 
-Este capítulo desarrolla los fundamentos conceptuales y formales sobre los que se
-construye DARL. La presentación sigue el orden lógico del framework: primero se
-describe el dominio de aplicación de la tesis (datos tabulares), luego se formaliza
-el objeto de estudio (el \textit{pipeline} de dos etapas), después se introduce el
-fenómeno que perturba su funcionamiento (\textit{distribution shift}), posteriormente
-se presentan las señales que permiten observarlo (métricas de monitoreo), y
-finalmente se desarrolla el formalismo de decisión y el algoritmo de aprendizaje
-que constituyen el núcleo de la contribución (POMDP y PPO).
+Este capítulo presenta los conceptos sobre los que se construye DARL. El orden sigue la
+lógica de la propuesta: primero se describe el tipo de datos con el que se trabaja (datos
+tabulares, en particular registros clínicos por hora), luego el objeto de estudio (el
+\textit{pipeline} de dos etapas), después el fenómeno que afecta su funcionamiento (el
+cambio de distribución), a continuación las señales que permiten observarlo y las medidas
+de rendimiento, y finalmente el marco de decisión y el algoritmo de aprendizaje que forman
+el núcleo de la propuesta (POMDP y DQN).
 
 % ------------------------------------------------------------
 \section{Datos tabulares en aprendizaje automático}
 % ------------------------------------------------------------
 
-Los datos tabulares constituyen una de las formas más comunes de representación de
-información estructurada en aplicaciones reales de aprendizaje automático. En este
-tipo de datos, cada observación se organiza como una fila de una tabla y cada
-variable o atributo se representa como una columna. A diferencia de dominios como
-visión por computadora o procesamiento de lenguaje natural, donde las entradas
-suelen tener una estructura homogénea, los datos tabulares combinan variables
-numéricas, categóricas, ordinales, binarias y valores faltantes dentro de una misma
+Los datos tabulares son una de las formas más comunes de organizar información en
+aplicaciones reales de aprendizaje automático. En este tipo de datos, cada observación
+ocupa una fila de una tabla y cada variable ocupa una columna. A diferencia de las imágenes
+o los textos, cuyas entradas tienen una estructura uniforme, una tabla puede combinar
+variables numéricas, categóricas, binarias y valores faltantes en una misma
 representación.
 
 Formalmente, un conjunto de datos tabular supervisado puede representarse como:
@@ -34,49 +31,60 @@ Formalmente, un conjunto de datos tabular supervisado puede representarse como:
 \begin{itemize}
     \item $\mathcal{D}$ representa el conjunto de datos disponible para entrenamiento, validación o evaluación.
     \item $n$ representa el número total de observaciones o filas de la tabla.
-    \item $x_i$ representa la observación tabular número $i$.
+    \item $x_i$ representa la observación número $i$.
     \item $y_i$ representa la etiqueta o variable objetivo asociada a la observación $x_i$.
     \item $x_{ij}$ representa el valor de la variable o columna $j$ para la observación $i$.
-    \item $d$ representa el número de variables originales en la tabla.
-    \item $\mathcal{X}$ representa el espacio de entrada formado por las observaciones tabulares crudas.
+    \item $d$ representa el número de variables originales de la tabla.
+    \item $\mathcal{X}$ representa el espacio de entrada formado por las observaciones sin procesar.
 \end{itemize}
 
-Conceptualmente, esta notación muestra que una tabla no es solo una matriz de valores,
-sino una colección de observaciones con atributos heterogéneos y una variable objetivo.
-Esta heterogeneidad es relevante porque distintas columnas requieren tratamientos
-diferentes antes de ser usadas por un modelo predictivo. Por ejemplo, las variables
-numéricas pueden requerir escalamiento o transformación de cuantiles, mientras que las
-variables categóricas pueden requerir codificación, agrupamiento de categorías raras o
-manejo explícito de valores desconocidos.
+Esta notación muestra que una tabla no es solo una matriz de números, sino una colección
+de observaciones con atributos de distinta naturaleza y una variable objetivo. Esta
+diversidad importa porque cada tipo de columna necesita un tratamiento distinto antes de
+llegar al modelo: las variables numéricas pueden requerir un ajuste de escala, mientras que
+las categóricas necesitan ser codificadas. Por eso, en los problemas tabulares el
+rendimiento no depende solo del algoritmo predictivo, sino también de cómo se preparan los
+datos antes del entrenamiento.
 
-En consecuencia, el desempeño de un modelo tabular no depende únicamente del
-algoritmo predictivo, sino también de las decisiones de preprocesamiento aplicadas antes
-del entrenamiento. Esta característica distingue a los sistemas tabulares de otros dominios
-donde las representaciones suelen aprenderse de manera más integrada. En problemas
-tabulares, la etapa de \textit{feature engineering} puede modificar la escala, la dimensión y
-la semántica de las variables que recibe el modelo.
+\subsection{Registros clínicos por hora}
+
+En el caso de estudio de esta tesis, cada fila corresponde a una hora de estancia de un
+paciente en la UCI, y las columnas contienen sus signos vitales medidos en esa hora
+\cite{reyna2020sepsis}. Así, un mismo paciente aporta varias filas consecutivas, ordenadas
+por el número de horas transcurridas desde su ingreso a la unidad. Este formato tiene dos
+particularidades. La primera es que muchos valores faltan, porque no todos los signos
+vitales se miden en todas las horas. La segunda es que las filas de un mismo paciente no
+son independientes entre sí, por lo que todas sus filas deben quedar en la misma partición
+(entrenamiento, validación o prueba) para evitar que el modelo vea información del mismo
+paciente en más de una de ellas.
+
+La etiqueta de cada fila indica si el paciente cumple, en esa hora, el criterio de sepsis
+definido por el desafío, que se activa algunas horas antes del momento clínico de inicio
+para premiar la detección anticipada \cite{reyna2020sepsis,singer2016sepsis3}. Como la
+mayoría de las horas corresponden a pacientes sin sepsis, las etiquetas positivas son poco
+frecuentes, lo que condiciona la forma de medir el rendimiento, como se explica más
+adelante.
 
 % ------------------------------------------------------------
 \section{Pipelines de ML de dos etapas sobre datos tabulares}
 % ------------------------------------------------------------
 
-Un \textit{pipeline} de aprendizaje automático sobre datos tabulares es un sistema
-compuesto por una secuencia de operaciones que transforma observaciones crudas en
-predicciones. En esta investigación se considera un \textit{pipeline} de dos etapas:
-una etapa de \textit{feature engineering} o preprocesamiento, encargada de convertir
-los datos tabulares originales en una representación utilizable por el modelo, y una
-etapa de modelo predictivo, encargada de aprender la relación entre dicha representación
-y la variable objetivo.
+Un \textit{pipeline} de aprendizaje automático es una secuencia de operaciones que
+transforma observaciones sin procesar en predicciones. En esta investigación se considera
+un \textit{pipeline} de dos etapas: una etapa de preparación de datos, encargada de
+convertir los datos originales en una representación que el modelo pueda usar, y una
+etapa de modelo predictivo, encargada de aprender la relación entre esa representación y
+la variable objetivo.
 
-Esta separación es importante porque ambos componentes pueden verse afectados de
-manera distinta ante cambios de distribución. Un cambio en la distribución marginal de
-las variables de entrada puede volver obsoletas las estadísticas aprendidas por el
-preprocesamiento, mientras que un cambio en la relación entre entrada y salida puede
-volver obsoletos los parámetros del modelo predictivo. Por ello, DARL analiza el
-\textit{pipeline} como una composición de dos funciones con parámetros diferentes.
+Esta separación es importante porque cada etapa puede verse afectada de forma distinta por
+los cambios en los datos. Un cambio en la forma en que se distribuyen las variables de
+entrada puede volver obsoletos los valores aprendidos por la etapa de preparación, mientras
+que un cambio en la relación entre entrada y salida puede volver obsoletos los parámetros
+del modelo. Por ello, DARL analiza el \textit{pipeline} como la unión de dos funciones con
+parámetros propios.
 
-La primera etapa, denominada \textit{feature engineering} o preprocesamiento, puede
-formalizarse mediante una función parametrizada:
+La primera etapa, de preparación de datos o \textit{feature engineering}, puede expresarse
+como una función con parámetros:
 
 \begin{equation}
     f_\phi: \mathcal{X} \rightarrow \mathcal{Z}.
@@ -85,16 +93,20 @@ formalizarse mediante una función parametrizada:
 
 \noindent\textbf{Donde:}
 \begin{itemize}
-    \item $\mathcal{X} \subseteq \mathbb{R}^{d}$ corresponde al espacio de entrada original, compuesto por los datos tabulares crudos. Se define como un vector de $d$ variables o columnas.
-    \item $\mathcal{Z} \subseteq \mathbb{R}^{k}$ representa el espacio transformado o representación intermedia utilizada por el modelo predictivo con $k$ variables, que pueden diferir de las $d$ variables originales.
-    \item $f_\phi$ representa la función de preprocesamiento o ingeniería de características.
-    \item $\phi$ representa los parámetros asociados a dicha función, tales como medias, desviaciones estándar, codificaciones categóricas, cuantiles o reglas de imputación aprendidas durante el entrenamiento.
+    \item $\mathcal{X} \subseteq \mathbb{R}^{d}$ corresponde al espacio de entrada original, formado por vectores de $d$ variables.
+    \item $\mathcal{Z} \subseteq \mathbb{R}^{k}$ representa el espacio de datos ya preparados, con $k$ variables, que pueden diferir de las $d$ originales.
+    \item $f_\phi$ representa la función de preparación de datos.
+    \item $\phi$ representa los valores que esa función aprende durante el entrenamiento, como medianas para completar datos faltantes, medias, desviaciones estándar o cuantiles.
 \end{itemize}
 
-Conceptualmente, esta notación muestra que la etapa de \textit{feature\ engineering} no es solo una transformación fija, sino un proceso parametrizado que puede modificar la dimensión y la escala de los datos. Esto es especialmente importante en datos tabulares, donde las variables numéricas, categóricas y ordinales requieren tratamientos diferentes antes de ser usadas por un modelo predictivo. Así, herramientas como escaladores, imputadores o codificadores aprenden valores a partir del entrenamiento para transformar nuevos datos; por ello, ante cambios en la distribución de entrada, los parámetros ($\phi$) pueden volverse obsoletos y requerir actualización.
+Esta notación muestra que la preparación de datos no es una transformación fija, sino un
+proceso que aprende valores a partir de los datos de entrenamiento. Herramientas como los
+imputadores o los escaladores guardan estadísticas de esos datos y las usan después para
+transformar datos nuevos. Si la distribución de las entradas cambia, esos valores
+($\phi$) pueden quedar desactualizados y necesitar una actualización. En DARL, $f_\phi$
+completa los valores faltantes con la mediana y lleva cada signo vital a una escala común.
 
-La segunda etapa, denominada modelo predictivo, se define como una función que toma
-la representación intermedia y produce una salida:
+La segunda etapa, el modelo predictivo, toma los datos preparados y produce una salida:
 
 \begin{equation}
     g_\theta: \mathcal{Z} \rightarrow \mathcal{Y}.
@@ -103,20 +115,18 @@ la representación intermedia y produce una salida:
 
 \noindent\textbf{Donde:}
 \begin{itemize}
-    \item $\mathcal{Z} \subseteq \mathbb{R}^{k}$ representa el espacio de características ya transformadas por la etapa de preprocesamiento.
-    \item $\mathcal{Y} \subseteq \mathbb{R}$ representa el espacio de salida, como las clases resultantes.
-    \item $g_\theta$ representa el modelo predictivo entrenado sobre las características transformadas.
-    \item $\theta$ representa los parámetros aprendidos del modelo, como pesos, umbrales, estructuras de árboles o hiperparámetros ajustados durante el entrenamiento.
+    \item $\mathcal{Z} \subseteq \mathbb{R}^{k}$ representa el espacio de datos ya preparados.
+    \item $\mathcal{Y}$ representa el espacio de salida; en clasificación binaria, la probabilidad estimada de la clase positiva.
+    \item $g_\theta$ representa el modelo predictivo entrenado sobre los datos preparados.
+    \item $\theta$ representa los parámetros aprendidos por el modelo, como la estructura y los pesos de sus árboles.
 \end{itemize}
 
-Conceptualmente, esta fórmula separa claramente el rol del preprocesamiento y el rol
-del modelo. Mientras $f_\phi$ transforma los datos, $g_\theta$ aprende la relación entre
-la representación transformada y la variable objetivo. En esta investigación, el modelo
-predictivo principal es XGBoost \cite{chen2016xgboost}, con regresión logística como
-línea base.
+Esta fórmula separa con claridad el papel de cada etapa. Mientras $f_\phi$ prepara los
+datos, $g_\theta$ aprende la relación entre esos datos y la variable objetivo. En esta
+investigación, el modelo predictivo es XGBoost \cite{chen2016xgboost}.
 
-La función de predicción del \textit{pipeline} completo se obtiene componiendo ambas
-etapas:
+La predicción del \textit{pipeline} completo se obtiene aplicando ambas etapas una después
+de la otra:
 
 \begin{equation}
     h = g_\theta \circ f_\phi, \qquad
@@ -126,31 +136,63 @@ etapas:
 
 \noindent\textbf{Donde:}
 \begin{itemize}
-    \item $h$ representa la función completa del \textit{pipeline} de ML.
+    \item $h$ representa la función completa del \textit{pipeline}.
     \item $\circ$ representa la composición de funciones, es decir, aplicar primero $f_\phi$ y luego $g_\theta$.
-    \item $x$ representa una observación tabular cruda.
-    \item $f_\phi(x)$ representa la versión transformada de la observación $x$.
-    \item $g_\theta(f_\phi(x))$ representa la predicción producida por el modelo a partir de la observación transformada.
+    \item $x$ representa una observación sin procesar.
+    \item $f_\phi(x)$ representa la versión preparada de la observación $x$.
     \item $\hat{y}$ representa la salida predicha por el \textit{pipeline}.
 \end{itemize}
 
-Esta composición expresa que la predicción final depende tanto de la
-calidad de la transformación como de la calidad del modelo. Si el rendimiento de $h$ se
-degrada, el origen del problema puede estar en $f_\phi$, en $g_\theta$ o en ambos. Esta
-separación es la base del problema de actualización selectiva que DARL busca resolver:
-identificar qué componente debe actualizarse bajo distintos tipos de drift.
+Esta composición expresa que la predicción final depende tanto de la calidad de la
+preparación como de la calidad del modelo. Si el rendimiento de $h$ empeora, el origen
+puede estar en $f_\phi$, en $g_\theta$ o en ambos. Esta separación es la base del problema
+de actualización selectiva que DARL busca resolver.
+
+\subsection{Compatibilidad entre etapas}
+
+Actualizar solo una de las dos etapas tiene una condición: la salida de la etapa de
+preparación debe seguir siendo comprensible para el modelo. Si una nueva versión de
+$f_\phi$ cambiara el número de columnas, su orden o su significado, el modelo $g_\theta$
+recibiría datos que no sabe interpretar y tendría que volver a entrenarse. Por esta razón,
+en DARL la corrección de la etapa de preparación no crea ni elimina columnas: solo ajusta
+los valores de las columnas existentes para que vuelvan a parecerse a los datos de
+referencia.
+
+Una forma sencilla de lograr esto es un ajuste por mediana y rango intercuartílico. Para
+cada variable se calcula su mediana y la amplitud de su parte central en los datos
+actuales, y se traslada a la mediana y la amplitud que tenía en los datos de referencia:
+
+\begin{equation}
+    x'_j = \frac{x_j - \operatorname{med}_j^{\text{act}}}{\operatorname{RIC}_j^{\text{act}}}
+    \,\operatorname{RIC}_j^{\text{ref}} + \operatorname{med}_j^{\text{ref}}.
+    \label{eq:median_iqr_map}
+\end{equation}
+
+\noindent\textbf{Donde:}
+\begin{itemize}
+    \item $x_j$ representa el valor actual de la variable $j$ y $x'_j$ su valor corregido.
+    \item $\operatorname{med}_j^{\text{act}}$ y $\operatorname{med}_j^{\text{ref}}$ representan la mediana de la variable $j$ en los datos actuales y en los datos de referencia, respectivamente.
+    \item $\operatorname{RIC}_j^{\text{act}}$ y $\operatorname{RIC}_j^{\text{ref}}$ representan el rango intercuartílico, es decir, la diferencia entre los percentiles 75 y 25 de la variable $j$ en cada conjunto.
+\end{itemize}
+
+Este ajuste corrige desplazamientos y cambios de escala de cada variable sin tocar el
+modelo. Se eligió la mediana y el rango intercuartílico, en lugar de la media y la
+desviación estándar, porque se ven menos afectados por valores extremos, que son comunes
+en registros clínicos. Su límite es claro: si lo que cambió es la relación entre los
+signos vitales y la sepsis, corregir la escala de las entradas no basta, y será necesario
+actualizar el modelo.
 
 % ------------------------------------------------------------
 \section{XGBoost como modelo predictivo base}
 \label{sec:xgboost}
 % ------------------------------------------------------------
 
-XGBoost (\textit{eXtreme Gradient Boosting}) es un algoritmo de aprendizaje basado en
-árboles de decisión potenciados por gradiente que ha demostrado ser altamente competitivo
-en tareas de clasificación y regresión sobre datos tabulares
+XGBoost (\textit{eXtreme Gradient Boosting}) es un algoritmo que combina muchos árboles de
+decisión pequeños, entrenados uno tras otro, y que ha mostrado muy buenos resultados en
+problemas de clasificación y regresión sobre datos tabulares
 \cite{chen2016xgboost,gardner2023tableshift}.
 
-El modelo construye un ensamble aditivo de $K$ árboles de decisión:
+El modelo construye una suma de $K$ árboles de decisión:
 
 \begin{equation}
     \hat{y}_i = \sum_{k=1}^{K} f_k(x_i),
@@ -160,18 +202,19 @@ El modelo construye un ensamble aditivo de $K$ árboles de decisión:
 
 \noindent\textbf{Donde:}
 \begin{itemize}
-    \item $\hat{y}_i$ representa la predicción del modelo para la observación $i$.
+    \item $\hat{y}_i$ representa la predicción del modelo para la observación $i$, antes de convertirla en probabilidad.
     \item $x_i$ representa la observación de entrada $i$.
-    \item $K$ representa el número total de árboles del ensamble.
+    \item $K$ representa el número total de árboles.
     \item $f_k$ representa el árbol de decisión número $k$.
-    \item $\mathcal{F}$ representa el espacio de árboles de regresión disponibles para el modelo.
+    \item $\mathcal{F}$ representa el conjunto de árboles que el modelo puede construir.
 \end{itemize}
 
-Conceptualmente, XGBoost no aprende un único árbol, sino una suma de árboles que corrigen
-progresivamente los errores de los árboles anteriores. Esta estructura lo hace flexible para
-capturar relaciones no lineales y combinaciones complejas de variables en datos tabulares.
+XGBoost no aprende un único árbol, sino una suma de árboles en la que cada nuevo árbol
+corrige los errores que dejaron los anteriores. Esta forma de trabajo le permite capturar
+relaciones no lineales y combinaciones entre variables. En clasificación binaria, la suma
+se transforma en una probabilidad mediante la función logística.
 
-El entrenamiento minimiza una función objetivo regularizada:
+El entrenamiento minimiza una función objetivo que combina error y complejidad:
 
 \begin{equation}
     \mathcal{L}(\theta) =
@@ -186,24 +229,26 @@ El entrenamiento minimiza una función objetivo regularizada:
     \item $\theta$ representa los parámetros del modelo.
     \item $n$ representa el número de observaciones de entrenamiento.
     \item $y_i$ representa la etiqueta real de la observación $i$.
-    \item $\hat{y}_i$ representa la predicción del modelo para la observación $i$.
-    \item $\ell(y_i,\hat{y}_i)$ representa la pérdida de predicción, por ejemplo, entropía cruzada en clasificación binaria.
-    \item $\Omega(f_k)$ representa la penalización de complejidad asociada al árbol $f_k$.
+    \item $\ell(y_i,\hat{y}_i)$ representa el error de predicción, por ejemplo la entropía cruzada en clasificación binaria.
+    \item $\Omega(f_k)$ representa una penalización por la complejidad del árbol $f_k$.
 \end{itemize}
 
-La ecuación \eqref{eq:xgboost_objective} equilibra dos metas: ajustar bien los datos y evitar
-modelos excesivamente complejos. La primera suma mide el error de predicción; la segunda
-suma penaliza árboles demasiado grandes o con pesos muy altos, reduciendo el riesgo de
-sobreajuste \cite{chen2016xgboost}.
+La ecuación \eqref{eq:xgboost_objective} busca dos metas a la vez: ajustarse bien a los
+datos y evitar modelos demasiado complejos. La primera suma mide el error de predicción y
+la segunda penaliza árboles muy grandes o con pesos muy altos, lo que reduce el riesgo de
+que el modelo memorice los datos de entrenamiento \cite{chen2016xgboost}. Cuando la clase
+positiva es poco frecuente, como ocurre con la sepsis, es habitual dar más peso a los
+ejemplos positivos dentro del error para que el modelo no los ignore.
 
 
 % ------------------------------------------------------------
-\section{Distribution shift: taxonomía y formalización}
+\section{Cambio de distribución: tipos y formalización}
 % ------------------------------------------------------------
 
-Sea $P_{\text{tr}}(X,Y)$ la distribución conjunta de entrada y salida durante el
-entrenamiento, y sea $P_{\text{te}}(X,Y)$ la distribución conjunta durante el despliegue.
-De forma general, existe \textit{distribution shift} cuando:
+Sea $P_{\text{tr}}(X,Y)$ la distribución conjunta de entradas y salidas durante el
+entrenamiento, y sea $P_{\text{te}}(X,Y)$ la distribución conjunta durante el uso del
+modelo. En términos generales, existe un cambio de distribución (\textit{distribution
+shift}) cuando:
 
 \begin{equation}
     P_{\text{tr}}(X,Y) \neq P_{\text{te}}(X,Y).
@@ -212,17 +257,18 @@ De forma general, existe \textit{distribution shift} cuando:
 
 \noindent\textbf{Donde:}
 \begin{itemize}
-    \item $X$ representa las variables de entrada o características del problema.
-    \item $Y$ representa la variable objetivo o etiqueta que se desea predecir.
+    \item $X$ representa las variables de entrada del problema.
+    \item $Y$ representa la variable objetivo que se desea predecir.
+    \item $P_{\text{tr}}$ y $P_{\text{te}}$ representan la distribución durante el entrenamiento y durante el uso del modelo, respectivamente.
 \end{itemize}
 
-Conceptualmente, esta fórmula indica que el modelo fue entrenado bajo una distribución
-estadística distinta a la que enfrenta durante producción. Esta diferencia puede hacer que
-un modelo con buen desempeño durante entrenamiento pierda precisión en despliegue,
-incluso si su arquitectura y sus parámetros no han cambiado \cite{gama2014survey,cai2023disde}.
+Esta fórmula indica que el modelo fue entrenado con datos que se comportan de forma
+distinta a los que recibe en producción. Esta diferencia puede hacer que un modelo con buen
+rendimiento durante el entrenamiento pierda calidad en el uso real, aunque el modelo en sí
+no haya cambiado \cite{gama2014survey,cai2023disde}.
 
-La distribución conjunta puede factorizarse en una distribución marginal de entrada y
-una distribución condicional de salida:
+La distribución conjunta puede separarse en la distribución de las entradas y la
+distribución de la salida dadas las entradas:
 
 \begin{equation}
     P(X,Y) = P(X)\,P(Y \mid X).
@@ -232,20 +278,20 @@ una distribución condicional de salida:
 \noindent\textbf{Donde:}
 \begin{itemize}
     \item $P(X,Y)$ representa la distribución conjunta de entradas y salidas.
-    \item $P(X)$ representa la distribución marginal de las variables de entrada.
-    \item $P(Y \mid X)$ representa la distribución condicional de la variable objetivo dado el valor de las entradas.
+    \item $P(X)$ representa la distribución de las variables de entrada.
+    \item $P(Y \mid X)$ representa la distribución de la variable objetivo para valores dados de las entradas.
 \end{itemize}
 
-Esta descomposición permite distinguir dos fuentes principales de
-drift. Puede cambiar la distribución de los datos, lo que afecta a
-$P(X)$, o puede cambiar la relación entre esos datos y las etiquetas, lo que afecta a
-$P(Y \mid X)$. Esta distinción es central porque cada tipo de cambio sugiere una acción
-de mantenimiento distinta sobre el \textit{pipeline} de ML \cite{cai2023disde}.
+Esta separación permite distinguir dos fuentes principales de cambio. Puede cambiar la
+forma en que se distribuyen los datos de entrada, lo que afecta a $P(X)$, o puede cambiar
+la relación entre esos datos y las etiquetas, lo que afecta a $P(Y \mid X)$. La distinción
+es central porque cada tipo de cambio sugiere una acción de mantenimiento distinta sobre el
+\textit{pipeline} \cite{cai2023disde}.
 
 \subsection{Covariate shift}
 
-El \textit{covariate shift} ocurre cuando cambia la distribución marginal de las variables
-de entrada, pero se mantiene estable la relación condicional entre entrada y salida:
+El \textit{covariate shift} ocurre cuando cambia la distribución de las variables de
+entrada, pero se mantiene la relación entre entrada y salida:
 
 \begin{equation}
     P_{\text{tr}}(X) \neq P_{\text{te}}(X)
@@ -254,20 +300,26 @@ de entrada, pero se mantiene estable la relación condicional entre entrada y sa
     \label{eq:covariate_shift}
 \end{equation}
 
-Donde $P_{\text{tr}}(X) \neq P_{\text{te}}(X)$ indica que cambió la distribución de entrada
-en el entrenamiento con respecto al despliegue, mientras la relación condicional se mantiene.
-Conceptualmente, el \textit{covariate shift} es un problema de representatividad de las
-entradas. El sistema empieza a recibir observaciones con rangos, frecuencias o combinaciones
-de atributos distintos a los usados para ajustar el preprocesamiento. En un \textit{pipeline}
-de dos etapas, esto compromete primero a $f_\phi$: parámetros como medias, desviaciones
-estándar, cuantiles o frecuencias categóricas pueden quedar desactualizados. Si la relación
-predictiva que captura $g_\theta$ sigue siendo válida, una actualización selectiva del
-preprocesamiento puede ser suficiente \cite{gama2014survey,cai2023disde}.
+\noindent\textbf{Donde:}
+\begin{itemize}
+    \item $P_{\text{tr}}(X) \neq P_{\text{te}}(X)$ indica que las entradas se distribuyen de forma distinta en el uso que en el entrenamiento.
+    \item $P_{\text{tr}}(Y \mid X) = P_{\text{te}}(Y \mid X)$ indica que la relación entre entradas y salida sigue siendo la misma.
+\end{itemize}
+
+El \textit{covariate shift} es un problema de representatividad de las entradas: el sistema
+empieza a recibir valores, rangos o combinaciones de atributos distintos a los que se usaron
+para ajustar la preparación de los datos. En el \textit{pipeline} de dos etapas, esto afecta
+primero a $f_\phi$, cuyas estadísticas pueden quedar desactualizadas. Si la relación que
+captura $g_\theta$ sigue siendo válida, corregir solo la preparación puede ser suficiente
+\cite{gama2014survey,cai2023disde}. Un ejemplo en el caso de estudio es un cambio en el
+equipo o en el procedimiento de medición: si un monitor registra la frecuencia cardiaca
+unos latidos por encima de lo habitual, los valores de entrada se desplazan aunque el
+estado real del paciente sea el mismo.
 
 \subsection{Concept drift}
 
-El \textit{concept drift} ocurre cuando cambia la relación condicional entre las variables
-de entrada y la variable objetivo, incluso si la distribución de entrada permanece estable:
+El \textit{concept drift} ocurre cuando cambia la relación entre las variables de entrada y
+la variable objetivo, aunque la distribución de las entradas se mantenga:
 
 \begin{equation}
     P_{\text{tr}}(Y \mid X) \neq P_{\text{te}}(Y \mid X)
@@ -276,226 +328,317 @@ de entrada y la variable objetivo, incluso si la distribución de entrada perman
     \label{eq:concept_drift}
 \end{equation}
 
-Donde $P_{\text{tr}}(Y \mid X) \neq P_{\text{te}}(Y \mid X)$ indica que cambió la regla predictiva
-del problema en el entrenamiento con respecto al despliegue, mientras la distribución de entrada se mantiene estable.
-Conceptualmente, el \textit{concept drift} es un problema de validez de la regla aprendida.
-Aunque las entradas puedan parecer comparables a las del entrenamiento, la etiqueta esperada
-para una misma región del espacio de características puede cambiar. En el \textit{pipeline}
-de dos etapas, esto compromete principalmente a $g_\theta$, porque los parámetros del modelo
-ya no describen correctamente la decisión vigente \cite{cai2023disde}.
+\noindent\textbf{Donde:}
+\begin{itemize}
+    \item $P_{\text{tr}}(Y \mid X) \neq P_{\text{te}}(Y \mid X)$ indica que cambió la regla que relaciona las entradas con la salida.
+    \item $P_{\text{tr}}(X) = P_{\text{te}}(X)$ indica que las entradas se siguen distribuyendo igual.
+\end{itemize}
 
-En la práctica, ambos tipos de drift pueden coexistir \cite{gama2014survey}, por lo que también
-se mapea este caso: $P_{\text{tr}}(X) \neq P_{\text{te}}(X)$ y $P_{\text{tr}}(Y \mid X) \neq P_{\text{te}}(Y \mid X)$. En este escenario, el sistema enfrenta un desafío más complejo, ya que tanto la representación de los datos como la regla predictiva pueden estar desactualizadas. En DARL, el agente debe aprender a diagnosticar correctamente el tipo de drift para decidir si actualiza solo el preprocesamiento, solo el modelo o ambos componentes del \textit{pipeline}.
+El \textit{concept drift} es un problema de validez de la regla aprendida. Aunque las
+entradas parezcan iguales a las del entrenamiento, la etiqueta esperada para un mismo
+paciente puede ser otra. En el \textit{pipeline} de dos etapas, esto afecta sobre todo a
+$g_\theta$, porque sus parámetros ya no describen la relación vigente \cite{cai2023disde}.
+Un ejemplo en el caso de estudio es un cambio en el criterio con el que se marca el inicio
+de la sepsis: si las horas positivas se adelantan, los mismos signos vitales pasan a estar
+asociados con una etiqueta distinta. Una consecuencia importante es que este tipo de cambio
+no se ve mirando solo las entradas; para detectarlo hace falta comparar las predicciones
+con las etiquetas reales.
+
+En la práctica, ambos tipos de cambio pueden ocurrir a la vez \cite{gama2014survey}, es
+decir, $P_{\text{tr}}(X) \neq P_{\text{te}}(X)$ y $P_{\text{tr}}(Y \mid X) \neq
+P_{\text{te}}(Y \mid X)$. En este caso, tanto la preparación de los datos como el modelo
+pueden estar desactualizados, y el agente de DARL debe aprender si conviene actualizar una
+etapa, la otra o ambas.
+
+\subsection{Forma y origen del cambio}
+
+Además de su tipo, un cambio de distribución puede describirse por la forma en que
+aparece. Puede ser repentino, cuando los datos cambian de un momento a otro, o gradual,
+cuando el cambio crece poco a poco durante varios días \cite{gama2014survey}. Un cambio
+gradual es más difícil de manejar, porque al inicio las señales son débiles y se confunden
+con la variación normal de los datos.
+
+También importa su origen. Cuando un modelo se traslada de un hospital a otro, aparece un
+cambio de distribución natural, producto de diferencias en los pacientes, los equipos y
+las prácticas de registro \cite{reyna2020sepsis}. En este tipo de cambio no se conoce con
+exactitud qué cambió ni cuánto. Por eso, para estudiar las decisiones de mantenimiento en
+condiciones conocidas, es habitual añadir cambios controlados de forma artificial, con un
+tipo, un momento de inicio y una severidad definidos por el investigador. DARL combina
+ambos: el cambio natural entre hospitales y cambios controlados inyectados sobre el
+hospital de destino.
 
 % ------------------------------------------------------------
-\section{Métricas de monitoreo de drift}
+\section{Señales de monitoreo del cambio de distribución}
 % ------------------------------------------------------------
 
-El módulo de monitoreo de DARL construye, en cada instante de decisión, un vector de
-observación a partir de métricas estadísticas calculadas sobre ventanas de datos:
+Para decidir si el \textit{pipeline} necesita mantenimiento, DARL calcula en cada momento
+de decisión un conjunto de señales a partir de los datos más recientes. Estas señales se
+reúnen en un vector de observación:
 
 \begin{equation}
     \mathbf{o}_t \in \mathbb{R}^{m}.
     \label{eq:observation_vector_generic}
 \end{equation}
 
-Donde $\mathbf{o}_t$ representa el vector de observación para el agente en el instante $t$.
-DARL separa las señales de monitoreo en dos grupos conceptuales. El primer grupo corresponde
-a métricas no supervisadas de \textit{covariate shift}, calculadas sobre las variables de
-entrada $X$ para identificar cambios en $P(X)$. En este grupo se ubican PSI, KS y C2ST
-aplicado sobre $X$. El segundo grupo corresponde a métricas supervisadas de \textit{concept
-    drift} o \textit{performance drift}, calculadas cuando existen etiquetas observadas o
-retrasadas. Estas señales, como AUC, \textit{log-loss}, error de clasificación o entropía
-cruzada, permiten evaluar si la relación aprendida entre entradas y salidas continúa siendo
-válida. En esta tesis, el \textit{concept drift} no se considera directamente observable a
-partir de las variables de entrada; su diagnóstico se apoya en señales de desempeño
-predictivo obtenidas cuando las etiquetas están disponibles
-\cite{gama2014survey,cai2023disde,singh2025shift}.
+\noindent\textbf{Donde:}
+\begin{itemize}
+    \item $\mathbf{o}_t$ representa el vector de observación disponible para el agente en el momento de decisión $t$.
+    \item $m$ representa el número de señales que contiene el vector.
+\end{itemize}
+
+Las señales se dividen en dos grupos. El primero reúne señales que no necesitan
+etiquetas y que se calculan solo con las variables de entrada $X$; sirven para detectar
+cambios en $P(X)$. El segundo reúne señales que comparan las predicciones con las etiquetas
+reales; sirven para detectar si la relación $P(Y \mid X)$ sigue siendo válida. Como las
+etiquetas llegan con retraso, el segundo grupo siempre se refiere a un periodo anterior al
+del primero \cite{gama2014survey,cai2023disde,singh2025shift}.
 
 \subsection{Índice de estabilidad poblacional (PSI)}
 
-El \textit{Population Stability Index} (PSI) cuantifica el cambio en la distribución
-marginal de una variable continua entre una ventana de referencia y una ventana actual
-\cite{shakhovska2025severity}. Para una variable particionada en $n$ intervalos, el PSI
-se define como:
+El \textit{Population Stability Index} (PSI) mide cuánto cambió la distribución de una
+variable entre un periodo de referencia y un periodo actual \cite{shakhovska2025severity}.
+Para ello, la variable se divide en $n$ intervalos y se compara qué proporción de los datos
+cae en cada uno:
 
 \begin{equation}
-    \text{PSI} = \sum_{i=1}^{n} (p_i - q_i)\,\ln\!\left(\frac{p_i}{q_i}\right).
+    \text{PSI} = \sum_{i=1}^{n} (q_i - p_i)\,\ln\!\left(\frac{q_i}{p_i}\right).
     \label{eq:psi}
 \end{equation}
 
 \noindent\textbf{Donde:}
 \begin{itemize}
-    \item $n$ representa el número de intervalos o bins usados para comparar las distribuciones.
-    \item $p_i$ representa la proporción de observaciones de entrenamiento que caen en el intervalo $i$.
-    \item $q_i$ representa la proporción de observaciones actuales o de producción que caen en el intervalo $i$.
+    \item $n$ representa el número de intervalos usados para comparar las distribuciones.
+    \item $p_i$ representa la proporción de observaciones de referencia que caen en el intervalo $i$.
+    \item $q_i$ representa la proporción de observaciones actuales que caen en el intervalo $i$.
 \end{itemize}
 
-El PSI compara cómo se reparte una variable entre intervalos antes y
-después del despliegue. Si las proporciones $p_i$ y $q_i$ son similares en todos los
-intervalos, el valor del PSI será bajo. Si una variable empieza a concentrarse en rangos
-distintos a los observados durante entrenamiento, el PSI aumenta. En DARL se calcula un
-valor de PSI por cada \textit{feature}, lo que permite identificar qué variables presentan
-mayor desplazamiento. Como regla práctica, un $\text{PSI} < 0.1$ indica estabilidad,
-valores entre $0.1$ y $0.2$ sugieren cambio moderado, y $\text{PSI} > 0.2$ indica un
-cambio significativo.
+El PSI compara cómo se reparte una variable entre intervalos antes y después. Si las
+proporciones $p_i$ y $q_i$ son parecidas en todos los intervalos, el PSI es bajo; si la
+variable empieza a concentrarse en rangos distintos, el PSI aumenta. En DARL los intervalos
+se definen con los cuantiles de los datos de referencia, y los intervalos de los extremos
+quedan abiertos para incluir valores nuevos fuera del rango original. Como regla práctica,
+un $\text{PSI} < 0.1$ indica estabilidad, valores entre $0.1$ y $0.2$ sugieren un cambio
+moderado y $\text{PSI} > 0.2$ indica un cambio importante.
 
-\subsection{Test de Kolmogorov--Smirnov (KS)}
+\subsection{Prueba de Kolmogorov--Smirnov (KS)}
 
-El test de Kolmogorov--Smirnov es una prueba no paramétrica de igualdad de
-distribuciones que compara las funciones de distribución acumulada empíricas
-$\hat{F}_{\text{tr}}$ y $\hat{F}_{\text{te}}$ \cite{shakhovska2025severity}. El estadístico
-se define como:
+La prueba de Kolmogorov--Smirnov compara dos distribuciones a partir de sus funciones de
+distribución acumulada, sin suponer ninguna forma particular para ellas
+\cite{shakhovska2025severity}. Su estadístico es:
 
 \begin{equation}
     D_{\text{KS}} = \sup_{x \in \mathbb{R}}
-    \left|\hat{F}_{\text{tr}}(x) - \hat{F}_{\text{te}}(x)\right|.
+    \left|\hat{F}_{\text{ref}}(x) - \hat{F}_{\text{act}}(x)\right|.
     \label{eq:ks}
 \end{equation}
 
 \noindent\textbf{Donde:}
 \begin{itemize}
-    \item $\sup$ representa el supremo, es decir, la mayor diferencia observada entre ambas funciones acumuladas.
-    \item $x \in \mathbb{R}$ representa un posible valor de la variable analizada.
-    \item $\hat{F}_{\text{tr}}(x)$ representa la función de distribución acumulada empírica de la ventana de entrenamiento.
-    \item $\hat{F}_{\text{te}}(x)$ representa la función de distribución acumulada empírica de la ventana actual o de despliegue.
+    \item $\sup$ representa el supremo, es decir, la mayor diferencia observada entre ambas funciones.
+    \item $x$ representa un posible valor de la variable analizada.
+    \item $\hat{F}_{\text{ref}}(x)$ representa la proporción de datos de referencia con valor menor o igual a $x$.
+    \item $\hat{F}_{\text{act}}(x)$ representa la proporción de datos actuales con valor menor o igual a $x$.
 \end{itemize}
 
-El estadístico KS mide la mayor separación entre dos distribuciones
-acumuladas. A diferencia del PSI, no requiere discretizar la variable en intervalos y puede
-ser sensible a diferencias en cualquier región de la distribución. En DARL se calcula
-$D_{\text{KS}}$ por cada \textit{feature} numérico para detectar señales de \textit{covariate shift}
-de forma individual.
+El estadístico KS mide la mayor separación entre las dos distribuciones acumuladas. Toma
+valores entre 0, cuando ambas son iguales, y 1, cuando no se superponen. A diferencia del
+PSI, no necesita dividir la variable en intervalos. En DARL se calcula para cada signo
+vital por separado.
 
-\subsection{Classifier Two-Sample Test (C2ST)}
+\subsection{Prueba de dos muestras basada en un clasificador (C2ST)}
 
-El \textit{Classifier Two-Sample Test} (C2ST) es un test de dos muestras basado en
-clasificación que detecta diferencias distribucionales entre el conjunto de entrenamiento
-y la ventana actual \cite{gama2014survey,cai2023disde,singh2025shift}. En DARL, este test
-se aplica sobre las variables de entrada $X$, por lo que evalúa si las observaciones
-actuales son distinguibles de las observaciones usadas durante entrenamiento. El
-procedimiento construye un problema binario en el que un clasificador intenta distinguir
-si una observación proviene del periodo de entrenamiento o del periodo actual. El
-estadístico de test se define como:
+El PSI y el KS revisan cada variable por separado, por lo que pueden pasar por alto cambios
+que solo aparecen al mirar varias variables juntas. La prueba de dos muestras basada en un
+clasificador (\textit{Classifier Two-Sample Test}, C2ST) resuelve esto con una idea simple:
+se entrena un clasificador para que distinga si una observación viene del periodo de
+referencia o del periodo actual \cite{lopezpaz2017c2st}. Si el clasificador no logra
+distinguirlas mejor que el azar, ambos periodos se parecen; si lo logra, hay un cambio. El
+resultado se resume con el área bajo la curva ROC del clasificador:
 
 \begin{equation}
-    \text{C2ST} = \text{AUC-ROC}(c).
+    \text{C2ST} = \text{AUROC}(c).
     \label{eq:c2st}
 \end{equation}
 
 \noindent\textbf{Donde:}
 \begin{itemize}
-    \item $c$ representa el clasificador entrenado para distinguir entre datos de entrenamiento y datos actuales.
-    \item $\text{AUC-ROC}(c)$ representa el área bajo la curva ROC obtenida por $c$.
+    \item $c$ representa el clasificador entrenado para distinguir entre datos de referencia y datos actuales.
+    \item $\text{AUROC}(c)$ representa el área bajo la curva ROC obtenida por $c$, medida con validación cruzada.
 \end{itemize}
 
-Si el clasificador $c$ no puede distinguir de qué periodo provienen las
-observaciones, entonces las distribuciones son similares y el valor de C2ST se acerca a
-$0.5$. En cambio, si el clasificador separa claramente ambos periodos, el valor se aproxima
-a $1$, lo que indica una diferencia distribucional relevante. En DARL, C2ST aplicado sobre
-las variables de entrada se interpreta como una señal global de cambio distribucional en
-$P(X)$. Su función es complementar métricas univariadas como PSI y KS mediante una
-evaluación multivariada de separabilidad entre la distribución de entrenamiento y la
-distribución actual. Por ello, no se interpreta como un detector directo de \textit{concept
-    drift}: debido a que el \textit{concept drift} corresponde a cambios en $P(Y \mid X)$, su
-identificación requiere señales supervisadas relacionadas con el desempeño predictivo.
+Un valor cercano a $0.5$ indica que el clasificador no distingue los periodos, es decir,
+que las distribuciones son similares. Un valor cercano a $1$ indica una diferencia clara.
+En DARL, el clasificador es una regresión logística y el C2ST se aplica sobre las variables
+de entrada, por lo que se interpreta como una señal de cambio en $P(X)$ y no como un
+detector de \textit{concept drift}.
 
-\subsection{Métricas supervisadas de concept drift y performance drift}
+\subsection{Desplazamiento estandarizado de los signos vitales}
 
-Las métricas anteriores monitorean cambios en $P(X)$, pero no bastan para confirmar cambios
-en $P(Y \mid X)$. Para diagnosticar \textit{concept drift}, DARL incorpora señales
-supervisadas de desempeño cuando las etiquetas reales están disponibles. Estas señales
-incluyen AUC, \textit{log-loss}, error de clasificación, entropía cruzada u otras métricas
-compatibles con la tarea predictiva. En este contexto, una degradación sostenida del
-desempeño puede indicar que la relación aprendida por el modelo ya no representa
-adecuadamente la relación vigente entre variables de entrada y variable objetivo
-\cite{gama2014survey,singh2025shift}.
-
-La señal principal de desempeño considerada en esta tesis es la caída de AUC:
+Una señal todavía más sencilla consiste en medir cuánto se movió el promedio de cada
+variable respecto a su comportamiento de referencia, expresado en unidades de su propia
+variabilidad:
 
 \begin{equation}
-    \Delta AUC_t = AUC_{\text{ref}} - AUC_t.
-    \label{eq:delta_auc}
+    \delta_t = \frac{1}{d}\sum_{j=1}^{d}
+    \min\!\left(\frac{\left|\mu_{j,t} - \mu_j^{\text{ref}}\right|}{\sigma_j^{\text{ref}}},\; 10\right).
+    \label{eq:standardized_shift}
 \end{equation}
 
 \noindent\textbf{Donde:}
 \begin{itemize}
-    \item $AUC_{\text{ref}}$ representa el desempeño de referencia del modelo antes del drift.
-    \item $AUC_t$ representa el desempeño observado en la ventana actual $t$.
-    \item $\Delta AUC_t$ representa la degradación acumulada del desempeño medida mediante AUC.
+    \item $\delta_t$ representa el desplazamiento promedio de las variables de entrada en el día $t$.
+    \item $d$ representa el número de variables monitoreadas; en DARL, los siete signos vitales.
+    \item $\mu_{j,t}$ representa el promedio de la variable $j$ en el día $t$.
+    \item $\mu_j^{\text{ref}}$ y $\sigma_j^{\text{ref}}$ representan el promedio y la desviación estándar de la variable $j$ en el periodo de referencia.
+    \item El valor $10$ limita el aporte de cada variable para que una sola no domine la señal.
 \end{itemize}
 
-Conceptualmente, una caída significativa de AUC indica que la relación aprendida entre
-variables de entrada y variable objetivo puede haber cambiado. Por ello, $\Delta AUC_t$
-se utiliza como una señal operacional de \textit{concept drift} cuando existen etiquetas
-disponibles. De forma análoga, puede definirse una señal de aumento de pérdida:
+Esta señal indica, en una sola cifra, si los signos vitales del día se alejan de lo
+habitual. Es fácil de calcular cada día y responde directamente a cambios de medición como
+los descritos para el \textit{covariate shift}.
+
+\subsection{Calibración de las señales}
+
+Las señales anteriores nunca valen exactamente cero, aunque no haya ningún cambio, porque se
+calculan sobre muestras finitas. Para saber si un valor es realmente alto, conviene
+compararlo con los valores que se obtendrían sin cambio. Una forma de hacerlo es tomar
+muchas veces dos mitades al azar de los datos de referencia, calcular la señal entre ellas y
+guardar esos valores como referencia ``sin cambio''. Con ellos, cada señal observada se
+convierte en una probabilidad empírica:
 
 \begin{equation}
-    \Delta \ell_t = \ell_t - \ell_{\text{ref}}.
-    \label{eq:delta_loss}
+    \hat{P}(v) = \frac{\#\{b : v_b^{(0)} \leq v\} + 1}{B + 1}.
+    \label{eq:empirical_probability}
 \end{equation}
 
 \noindent\textbf{Donde:}
 \begin{itemize}
-    \item $\ell_{\text{ref}}$ representa la pérdida de referencia, por ejemplo \textit{log-loss} o entropía cruzada.
-    \item $\ell_t$ representa la pérdida observada en la ventana actual $t$.
-    \item $\Delta \ell_t$ representa el incremento de pérdida respecto al comportamiento de referencia.
+    \item $v$ representa el valor observado de una señal, como el PSI o el KS.
+    \item $B$ representa el número de repeticiones realizadas sin cambio.
+    \item $v_b^{(0)}$ representa el valor de la señal en la repetición $b$, calculado entre dos mitades de los datos de referencia.
+    \item $\#\{\cdot\}$ representa el número de repeticiones que cumplen la condición.
 \end{itemize}
 
-Como la pérdida aumenta cuando el modelo asigna probabilidades incorrectas a las etiquetas
-observadas, valores positivos de $\Delta \ell_t$ aportan evidencia de \textit{performance
-    drift}. Esta evidencia no reemplaza a las métricas de $P(X)$, sino que permite distinguir
-si la degradación observada se debe a cambios de entrada, cambios de la relación
-$P(Y \mid X)$, o a una combinación de ambos fenómenos.
+Un valor de $\hat{P}(v)$ cercano a $1$ indica que la señal observada es mayor que casi todas
+las obtenidas sin cambio, es decir, que hay evidencia de un cambio real. De esta forma,
+señales con escalas muy distintas, como el PSI y el C2ST, quedan expresadas en una misma
+escala entre 0 y 1, lo que facilita su uso como entrada del agente.
+
+\subsection{Señales de rendimiento con etiquetas}
+
+Las señales anteriores vigilan cambios en $P(X)$, pero no bastan para confirmar cambios en
+$P(Y \mid X)$. Para ello, DARL usa señales que comparan las predicciones del modelo con las
+etiquetas reales cuando estas ya están disponibles. Una caída sostenida del rendimiento
+puede indicar que la relación aprendida por el modelo ya no representa la realidad
+\cite{gama2014survey,singh2025shift}. La señal más directa es la diferencia entre el
+rendimiento de referencia y el rendimiento observado:
+
+\begin{equation}
+    \Delta M_t = M_{\text{ref}} - M_{t-1}.
+    \label{eq:delta_metric}
+\end{equation}
+
+\noindent\textbf{Donde:}
+\begin{itemize}
+    \item $M$ representa una medida de rendimiento, como la AUPRC o el AUROC.
+    \item $M_{\text{ref}}$ representa el rendimiento del modelo en el periodo de referencia.
+    \item $M_{t-1}$ representa el rendimiento observado en el último periodo con etiquetas disponibles; por el retraso de las etiquetas, en el día $t$ solo se conoce el del día $t-1$.
+    \item $\Delta M_t$ representa la caída de rendimiento observada.
+\end{itemize}
+
+Un valor positivo de $\Delta M_t$ indica que el modelo rinde peor que antes. Esta señal no
+reemplaza a las señales sobre $P(X)$, sino que las complementa: si las entradas no cambian y
+el rendimiento cae, la evidencia apunta a \textit{concept drift}; si las entradas cambian y
+el rendimiento también, puede tratarse de \textit{covariate shift} o de ambos. Otra señal
+útil en el caso de estudio es la proporción de horas positivas, porque un cambio en la
+forma de etiquetar la sepsis altera esa proporción aunque los signos vitales no cambien.
 
 \input{tables/metricas_drift_darl}
 
-\subsection{Severity score de covariate shift}
+% ------------------------------------------------------------
+\section{Medidas de rendimiento para clases poco frecuentes}
+% ------------------------------------------------------------
 
-Las métricas no supervisadas de entrada se agregan en un \textit{severity score} que
-cuantifica la magnitud global del \textit{covariate shift} observado en el instante $t$
-\cite{shakhovska2025severity}:
+Para saber si una acción de mantenimiento mejoró el \textit{pipeline}, hace falta una
+medida de rendimiento adecuada al problema. En clasificación binaria, un modelo produce una
+probabilidad, y al compararla con un umbral se decide si la predicción es positiva. A
+partir de esa decisión se definen la precisión y la exhaustividad (\textit{recall}):
 
 \begin{equation}
-    S_X(t) = \alpha\,\overline{\text{PSI}}_t
-    + \beta\,\overline{D}_{\text{KS},t}
-    + \gamma\,\text{C2ST}_t,
-    \qquad
-    \alpha + \beta + \gamma = 1.
-    \label{eq:severity_score}
+    \text{Precisión} = \frac{VP}{VP + FP}, \qquad
+    \text{Exhaustividad} = \frac{VP}{VP + FN}.
+    \label{eq:precision_recall}
 \end{equation}
 
 \noindent\textbf{Donde:}
 \begin{itemize}
-    \item $\overline{\text{PSI}}_t$ representa el promedio de los valores PSI por \textit{feature} en el instante $t$.
-    \item $\overline{D}_{\text{KS},t}$ representa el promedio de los estadísticos KS por \textit{feature} en el instante $t$.
-    \item $\text{C2ST}_t$ representa el valor del test C2ST calculado sobre las variables de entrada en la ventana actual.
-    \item $S_X(t)$ representa la severidad agregada de los cambios observados en $P(X)$.
-    \item $\alpha$, $\beta$ y $\gamma$ son pesos que controlan la importancia relativa de cada métrica.
-    \item La restricción $\alpha + \beta + \gamma = 1$ garantiza que los pesos formen una combinación convexa.
+    \item $VP$ representa los verdaderos positivos: casos positivos que el modelo marcó como positivos.
+    \item $FP$ representa los falsos positivos: casos negativos que el modelo marcó como positivos.
+    \item $FN$ representa los falsos negativos: casos positivos que el modelo no detectó.
 \end{itemize}
 
-Este score resume la magnitud del \textit{covariate shift} observado. No debe interpretarse
-como una medida completa de \textit{concept drift}, ya que no incorpora información sobre
-desempeño predictivo ni cambios en $P(Y \mid X)$. En DARL, $S_X(t)$ se usa para
-categorizar la severidad de los cambios de entrada en niveles leve, moderado y severo, los
-cuales forman parte del vector de observación del agente.
+La precisión responde a la pregunta ``de las alertas que dio el modelo, ¿cuántas eran
+correctas?'', y la exhaustividad a ``de los casos positivos reales, ¿cuántos encontró el
+modelo?''. En la detección de sepsis, una precisión baja significa muchas falsas alarmas, y
+una exhaustividad baja significa pacientes en riesgo que no fueron detectados.
+
+\subsection{Área bajo la curva de precisión y exhaustividad (AUPRC)}
+
+Al variar el umbral de decisión se obtiene una curva de precisión frente a exhaustividad.
+El área bajo esa curva resume el rendimiento del modelo en todos los umbrales posibles, y
+suele estimarse mediante la precisión promedio:
+
+\begin{equation}
+    \text{AUPRC} \approx \text{AP} = \sum_{k} \left(R_k - R_{k-1}\right) P_k.
+    \label{eq:auprc}
+\end{equation}
+
+\noindent\textbf{Donde:}
+\begin{itemize}
+    \item $\text{AP}$ representa la precisión promedio (\textit{average precision}).
+    \item $k$ recorre los umbrales de decisión, ordenados de mayor a menor.
+    \item $P_k$ y $R_k$ representan la precisión y la exhaustividad obtenidas con el umbral $k$.
+    \item $R_k - R_{k-1}$ representa cuánto aumenta la exhaustividad al pasar al umbral $k$.
+\end{itemize}
+
+La AUPRC vale $1$ para un modelo perfecto, y para un modelo que predice al azar vale
+aproximadamente la proporción de casos positivos. Por eso, cuando los positivos son pocos,
+como en la sepsis, una AUPRC baja en términos absolutos puede representar una mejora real
+frente al azar. A diferencia del área bajo la curva ROC (AUROC), que mide qué tan bien el
+modelo ordena a los positivos por encima de los negativos, la AUPRC se fija en la calidad
+de las alertas y es más sensible a los errores sobre la clase poco frecuente
+\cite{saito2015prc}. Por esta razón, DARL usa la AUPRC como medida principal y el AUROC
+como medida complementaria.
+
+\subsection{Utilidad clínica de las alertas}
+
+El PhysioNet/Computing in Cardiology Challenge 2019 propuso además una medida de utilidad
+que refleja el valor clínico de las alertas según el momento en que se emiten
+\cite{reyna2020sepsis}. Una alerta dada entre doce horas antes y tres horas después del
+inicio de la sepsis recibe una recompensa, mayor cuanto más cerca esté del momento ideal; una alerta demasiado tardía o la falta de alerta reciben una
+penalización; y una falsa alarma en un paciente sin sepsis recibe una pequeña
+penalización. La puntuación total se normaliza entre la que obtendría un modelo que nunca
+avisa y la que obtendría un modelo ideal. DARL usa esta medida como información
+complementaria, teniendo en cuenta que, al trabajar con segmentos incompletos de la estancia
+de cada paciente, el valor obtenido no es comparable con la puntuación oficial del desafío.
 
 % ------------------------------------------------------------
 \section{Aprendizaje por refuerzo}
 % ------------------------------------------------------------
 
-El aprendizaje por refuerzo (\textit{Reinforcement Learning}, RL) es un paradigma de ML
-en el que un agente aprende a tomar decisiones mediante la interacción con un entorno,
-maximizando una señal de recompensa acumulada \cite{sutton2018rl}. A diferencia del
-aprendizaje supervisado, el agente no recibe ejemplos etiquetados de las acciones correctas,
-sino que debe descubrirlas mediante exploración y explotación.
+El aprendizaje por refuerzo (\textit{Reinforcement Learning}, RL) es una rama del ML en la
+que un agente aprende a tomar decisiones interactuando con un entorno, con el fin de
+obtener la mayor recompensa acumulada posible \cite{sutton2018rl}. A diferencia del
+aprendizaje supervisado, el agente no recibe ejemplos de cuál era la acción correcta, sino
+que debe descubrirla probando acciones y observando sus consecuencias. Para ello debe
+equilibrar dos conductas: explorar acciones nuevas para conocer sus efectos y aprovechar
+las acciones que ya sabe que funcionan bien.
 
 \subsection{Proceso de Decisión de Markov (MDP) y fundamentos del RL}
 \label{sec:mdp}
 
 El marco matemático estándar del RL es el Proceso de Decisión de Markov (MDP), definido
-formalmente como la tupla:
+como:
 
 \begin{equation}
     \mathcal{M} = \langle \mathcal{S}, \mathcal{A}, P, R, \gamma \rangle.
@@ -504,11 +647,11 @@ formalmente como la tupla:
 
 \noindent\textbf{Donde:}
 \begin{itemize}
-    \item $\mathcal{S}$ es el espacio de estados posibles del entorno.
-    \item $\mathcal{A}$ es el espacio de acciones disponibles para el agente.
+    \item $\mathcal{S}$ es el conjunto de estados posibles del entorno.
+    \item $\mathcal{A}$ es el conjunto de acciones disponibles para el agente.
     \item $P$ es la función de transición entre estados.
     \item $R$ es la función de recompensa.
-    \item $\gamma$ es el factor de descuento de recompensas futuras.
+    \item $\gamma$ es el factor de descuento de las recompensas futuras.
 \end{itemize}
 \begin{figure}[H]
     \centering
@@ -516,10 +659,11 @@ formalmente como la tupla:
     \caption{Esquema general de un Proceso de Decisión de Markov (MDP)}
     \label{fig:mdp}
 \end{figure}
-Como se ve en la figura \ref{fig:mdp}, un MDP modela una situación en la que un agente observa un estado $s_t \in \mathcal{S}$, toma una acción $a_t \in \mathcal{A}$, recibe una recompensa $r_t$ y pasa a un nuevo estado $s_{t+1}$. Esta estructura permite
-formular problemas de decisión secuencial, como el mantenimiento de un \textit{pipeline}
-de ML, donde cada acción tiene efectos sobre el rendimiento futuro del sistema
-\cite{sutton2018rl}.
+Como se ve en la Figura~\ref{fig:mdp}, en un MDP el agente observa un estado
+$s_t \in \mathcal{S}$, toma una acción $a_t \in \mathcal{A}$, recibe una recompensa $r_t$ y
+pasa a un nuevo estado $s_{t+1}$. Esta estructura permite plantear problemas de decisiones
+en secuencia, como el mantenimiento de un \textit{pipeline}, donde cada acción influye en el
+rendimiento futuro del sistema \cite{sutton2018rl}.
 
 La función de transición se expresa como:
 
@@ -530,16 +674,15 @@ La función de transición se expresa como:
 
 \noindent\textbf{Donde:}
 \begin{itemize}
-    \item $P(s' \mid s,a)$ denota la probabilidad de llegar al estado $s'$ después de tomar la acción $a$ en el estado $s$.
-    \item $s_t$ representa el estado del entorno en el instante $t$.
-    \item $a_t$ describe la acción ejecutada por el agente en el instante $t$.
-    \item $s_{t+1}$ representa el estado alcanzado en el siguiente instante.
+    \item $P(s' \mid s,a)$ representa la probabilidad de llegar al estado $s'$ después de tomar la acción $a$ en el estado $s$.
+    \item $s_t$ representa el estado del entorno en el momento $t$.
+    \item $a_t$ representa la acción ejecutada por el agente en el momento $t$.
+    \item $s_{t+1}$ representa el estado alcanzado en el momento siguiente.
 \end{itemize}
 
-Esta fórmula indica que las acciones no determinan siempre un único
-resultado, sino una distribución de posibles estados futuros. En DARL, una acción como
-actualizar el preprocesamiento, actualizar el modelo o reentrenar todo el \textit{pipeline}
-puede conducir a distintos niveles de recuperación de rendimiento.
+Esta fórmula indica que una acción no lleva siempre a un único resultado, sino a varios
+resultados posibles con distintas probabilidades. En DARL, volver a entrenar el modelo
+puede mejorar mucho o poco el rendimiento, según los datos que lleguen después.
 
 La función de recompensa se define como:
 
@@ -550,17 +693,16 @@ La función de recompensa se define como:
 
 \noindent\textbf{Donde:}
 \begin{itemize}
-    \item $\mathcal{S}$ es el espacio de estados.
-    \item $\mathcal{A}$ es el espacio de acciones.
+    \item $\mathcal{S} \times \mathcal{A}$ representa todos los pares posibles de estado y acción.
+    \item $\mathbb{R}$ indica que la recompensa es un número real, positivo o negativo.
 \end{itemize}
 
-La recompensa (\textit{reward}) dicta qué tan conveniente fue una acción en un estado
-determinado. El valor para la recompensa es arbitrario, desde valores negativos que
-penalizan acciones no deseables, hasta valores positivos que incentivan acciones
-beneficiosas. En DARL, la función de recompensa se diseña para reflejar los objetivos de
-mantenimiento del \textit{pipeline}, recibiendo una buena recompensa por recuperar el rendimiento y una penalización por costos de actualización.
+La recompensa indica qué tan conveniente fue una acción en un estado determinado. Los
+valores negativos castigan las acciones no deseadas y los positivos premian las
+convenientes. En DARL, la recompensa premia la mejora del rendimiento y castiga el costo de
+las actualizaciones.
 
-Un MDP satisface la propiedad de Markov:
+Un MDP cumple la propiedad de Markov:
 
 \begin{equation}
     P(s_{t+1} \mid s_t,a_t,\ldots,s_0,a_0)
@@ -568,13 +710,16 @@ Un MDP satisface la propiedad de Markov:
     \label{eq:markov_property}
 \end{equation}
 
-Markov establece que el futuro depende del estado presente y de la acción actual,
-no de toda la historia previa. En la práctica, esta propiedad
-puede no cumplirse perfectamente si el agente no observa toda la información relevante,
-lo que motiva la formulación POMDP usada posteriormente.
+\noindent\textbf{Donde:}
+\begin{itemize}
+    \item $s_0, a_0, \ldots, s_t, a_t$ representan toda la historia de estados y acciones hasta el momento $t$.
+\end{itemize}
 
-La política del agente se define como una distribución sobre acciones condicionada al
-estado:
+Esta propiedad establece que el futuro depende solo del estado y la acción actuales, y no de
+toda la historia anterior. En la práctica, puede no cumplirse si el agente no observa toda
+la información relevante, lo que motiva la formulación POMDP que se presenta más adelante.
+
+La política del agente es la regla que usa para elegir acciones:
 
 \begin{equation}
     \pi(a \mid s) = \Pr(a_t=a \mid s_t=s).
@@ -583,97 +728,92 @@ estado:
 
 \noindent\textbf{Donde:}
 \begin{itemize}
-    \item $\pi$ denota la política o regla de decisión del agente.
-    \item $\pi(a \mid s)$ muestra la probabilidad de elegir la acción $a$ dado el estado $s$.
-    \item $a_t$ representa la acción tomada en el instante $t$.
-    \item $s_t$ representa el estado observado en el instante $t$.
+    \item $\pi$ representa la política del agente.
+    \item $\pi(a \mid s)$ representa la probabilidad de elegir la acción $a$ cuando el estado es $s$.
 \end{itemize}
 
-La política define el comportamiento del agente, ya que dicta qué acciones se toman en
-cada estado. En DARL, la política aprende cuándo diferir, cuándo actualizar solo el preprocesamiento, cuándo actualizar el modelo y cuándo reentrenar todo el \textit{pipeline}.
+La política define el comportamiento del agente. En DARL, la política decide cuándo
+esperar, cuándo corregir la preparación de los datos, cuándo volver a entrenar el modelo y
+cuándo volver a entrenar todo el \textit{pipeline}.
 
-La función de retorno representa la suma descontada de recompensas futuras:
+El retorno es la suma de las recompensas futuras, en la que las más lejanas pesan menos:
 
 \begin{equation}
-    R_t = r_t + \gamma r_{t+1} + \gamma^2 r_{t+2} + \cdots
-    = \sum_{k=0}^{N} \gamma^k r_{t+k},
+    G_t = r_t + \gamma r_{t+1} + \gamma^2 r_{t+2} + \cdots
+    = \sum_{k=0}^{T-t} \gamma^k r_{t+k},
     \qquad 0 \leq \gamma \leq 1.
     \label{eq:return}
 \end{equation}
 
 \noindent\textbf{Donde:}
 \begin{itemize}
-    \item $r_{t+k}$ representa la recompensa recibida $k$ pasos después del instante $t$.
+    \item $G_t$ representa el retorno desde el momento $t$.
+    \item $r_{t+k}$ representa la recompensa recibida $k$ pasos después del momento $t$.
     \item $\gamma$ representa el factor de descuento.
-    \item $k, N \in \mathbb{R}$ son el número de pasos del episodio finito.
+    \item $T$ representa el último paso del episodio; en DARL, el último día simulado.
 \end{itemize}
 
-El retorno permite evaluar una decisión no solo por su beneficio inmediato,
-sino también por sus consecuencias futuras, además de evidenciar el desempeño del agente en determinado episodio. En DARL, una acción con bajo costo inmediato
-podría ser mala si permite que el modelo siga degradándose, mientras que una acción costosa
-podría ser conveniente si recupera el rendimiento de forma sostenida.
+El retorno permite juzgar una decisión no solo por su beneficio inmediato, sino también por
+sus consecuencias posteriores. En DARL, una acción barata puede ser mala si deja que el
+modelo siga empeorando, y una acción costosa puede ser conveniente si mejora el rendimiento
+durante varios días.
 
-El objetivo del agente es aprender una política óptima:
+El objetivo del agente es encontrar la política que da el mayor retorno esperado:
 
 \begin{equation}
-    \pi^* = \arg\max_{\pi} \; \mathbb{E}_{\pi}\!\left[R_t\right].
+    \pi^* = \arg\max_{\pi} \; \mathbb{E}_{\pi}\!\left[G_t\right].
     \label{eq:objetivo_rl}
 \end{equation}
 
 \noindent\textbf{Donde:}
 \begin{itemize}
-    \item $\pi^*$ representa la política óptima que el agente busca aprender.
-    \item $\arg\max_{\pi}$ denota la política que maximiza la expresión siguiente.
-    \item $\mathbb{E}_{\pi}\!\left[R_t\right]$ representa la esperanza del retorno $R_t$ considerando acciones tomadas según la política $\pi$.
+    \item $\pi^*$ representa la política óptima.
+    \item $\arg\max_{\pi}$ indica que se busca la política que hace máxima la expresión.
+    \item $\mathbb{E}_{\pi}\!\left[G_t\right]$ representa el valor esperado del retorno cuando se actúa según $\pi$.
 \end{itemize}
 
-Conceptualmente, esta fórmula indica que el agente no busca maximizar una recompensa
-inmediata aislada, sino el rendimiento esperado acumulado durante todo el episodio.
-En DARL, esto se traduce en
-aprender una estrategia de mantenimiento que equilibre recuperación de desempeño y costo
-de actualización a lo largo del tiempo \cite{sutton2018rl}.
+Esta fórmula indica que el agente no busca la mayor recompensa de un solo paso, sino el
+mejor resultado acumulado de todo el episodio. En DARL, esto equivale a aprender una forma
+de mantener el \textit{pipeline} que equilibre la mejora del rendimiento y el costo de las
+actualizaciones a lo largo del tiempo \cite{sutton2018rl}.
 
-La función de valor de estado mide la recompensa acumulada esperada al encontrarse en
-un estado $s$ y seguir la política $\pi$:
+La función de valor de estado mide el retorno esperado al estar en un estado $s$ y seguir la
+política $\pi$:
 
 \begin{equation}
-    V_{\pi}(s) = \mathbb{E}_{\pi}\!\left[R_t \mid s_t=s\right].
+    V_{\pi}(s) = \mathbb{E}_{\pi}\!\left[G_t \mid s_t=s\right].
     \label{eq:value_function}
 \end{equation}
 
 \noindent\textbf{Donde:}
 \begin{itemize}
     \item $V_{\pi}(s)$ representa el valor esperado del estado $s$ bajo la política $\pi$.
-    \item $R_t$ representa el retorno acumulado desde el instante $t$.
-    \item $s_t=s$ indica que el agente se encuentra en el estado $s$ en el instante $t$.
-    \item $\mathbb{E}_{\pi}$ representa la esperanza considerando acciones tomadas según la política $\pi$.
+    \item $s_t=s$ indica que el agente se encuentra en el estado $s$ en el momento $t$.
 \end{itemize}
 
-Conceptualmente, $V_{\pi}(s)$ responde a la pregunta: ``¿qué tan bueno es estar en este
-estado si sigo actuando con esta política?''. En DARL, un estado con drift severo y bajo
-rendimiento debería tener menor valor si no se toman acciones correctivas adecuadas.
+$V_{\pi}(s)$ responde a la pregunta: ``¿qué tan bueno es estar en este estado si sigo
+actuando con esta política?''. En DARL, un estado con un cambio fuerte y bajo rendimiento
+tiene poco valor si no se toman acciones correctivas.
 
-La función de valor de acción cuantifica la recompensa esperada al tomar una acción $a$
-en un estado $s$ y luego seguir la política $\pi$:
+La función de valor de acción mide el retorno esperado al tomar una acción $a$ en un estado
+$s$ y luego seguir la política $\pi$:
 
 \begin{equation}
-    Q_{\pi}(s,a) = \mathbb{E}_{\pi}\!\left[R_t \mid s_t=s, a_t=a\right].
+    Q_{\pi}(s,a) = \mathbb{E}_{\pi}\!\left[G_t \mid s_t=s, a_t=a\right].
     \label{eq:q_function}
 \end{equation}
 
 \noindent\textbf{Donde:}
 \begin{itemize}
-    \item $Q_{\pi}(s,a)$ representa el valor esperado de ejecutar la acción $a$ en el estado $s$ bajo la política $\pi$.
-    \item $s_t=s$ indica el estado actual.
-    \item $a_t=a$ indica la acción ejecutada en el estado actual.
-    \item $R_t$ representa el retorno acumulado posterior.
+    \item $Q_{\pi}(s,a)$ representa el valor esperado de ejecutar la acción $a$ en el estado $s$ y luego seguir $\pi$.
+    \item $a_t=a$ indica la acción ejecutada en el momento $t$.
 \end{itemize}
 
-Conceptualmente, $Q_{\pi}(s,a)$ permite comparar acciones disponibles en un mismo estado.
-Para DARL, esta función expresa si conviene diferir, actualizar una etapa o reentrenar el
-\textit{pipeline} completo ante una señal de drift.
+$Q_{\pi}(s,a)$ permite comparar las acciones disponibles en un mismo estado. En DARL, indica
+si conviene esperar, actualizar una etapa o volver a entrenar todo el \textit{pipeline} ante
+las señales observadas. Esta función es la base del algoritmo DQN usado en esta tesis.
 
-La política óptima satisface la ecuación de optimalidad de Bellman:
+La política óptima cumple la ecuación de optimalidad de Bellman:
 
 \begin{equation}
     Q^*(s,a) = \mathbb{E}\!\left[r + \gamma \max_{a'} Q^*(s',a') \mid s,a\right].
@@ -683,24 +823,23 @@ La política óptima satisface la ecuación de optimalidad de Bellman:
 \noindent\textbf{Donde:}
 \begin{itemize}
     \item $Q^*(s,a)$ representa el valor óptimo de tomar la acción $a$ en el estado $s$.
-    \item $r$ representa la recompensa inmediata recibida después de ejecutar la acción.
-    \item $\gamma$ representa el factor de descuento.
-    \item $s'$ representa el siguiente estado alcanzado.
-    \item $a'$ representa una posible acción futura.
-    \item $\max_{a'} Q^*(s',a')$ representa el mejor valor alcanzable desde el siguiente estado.
+    \item $r$ representa la recompensa inmediata.
+    \item $s'$ representa el estado siguiente.
+    \item $a'$ representa una posible acción en el estado siguiente.
+    \item $\max_{a'} Q^*(s',a')$ representa el mejor valor que se puede obtener desde el estado siguiente.
 \end{itemize}
 
-Entonces, la ecuación de Bellman expresa que una acción es buena si produce una
-buena recompensa inmediata y deja al agente en un estado desde el cual puede obtener
-buenas recompensas futuras. Esta idea es fundamental para aprender políticas de
-mantenimiento que consideren efectos a largo plazo \cite{sutton2018rl}.
+La ecuación de Bellman expresa que una acción es buena si da una buena recompensa inmediata
+y deja al agente en un estado desde el cual puede seguir obteniendo buenas recompensas.
+Conociendo $Q^*$, la mejor decisión en cada estado es simplemente elegir la acción con mayor
+valor \cite{sutton2018rl}.
 
 \subsection{Proceso de Decisión de Markov Parcialmente Observable (POMDP)}
 \label{sec:pomdp}
 
-En muchos problemas reales, el agente no puede observar el estado completo del entorno,
-sino solamente una señal parcial y ruidosa. Este escenario es capturado por el Proceso
-de Decisión de Markov Parcialmente Observable (POMDP), definido como:
+En muchos problemas reales, el agente no ve el estado completo del entorno, sino solo
+señales parciales y con ruido. Este caso se modela con un Proceso de Decisión de Markov
+Parcialmente Observable (POMDP):
 
 \begin{equation}
     \mathcal{P} = \langle \mathcal{S}, \mathcal{A}, \mathcal{O}, P, R, \Omega, \gamma \rangle.
@@ -709,9 +848,9 @@ de Decisión de Markov Parcialmente Observable (POMDP), definido como:
 
 \noindent\textbf{Donde:}
 \begin{itemize}
-    \item $\mathcal{S}$ representa el espacio de estados reales del entorno.
-    \item $\mathcal{A}$ representa el espacio de acciones disponibles para el agente.
-    \item $\mathcal{O}$ representa el espacio de observaciones disponibles.
+    \item $\mathcal{S}$ representa el conjunto de estados reales del entorno.
+    \item $\mathcal{A}$ representa el conjunto de acciones disponibles.
+    \item $\mathcal{O}$ representa el conjunto de observaciones posibles.
     \item $P$ representa la función de transición entre estados.
     \item $R$ representa la función de recompensa.
     \item $\Omega$ representa la función de observación.
@@ -723,9 +862,11 @@ de Decisión de Markov Parcialmente Observable (POMDP), definido como:
     \caption{Esquema general de un POMDP}
     \label{fig:pomdp}
 \end{figure}
-Como se muestra en la figura \ref{fig:pomdp}, un POMDP extiende el MDP para casos
-en los que el agente no observa directamente el estado real, sino una aproximación, generalmente considerada como una distribución normal $\mathcal{N}(\mu, \sigma)$. Esto encaja con DARL porque el estado real de las distribuciones
-del \textit{pipeline} no es accesible completamente; el agente solo observa métricas estimadas a partir de muestras finitas \cite{kaelbling1998pomdp}.
+Como muestra la Figura~\ref{fig:pomdp}, un POMDP amplía el MDP para los casos en que el
+agente no ve directamente el estado real, sino una observación relacionada con él. Esto
+encaja con DARL, porque el estado real de los datos y del \textit{pipeline} no se puede
+conocer por completo: el agente solo ve señales calculadas sobre muestras limitadas
+\cite{kaelbling1998pomdp}.
 
 La función de observación se define como:
 
@@ -737,249 +878,295 @@ La función de observación se define como:
 \noindent\textbf{Donde:}
 \begin{itemize}
     \item $\Omega(o \mid s',a)$ representa la probabilidad de recibir la observación $o$ después de llegar al estado $s'$ tras ejecutar la acción $a$.
-    \item $o_{t+1}$ representa la observación recibida en el siguiente instante.
+    \item $o_{t+1}$ representa la observación recibida en el momento siguiente.
     \item $s_{t+1}$ representa el estado real alcanzado.
-    \item $a_t$ representa la acción ejecutada por el agente.
 \end{itemize}
 
-Esta fórmula muestra la diferencia entre el estado real y lo que el
-agente puede medir. En DARL, las métricas PSI, KS, C2ST, severidad de covariate shift y
-degradación supervisada de desempeño son observaciones imperfectas del verdadero estado
-de drift y degradación del \textit{pipeline}.
+Esta fórmula marca la diferencia entre el estado real y lo que el agente puede medir. En
+DARL, las señales de monitoreo son mediciones imperfectas del verdadero estado de los datos
+y del \textit{pipeline}.
 
-Dado que el estado real no es directamente accesible, el agente puede mantener una
-distribución de probabilidad sobre los estados posibles, denominada \textit{belief state}:
+Como el estado real no es accesible, el agente puede llevar una estimación de qué tan
+probable es cada estado posible, llamada estado de creencia (\textit{belief state}):
 
 \begin{equation}
-    b_t(s) = P(s_t=s \mid o_1,a_1,\ldots,o_t).
+    b_t(s) = \Pr(s_t=s \mid o_1,a_1,\ldots,a_{t-1},o_t).
     \label{eq:belief_state}
 \end{equation}
 
 \noindent\textbf{Donde:}
 \begin{itemize}
-    \item $b_t(s)$ representa la creencia del agente sobre la probabilidad de estar en el estado $s$ en el instante $t$.
-    \item $s_t$ representa el estado real en el instante $t$.
-    \item $o_1,\ldots,o_t$ representan las observaciones recibidas hasta el instante $t$.
+    \item $b_t(s)$ representa la probabilidad que el agente asigna a estar en el estado $s$ en el momento $t$.
+    \item $o_1,\ldots,o_t$ representan las observaciones recibidas hasta el momento $t$.
     \item $a_1,\ldots,a_{t-1}$ representan las acciones ejecutadas previamente.
 \end{itemize}
 
-Entonces, el \textit{belief state} resume la historia de observaciones y acciones
-en una estimación probabilística del estado actual. Se asume que el \textit{belief state}
-sigue una distribución normal $\mathcal{N}(\mu, \sigma)$. En DARL, esto justifica que el agente
-aprenda a decidir bajo incertidumbre, ya que las métricas observadas pueden ser ruidosas
-o insuficientes para determinar con certeza el tipo de drift.
-
-La política óptima en un POMDP puede expresarse como una función del \textit{belief state}:
+El estado de creencia resume toda la historia de observaciones y acciones en una sola
+estimación. En teoría, la política óptima de un POMDP se define sobre esta creencia,
+$\pi^*(b_t)$, y no sobre el estado real \cite{kaelbling1998pomdp}. Calcular $b_t$ de forma
+exacta exige conocer las funciones $P$ y $\Omega$, lo que no es posible en DARL. Por eso se
+usa una aproximación práctica habitual: entregar al agente las observaciones de los últimos
+días apiladas en un solo vector, de modo que pueda reconocer tendencias y no solo el valor
+de un día aislado:
 
 \begin{equation}
-    \pi^*(b_t).
-    \label{eq:pomdp_policy}
+    \tilde{\mathbf{o}}_t = \left[\mathbf{o}_{t-H+1}, \ldots, \mathbf{o}_{t-1}, \mathbf{o}_t\right].
+    \label{eq:stacked_observation}
 \end{equation}
 
-Esta notación indica que el agente no decide a partir del estado real,
-sino a partir de su mejor estimación del estado. En implementaciones prácticas como DARL,
-esta estimación se aproxima mediante el vector de métricas observado.
+\noindent\textbf{Donde:}
+\begin{itemize}
+    \item $\tilde{\mathbf{o}}_t$ representa la observación ampliada que recibe el agente en el día $t$.
+    \item $\mathbf{o}_t$ representa el vector de señales del día $t$.
+    \item $H$ representa el número de días apilados; en DARL, $H = 4$.
+\end{itemize}
 
-En el contexto de DARL, el estado oculto $s_t$ es el estado real de las distribuciones del
-\textit{pipeline}, incluyendo la distribución real $P_t(X)$, la relación real $P_t(Y \mid X)$
-y el grado de degradación del modelo. Lo que sí se observa es el vector de métricas
-estadísticas y supervisadas calculadas sobre muestras finitas:
+En el contexto de DARL, el estado oculto $s_t$ incluye la distribución real de los signos
+vitales, la relación real entre estos y la sepsis, el tipo y la severidad del cambio que se
+está produciendo y el estado del \textit{pipeline} desplegado. Nada de esto se le muestra al
+agente. Lo que sí observa cada día es un vector de señales como el siguiente:
 
 \begin{equation}
     \mathbf{o}_t = \left[
-        \overline{\text{PSI}}_t,\;
-        \overline{D}_{\text{KS},t},\;
-        \text{C2ST}_t,\;
-        S_X(t),\;
-        \Delta AUC_t,\;
-        \Delta \ell_t
-        \right] \in \mathbb{R}^{m}.
+        \delta_t,\;
+        \rho^{\text{falt}}_t,\;
+        \bar{p}_t,\;
+        \pi^{+}_{t-1},\;
+        \text{AUPRC}_{t-1},\;
+        n_{t-1},\;
+        c_{t-1}
+        \right].
     \label{eq:darl_observation_vector}
 \end{equation}
 
 \noindent\textbf{Donde:}
 \begin{itemize}
-    \item $\mathbf{o}_t$ representa la observación disponible para DARL en el instante $t$.
-    \item $\overline{\text{PSI}}_t$ representa el promedio de PSI sobre las variables de entrada monitoreadas.
-    \item $\overline{D}_{\text{KS},t}$ representa el promedio de los estadísticos KS sobre las variables de entrada monitoreadas.
-    \item $\text{C2ST}_t$ representa la señal global multivariada de cambio en $P(X)$.
-    \item $S_X(t)$ representa el puntaje combinado de severidad del \textit{covariate shift}.
-    \item $\Delta AUC_t$ representa la caída de desempeño AUC cuando existen etiquetas disponibles.
-    \item $\Delta \ell_t$ representa el aumento de pérdida predictiva cuando existen etiquetas disponibles.
-    \item $\mathbb{R}^{m}$ representa el espacio vectorial de observaciones de dimensión $m$.
+    \item $\delta_t$ representa el desplazamiento estandarizado de los signos vitales del día $t$, según la Ecuación~\eqref{eq:standardized_shift}.
+    \item $\rho^{\text{falt}}_t$ representa la proporción de valores faltantes en el día $t$.
+    \item $\bar{p}_t$ representa la probabilidad promedio de sepsis predicha por el modelo en el día $t$.
+    \item $\pi^{+}_{t-1}$ representa la proporción de horas positivas en el último día con etiquetas disponibles.
+    \item $\text{AUPRC}_{t-1}$ representa el rendimiento del modelo en el último día con etiquetas disponibles.
+    \item $n_{t-1}$ representa, en forma normalizada, la cantidad de datos etiquetados disponibles para actualizar el \textit{pipeline}.
+    \item $c_{t-1}$ representa el costo de la última acción ejecutada.
 \end{itemize}
 
-Por lo tanto, DARL convierte señales estadísticas de
-monitoreo en una observación compacta para el agente. PSI, KS, C2ST y $S_X(t)$ representan
-señales no supervisadas de \textit{covariate shift}; $\Delta AUC_t$ y $\Delta \ell_t$
-representan señales supervisadas de \textit{concept drift}.
-Algunas componentes pueden no estar disponibles inmediatamente debido al retraso en la
-llegada de etiquetas. Debido a que estas métricas se calculan sobre ventanas finitas y bajo
-disponibilidad parcial de información, contienen ruido e incertidumbre; por ello, el problema
-se modela de forma natural como un POMDP.
+Este vector combina señales sobre las entradas ($\delta_t$, $\rho^{\text{falt}}_t$,
+$\bar{p}_t$), señales con etiquetas ($\pi^{+}_{t-1}$, $\text{AUPRC}_{t-1}$) e información
+sobre el propio proceso de mantenimiento ($n_{t-1}$, $c_{t-1}$). Las señales con etiquetas
+siempre se refieren al día anterior, porque las etiquetas llegan con un día de retraso.
+Como todas estas señales se calculan sobre muestras limitadas y con información
+incompleta, contienen ruido e incertidumbre; por eso el problema se modela de forma natural
+como un POMDP.
+
+\subsection{Recompensa con resultados retrasados}
+
+En un MDP habitual, la recompensa de una acción se conoce inmediatamente. En DARL no ocurre
+así: una decisión tomada al final del día $t$ empieza a afectar las predicciones del día
+$t+1$, y las etiquetas de ese día recién se conocen al final del día $t+2$. Por eso, la
+recompensa de cada decisión se calcula con retraso y compara el rendimiento del
+\textit{pipeline} actualizado con el que habría tenido sin la actualización, sobre los
+mismos pacientes:
+
+\begin{equation}
+    r_t = \text{AP}\!\left(y_{t+1}, \hat{p}^{\,\text{nuevo}}_{t+1}\right)
+    - \text{AP}\!\left(y_{t+1}, \hat{p}^{\,\text{previo}}_{t+1}\right)
+    - \lambda\, c(a_t).
+    \label{eq:darl_reward_delayed}
+\end{equation}
+
+\noindent\textbf{Donde:}
+\begin{itemize}
+    \item $r_t$ representa la recompensa asociada a la decisión del día $t$.
+    \item $y_{t+1}$ representa las etiquetas reales de los pacientes de evaluación en el día $t+1$.
+    \item $\hat{p}^{\,\text{nuevo}}_{t+1}$ representa las probabilidades predichas por el \textit{pipeline} después de aplicar la acción $a_t$.
+    \item $\hat{p}^{\,\text{previo}}_{t+1}$ representa las probabilidades que habría predicho el \textit{pipeline} sin la acción.
+    \item $\text{AP}(\cdot)$ representa la precisión promedio de la Ecuación~\eqref{eq:auprc}.
+    \item $c(a_t)$ representa el costo relativo de la acción $a_t$, con valor $0$ para no actuar y $1$ para volver a entrenar todo el \textit{pipeline}.
+    \item $\lambda$ representa el peso del costo frente a la mejora del rendimiento.
+\end{itemize}
+
+Esta recompensa responde a una pregunta concreta: ¿cuánto mejoró la calidad de las alertas
+gracias a la acción, y cuánto costó lograrlo? Si una acción no mejora el rendimiento, la
+recompensa es negativa por su costo; si lo mejora lo suficiente, compensa ese costo. Cuando
+un día no tiene ningún caso positivo, la mejora no se puede calcular y se toma como cero,
+mientras el costo se mantiene. El retraso también afecta al aprendizaje: la experiencia de
+cada decisión solo puede usarse para entrenar al agente cuando su recompensa ya es
+conocida.
 
 % ------------------------------------------------------------
-\section{Proximal Policy Optimization (PPO)}
+\section{Red Q profunda (DQN)}
+\label{sec:dqn}
+% ------------------------------------------------------------
+
+Cuando el número de estados es pequeño, los valores $Q(s,a)$ pueden guardarse en una tabla.
+En DARL, en cambio, las observaciones son vectores de números continuos, por lo que una
+tabla no es viable. La red Q profunda (\textit{Deep Q-Network}, DQN) resuelve este problema
+usando una red neuronal que recibe la observación y devuelve un valor $Q$ estimado para
+cada acción posible \cite{mnih2015dqn}.
+
+\subsection{Aprendizaje Q}
+
+DQN se basa en el aprendizaje Q (\textit{Q-learning}), un método que mejora la estimación de
+$Q$ paso a paso usando la ecuación de Bellman \cite{sutton2018rl}. Cada vez que el agente
+ejecuta una acción y observa la recompensa y el estado siguiente, calcula un valor objetivo:
+
+\begin{equation}
+    y_t = r_t + \gamma\,(1 - \text{fin}_t)\,\max_{a'} Q_{\theta^-}(s_{t+1}, a').
+    \label{eq:dqn_target}
+\end{equation}
+
+\noindent\textbf{Donde:}
+\begin{itemize}
+    \item $y_t$ representa el valor objetivo hacia el cual se quiere acercar la estimación.
+    \item $r_t$ representa la recompensa recibida.
+    \item $\gamma$ representa el factor de descuento.
+    \item $\text{fin}_t$ vale $1$ si el episodio terminó en ese paso y $0$ en otro caso.
+    \item $Q_{\theta^-}$ representa la red objetivo, una copia de la red principal que se actualiza con menos frecuencia.
+    \item $\max_{a'} Q_{\theta^-}(s_{t+1}, a')$ representa el mejor valor estimado desde el estado siguiente.
+\end{itemize}
+
+Este valor objetivo combina lo que el agente acaba de observar (la recompensa) con lo que
+espera obtener después (el mejor valor desde el estado siguiente). Si el episodio terminó,
+no hay valor futuro y el objetivo es solo la recompensa.
+
+La red principal se entrena para que su estimación se acerque a ese objetivo, minimizando
+el error cuadrático promedio:
+
+\begin{equation}
+    \mathcal{L}_{\text{DQN}}(\theta) =
+    \mathbb{E}_{(s,a,r,s') \sim \mathcal{B}}
+    \left[\left(y - Q_\theta(s,a)\right)^2\right].
+    \label{eq:dqn_loss}
+\end{equation}
+
+\noindent\textbf{Donde:}
+\begin{itemize}
+    \item $\mathcal{L}_{\text{DQN}}(\theta)$ representa el error que se busca reducir.
+    \item $Q_\theta(s,a)$ representa el valor estimado por la red principal, con parámetros $\theta$.
+    \item $(s,a,r,s')$ representa una experiencia: estado, acción, recompensa y estado siguiente.
+    \item $\mathcal{B}$ representa la memoria de experiencias de la que se toman las muestras.
+\end{itemize}
+
+Esta fórmula indica que la red aprende comparando lo que predecía con lo que realmente
+ocurrió. Con el tiempo, sus estimaciones de $Q$ se vuelven más precisas y la acción con
+mayor valor estimado se convierte en una buena decisión.
+
+\subsection{Componentes que estabilizan el aprendizaje}
+
+Entrenar una red neuronal con la ecuación \eqref{eq:dqn_loss} puede ser inestable, porque
+las experiencias consecutivas se parecen mucho entre sí y porque el objetivo cambia cada
+vez que cambia la red. DQN incorpora tres componentes para evitarlo \cite{mnih2015dqn}:
+
+\begin{enumerate}
+    \item \textbf{Memoria de experiencias} (\textit{experience replay}). Las experiencias se
+    guardan en una memoria de tamaño fijo y la red se entrena con grupos elegidos al azar
+    de esa memoria. Así se rompe la relación entre experiencias consecutivas y cada
+    experiencia puede usarse varias veces. En DARL esto es especialmente útil, porque cada
+    experiencia implica actualizar y evaluar un \textit{pipeline}, lo que tiene un costo.
+    Además, una experiencia solo entra a la memoria cuando su recompensa retrasada ya se
+    conoce.
+
+    \item \textbf{Red objetivo}. El valor objetivo de la Ecuación~\eqref{eq:dqn_target} se
+    calcula con una copia de la red que solo se actualiza cada cierto número de pasos. Esto
+    evita que el objetivo se mueva constantemente mientras la red aprende.
+
+    \item \textbf{Exploración $\varepsilon$-voraz} (\textit{$\varepsilon$-greedy}). Con
+    probabilidad $\varepsilon$ el agente elige una acción al azar y, en caso contrario,
+    elige la acción con mayor valor estimado. El valor de $\varepsilon$ empieza alto, para
+    probar muchas acciones al inicio, y disminuye poco a poco para aprovechar lo aprendido.
+\end{enumerate}
+
+La política que resulta del entrenamiento es sencilla de aplicar: en cada día, el agente
+calcula $Q_\theta(\tilde{\mathbf{o}}_t, a)$ para cada acción y elige la de mayor valor:
+
+\begin{equation}
+    a_t = \arg\max_{a \in \mathcal{A}} Q_\theta(\tilde{\mathbf{o}}_t, a).
+    \label{eq:dqn_policy}
+\end{equation}
+
+\noindent\textbf{Donde:}
+\begin{itemize}
+    \item $a_t$ representa la acción elegida en el día $t$.
+    \item $\tilde{\mathbf{o}}_t$ representa la observación ampliada de la Ecuación~\eqref{eq:stacked_observation}.
+    \item $\mathcal{A}$ representa el conjunto de acciones de mantenimiento.
+\end{itemize}
+
+Esta regla muestra que, una vez entrenado, el agente no necesita volver a probar acciones:
+basta con comparar los valores estimados y elegir el mayor.
+
+\subsection{Justificación de DQN para DARL}
+
+DQN es el algoritmo elegido para DARL por tres razones propias del problema
+\cite{mnih2015dqn,sutton2018rl}:
+
+\begin{enumerate}
+    \item \textbf{Acciones discretas y pocas.} El agente elige entre un número pequeño de
+    acciones de mantenimiento:
+
+    \begin{equation}
+        \mathcal{A} = \{A1, A2, A3, A4\}, \qquad |\mathcal{A}| = 4.
+        \label{eq:action_space_cardinality}
+    \end{equation}
+
+    \noindent\textbf{Donde:}
+    \begin{itemize}
+        \item $A1$ representa no hacer nada y mantener el \textit{pipeline} actual.
+        \item $A2$ representa corregir la preparación de los datos sin modificar el modelo.
+        \item $A3$ representa volver a entrenar solo el modelo, manteniendo la preparación de los datos.
+        \item $A4$ representa volver a entrenar todo el \textit{pipeline}.
+    \end{itemize}
+
+    DQN está diseñado justamente para este caso, porque estima un valor para cada acción y
+    elige la mayor. El conjunto de acciones puede ampliarse en trabajos futuros sin cambiar
+    la forma del algoritmo.
+
+    \item \textbf{Reutilización de la experiencia.} DQN puede aprender de experiencias
+    guardadas, aunque hayan sido generadas por una versión anterior de la política. Esto
+    permite aprovechar mejor cada actualización del \textit{pipeline}, que es costosa de
+    producir, y encaja con recompensas que llegan con retraso.
+
+    \item \textbf{Sencillez y facilidad de diagnóstico.} DQN tiene pocos componentes y suele
+    converger con menos episodios que otros métodos. En una primera etapa, esto permite
+    distinguir si un mal resultado se debe al diseño del entorno o al algoritmo, lo que
+    sería más difícil con métodos más complejos.
+\end{enumerate}
+
+\subsection{Alternativa considerada: Proximal Policy Optimization (PPO)}
 \label{sec:ppo}
-% ------------------------------------------------------------
 
-PPO es un algoritmo de aprendizaje por refuerzo de la familia de métodos de
-\textit{policy gradient} que optimiza directamente la política $\pi_\theta$ con respecto
-al objetivo de la Ecuación~\eqref{eq:objetivo_rl} \cite{schulman2017ppo}.
-
-\subsection{Métodos de policy gradient}
-
-Los métodos de \textit{policy gradient} parametrizan la política como $\pi_\theta$ y
-estiman el gradiente del objetivo mediante:
-
-\begin{equation}
-    \nabla_\theta J(\theta)
-    = \mathbb{E}_{\pi_\theta}\!\left[
-        \nabla_\theta \log \pi_\theta(a_t \mid s_t)\,\hat{A}_t
-        \right].
-    \label{eq:policy_gradient}
-\end{equation}
-
-\noindent\textbf{Donde:}
-\begin{itemize}
-    \item $J(\theta)$ representa el objetivo de desempeño de la política parametrizada.
-    \item $\theta$ representa los parámetros de la política.
-    \item $\nabla_\theta J(\theta)$ representa el gradiente del objetivo respecto a los parámetros.
-    \item $\pi_\theta(a_t \mid s_t)$ representa la probabilidad de elegir la acción $a_t$ en el estado $s_t$ bajo la política actual.
-    \item $\nabla_\theta \log \pi_\theta(a_t \mid s_t)$ indica cómo cambiar los parámetros para aumentar o reducir la probabilidad de la acción tomada.
-    \item $\hat{A}_t$ representa la ventaja estimada de la acción tomada en el instante $t$.
-    \item $\mathbb{E}_{\pi_\theta}$ representa la esperanza sobre trayectorias generadas por la política $\pi_\theta$.
-\end{itemize}
-
-La ecuación \eqref{eq:policy_gradient} indica que una acción debe volverse más probable si produjo
-una ventaja positiva y menos probable si produjo una ventaja negativa. El gradiente no solo
-considera qué acción se tomó, sino si esa acción fue mejor o peor que lo esperado en ese
-estado \cite{sutton2018rl}.
-
-La ventaja estimada puede expresarse como:
-
-\begin{equation}
-    \hat{A}_t = Q^{\pi_\theta}(s_t,a_t) - V^{\pi_\theta}(s_t).
-    \label{eq:advantage}
-\end{equation}
-
-\noindent\textbf{Donde:}
-\begin{itemize}
-    \item $\hat{A}_t$ representa la ventaja estimada en el instante $t$.
-    \item $Q^{\pi_\theta}(s_t,a_t)$ representa el valor esperado de tomar la acción $a_t$ en el estado $s_t$ y luego seguir la política $\pi_\theta$.
-    \item $V^{\pi_\theta}(s_t)$ representa el valor esperado del estado $s_t$ bajo la política $\pi_\theta$.
-\end{itemize}
-
-La ecuación \eqref{eq:advantage} indica que la ventaja mide cuánto mejor o peor fue una
-acción respecto al promedio
-esperado en ese estado. En DARL, si reentrenar todo el \textit{pipeline} produce alta
-recuperación pero con costo excesivo cuando bastaba actualizar $f_\phi$, su ventaja puede
-ser menor que la de una acción selectiva más eficiente.
-
-\subsection{La función objetivo de PPO}
-
-PPO resuelve el problema de inestabilidad imponiendo una restricción sobre el tamaño
-del cambio de política mediante el \textit{clipping} del ratio de probabilidad
-\cite{schulman2017ppo}. El ratio entre la política nueva y la política anterior se define como:
-
-\begin{equation}
-    r_t(\theta) =
-    \frac{\pi_\theta(a_t \mid s_t)}
-    {\pi_{\theta_{\text{old}}}(a_t \mid s_t)}.
-    \label{eq:ppo_ratio}
-\end{equation}
-
-\noindent\textbf{Donde:}
-\begin{itemize}
-    \item $r_t(\theta)$ representa el cambio relativo en la probabilidad de la acción $a_t$ bajo la política nueva respecto a la política anterior.
-    \item $\pi_\theta(a_t \mid s_t)$ representa la probabilidad asignada por la política actual.
-    \item $\pi_{\theta_{\text{old}}}(a_t \mid s_t)$ representa la probabilidad asignada por la política antes de la actualización.
-    \item $\theta_{\text{old}}$ representa los parámetros de la política anterior.
-\end{itemize}
-
-Este ratio mide cuánto está cambiando la política para la acción que fue
-ejecutada. Si el ratio se aleja demasiado de $1$, significa que la actualización está modificando
-de forma agresiva el comportamiento del agente.
-
-La función objetivo recortada de PPO es:
+En una primera versión de esta propuesta se consideró \textit{Proximal Policy Optimization}
+(PPO) \cite{schulman2017ppo}. PPO pertenece a otra familia de métodos, que en lugar de
+estimar el valor de cada acción ajustan directamente las probabilidades con las que la
+política elige cada acción. Para que el aprendizaje sea estable, PPO limita cuánto puede
+cambiar la política en cada actualización, mediante el siguiente objetivo:
 
 \begin{equation}
     L^{\text{CLIP}}(\theta)
     = \mathbb{E}_t\!\left[
         \min\!\left(
-        r_t(\theta)\hat{A}_t,
+        r_t(\theta)\hat{A}_t,\;
         \text{clip}\!\left(r_t(\theta),1-\epsilon,1+\epsilon\right)\hat{A}_t
         \right)
-        \right].
+        \right],
+    \qquad
+    r_t(\theta) =
+    \frac{\pi_\theta(a_t \mid s_t)}
+    {\pi_{\theta_{\text{old}}}(a_t \mid s_t)}.
     \label{eq:ppo_clip}
 \end{equation}
 
 \noindent\textbf{Donde:}
 \begin{itemize}
-    \item $L^{\text{CLIP}}(\theta)$ representa la función objetivo recortada que PPO maximiza.
-    \item $\mathbb{E}_t$ representa el promedio empírico sobre los pasos de tiempo del \textit{rollout}.
-    \item $r_t(\theta)$ representa el ratio de probabilidad entre la política nueva y la política anterior.
-    \item $\hat{A}_t$ representa la ventaja estimada.
-    \item $\epsilon \in (0,1)$ es un hiperparámetro que controla el tamaño máximo permitido del cambio de política.
-    \item $\text{clip}(x,a,b)$ restringe el valor $x$ al intervalo $[a,b]$.
-    \item $\min(\cdot)$ selecciona el término más conservador entre la actualización sin recorte y la actualización recortada.
+    \item $L^{\text{CLIP}}(\theta)$ representa el objetivo que PPO busca maximizar.
+    \item $r_t(\theta)$ representa cuánto cambió la probabilidad de la acción $a_t$ entre la política nueva $\pi_\theta$ y la anterior $\pi_{\theta_{\text{old}}}$.
+    \item $\hat{A}_t$ representa la ventaja estimada, es decir, cuánto mejor o peor fue la acción respecto a lo esperado en ese estado.
+    \item $\epsilon$ representa el cambio máximo permitido en la política.
+    \item $\text{clip}(x,a,b)$ limita el valor $x$ al intervalo $[a,b]$.
 \end{itemize}
 
-Conceptualmente, PPO evita que la política cambie demasiado en una sola actualización.
-Cuando la ventaja es positiva, el agente no puede aumentar indefinidamente la probabilidad
-de la acción; cuando la ventaja es negativa, tampoco puede reducirla de forma excesiva. Esta
-cota pesimista mejora la estabilidad del entrenamiento, lo cual es importante en DARL porque
-cada episodio puede implicar costos de reentrenamiento no triviales.
-
-\subsection{Arquitectura Actor-Crítico}
-
-PPO implementa una arquitectura Actor-Crítico \cite{sutton2018rl,schulman2017ppo}. En
-DARL, sus dos componentes principales pueden expresarse como:
-
-\begin{equation}
-    \pi_\theta(a \mid \mathbf{o}_t), \qquad V_\psi(\mathbf{o}_t).
-    \label{eq:actor_critic}
-\end{equation}
-
-\noindent\textbf{Donde:}
-\begin{itemize}
-    \item $\pi_\theta(a \mid \mathbf{o}_t)$ representa el Actor, es decir, la política que asigna probabilidades a las acciones posibles dado el vector de observación.
-    \item $\theta$ representa los parámetros del Actor.
-    \item $V_\psi(\mathbf{o}_t)$ representa el Crítico, es decir, la estimación del valor de la observación actual.
-    \item $\psi$ representa los parámetros del Crítico.
-    \item $\mathbf{o}_t$ representa el vector de métricas observado por DARL en el instante $t$.
-\end{itemize}
-
-El Actor decide qué acción tomar y el Crítico evalúa qué tan buena es la
-situación observada. Esta separación permite estimar ventajas con menor varianza y mejorar
-la estabilidad del aprendizaje. En DARL, el Actor produce una distribución sobre las acciones
-posibles: diferir, actualizar \textit{features}, actualizar modelo o reentrenar todo el \textit{pipeline}.
-
-\subsection{Justificación de PPO para DARL}
-
-PPO es el algoritmo elegido para DARL por tres razones específicas al problema
-\cite{schulman2017ppo,sutton2018rl}:
-
-\begin{enumerate}
-    \item Espacio de acciones discreto y pequeño. El espacio de acciones de DARL tiene cardinalidad:
-
-          \begin{equation}
-              |\mathcal{A}| = 4.
-              \label{eq:action_space_cardinality}
-          \end{equation}
-
-          \noindent\textbf{Donde:}
-          \begin{itemize}
-              \item $|\mathcal{A}|$ representa el número de acciones disponibles.
-              \item $4$ corresponde a las acciones: diferir, actualizar preprocesamiento, actualizar modelo y reentrenar ambas etapas.
-          \end{itemize}
-
-          Conceptualmente, un espacio de acciones pequeño se ajusta naturalmente a una política categórica implementada con una capa \textit{softmax}.
-
-    \item Eficiencia muestral. Cada episodio de entrenamiento puede implicar reentrenar XGBoost, lo que tiene un costo computacional no trivial. PPO es un algoritmo \textit{on-policy} que aprovecha cada \textit{rollout} mediante múltiples épocas de actualización sobre los datos recolectados.
-
-    \item Estabilidad de entrenamiento. El mecanismo de \textit{clipping} de la Ecuación~\eqref{eq:ppo_clip} previene cambios excesivos de política durante el entrenamiento, lo cual es crítico cuando el número de episodios disponibles es limitado.
-\end{enumerate}
-
-
-
+Este objetivo impide que una sola actualización cambie demasiado el comportamiento del
+agente. PPO es útil sobre todo cuando las acciones son continuas o muy numerosas. Sin
+embargo, necesita más episodios para converger y descarta la experiencia anterior después
+de cada actualización. En DARL, donde las acciones son pocas y cada experiencia es costosa,
+se optó por DQN como primera solución. La comparación entre ambos algoritmos queda como
+trabajo futuro.

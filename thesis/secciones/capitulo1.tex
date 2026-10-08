@@ -9,14 +9,16 @@ contribuciones valiosas, ninguna ha abordado de forma conjunta la pregunta de qu
 un \textit{pipeline} de dos etapas conviene actualizar, cuánto se recupera el rendimiento
 con cada acción y a qué costo computacional, en función del tipo y la severidad de drift
 detectado, ni ha propuesto aprender esa política de decisión de manera automática mediante
-aprendizaje por refuerzo. A continuación se revisa cada línea y se identifican sus
+aprendizaje por refuerzo. A estas cuatro líneas se añade la literatura sobre predicción
+temprana de sepsis, que constituye el caso de estudio de esta investigación. A
+continuación se revisa cada línea y se identifican sus
 limitaciones frente al problema planteado en esta investigación.
  
 \section{Diagnóstico del tipo de distribution shift}
  
 Una primera familia de métodos se centra en identificar el tipo de drift que ha afectado a
 un modelo sin prescribir ninguna acción correctiva sobre el \textit{pipeline}. Cai et
-al.~\cite{cai2023disde} proponen DISDE (\textit{DIstribution Shift DEcomposition}), un framework
+al.~\cite{cai2023disde} proponen DISDE (\textit{DIstribution Shift DEcomposition}), un método
 que descompone la caída de rendimiento de un modelo en dos términos: uno atribuible a
 cambios en la distribución marginal de las variables de entrada $P(X)$ (\textit{covariate
 shift}) y otro atribuible a cambios en la relación condicional $P(Y \mid X)$
@@ -37,7 +39,7 @@ propuesto en esta investigación, DISDE aporta evidencia sobre la señal de diag
 no sobre la política de acción.
  
 Singh et al.~\cite{singh2025shift} proponen SHIFT (\textit{Subgroup-scanning Hierarchical
-Inference Framework for performance drifT}), un framework no paramétrico de dos etapas que
+Inference Framework for performance drifT}), un método no paramétrico de dos etapas que
 primero detecta si algún subgrupo de la población experimenta una caída de rendimiento
 inaceptable debido a \textit{covariate shift} o \textit{outcome shift} agregados, y luego
 identifica los subconjuntos de variables responsables. A diferencia de DISDE, SHIFT aborda
@@ -48,7 +50,7 @@ SHIFT guía una corrección dirigida al modelo y demuestra que esta supera al re
 no dirigido.
  
 No obstante, SHIFT presenta limitaciones similares a las de DISDE desde la perspectiva de
-esta investigación. El framework trata el modelo predictivo como una unidad monolítica y no
+esta investigación. El método trata el modelo predictivo como una unidad monolítica y no
 considera la posibilidad de actualizar únicamente la etapa de preprocesamiento. Tampoco
 evalúa sistemáticamente cómo la severidad de drift modifica la relación entre el diagnóstico
 y la acción óptima, ni mide el costo computacional de las distintas correcciones. En
@@ -68,20 +70,45 @@ LightGBM, redes neuronales profundas y transformadores tabulares--- revela una t
 lineal entre la precisión en distribución y fuera de distribución, y muestra que ningún
 modelo ni método de robustez de dominio cierra consistentemente la brecha de rendimiento.
  
-Desde una perspectiva metodológica, TableShift ofrece una API Python que proporciona
-documentación de tipos de \textit{features}, preprocesamiento estandarizado y particiones de
-dominio reproducibles, lo que lo convierte en la fuente de datos natural para los
-experimentos de esta investigación y para la generación de episodios de entrenamiento del
-agente de aprendizaje por refuerzo. Sin embargo, TableShift evalúa únicamente modelos
-estáticos bajo drift real y no experimenta con ninguna estrategia de actualización
-post-drift. El \textit{benchmark} caracteriza el problema de drift en datos tabulares sin
-proporcionar evidencia sobre la solución de actualización selectiva del \textit{pipeline} ni
-sobre la política de decisión óptima.
+Desde una perspectiva metodológica, TableShift ofrece una interfaz en Python que documenta
+los tipos de variables, aplica un preprocesamiento estándar y define particiones de dominio
+reproducibles. Entre sus tareas incluye la predicción de sepsis a partir de los datos de
+PhysioNet, que es el caso de estudio de esta investigación. Sin embargo, TableShift evalúa
+únicamente modelos fijos, entrenados una sola vez, y no prueba ninguna estrategia de
+actualización después del cambio. El \textit{benchmark} describe el problema del cambio de
+distribución en datos tabulares, pero no ofrece evidencia sobre cómo actualizar el
+\textit{pipeline} por etapas ni sobre qué política de decisión conviene seguir.
+
+\section{Predicción temprana de sepsis como caso de estudio}
+
+Reyna et al.~\cite{reyna2020sepsis} presentan el PhysioNet/Computing in Cardiology
+Challenge 2019, una competencia abierta cuyo objetivo fue predecir la sepsis con al menos
+seis horas de anticipación a partir de datos clínicos registrados cada hora en la UCI. Los
+datos reúnen más de cuarenta mil pacientes de dos hospitales e incluyen signos vitales,
+resultados de laboratorio y datos demográficos. La etiqueta de sepsis se definió a partir
+de los criterios clínicos de Sepsis-3 \cite{singer2016sepsis3}, y la evaluación usó una
+función de utilidad que premia las alertas tempranas y penaliza las tardías y las falsas
+alarmas.
+
+Un resultado central de esta competencia es pertinente para esta tesis: los modelos
+participantes tuvieron un rendimiento claramente menor en un hospital cuyos datos no se
+usaron durante el entrenamiento. Es decir, el cambio de hospital produjo una caída del
+rendimiento atribuible a un cambio de distribución. Este hallazgo motiva el escenario de
+esta investigación, en el que el \textit{pipeline} se entrena con pacientes de un hospital y
+se usa con pacientes de otro. No obstante, la competencia evaluó modelos fijos y no estudió
+cómo mantenerlos una vez desplegados, que es precisamente la pregunta que aborda DARL.
+
+Además, la sepsis es un evento poco frecuente en los registros por hora: la mayoría de las
+horas corresponden a pacientes sin la condición. En este tipo de problemas, el área bajo la
+curva ROC puede dar una imagen demasiado optimista del modelo, mientras que el área bajo la
+curva de precisión y exhaustividad (AUPRC) refleja mejor su capacidad para encontrar los
+casos positivos \cite{saito2015prc}. Por esta razón, DARL usa la AUPRC como medida
+principal del rendimiento en este caso de estudio.
  
 \section{Decisiones de reentrenamiento con conciencia del costo}
  
 Una tercera línea estudia cuándo es económicamente justificado reentrenar un modelo tras
-detectar drift, considerando explícitamente el trade-off entre el costo de mantener un
+detectar drift, considerando explícitamente el equilibrio entre el costo de mantener un
 modelo desactualizado y el costo del reentrenamiento. Mahadevan y
 Mathioudakis~\cite{mahadevan2024cost} formulan este problema como una decisión de optimización
 y proponen CARA (\textit{Cost-Aware Retraining Algorithm}), que toma decisiones de
@@ -104,7 +131,7 @@ drift menor se ignora, la moderada dispara actualizaciones incrementales del mod
 severa inicia el reentrenamiento completo. Los autores reportan reducciones en el cómputo
 innecesario y reconocen explícitamente como trabajo futuro la necesidad de ``adaptar no solo
 a la severidad sino también al tipo de drift'' para habilitar actualizaciones más precisas y
-contextualizadas. Al igual que CARA, este framework trata el sistema de aprendizaje
+contextualizadas. Al igual que CARA, este enfoque trata el sistema de aprendizaje
 automático como una unidad indivisible y no evalúa la posibilidad de actualizar únicamente
 la etapa de preprocesamiento. Su política de tres niveles es fija y no se adapta a nuevos
 patrones de drift sin rediseño manual, limitación que el enfoque de aprendizaje por refuerzo
@@ -119,7 +146,7 @@ patrones arquitectónicos, los mecanismos de detección y las estrategias de rem
 \textit{ensemble} y actualización activa--- con casos de estudio en detección de fraude
 financiero, predicción de riesgo clínico y sistemas de recomendación en comercio
 electrónico. El trabajo concluye que la elección de la estrategia de remediación depende
-del trade-off entre latencia, precisión y costo operativo, y proporciona orientación
+del equilibrio entre latencia, precisión y costo operativo, y proporciona orientación
 cualitativa para diseñadores de sistemas de producción. Notablemente, el propio survey
 señala como dirección futura la integración con aprendizaje por refuerzo para mecanismos de
 remediación más adaptativos, anticipando el enfoque que esta investigación desarrolla.
@@ -143,7 +170,9 @@ el diagnóstico del tipo y la severidad de drift, (b) la distinción entre etapa
 \textit{pipeline} de dos etapas como unidades de actualización independientes, (c) la
 medición cuantitativa de la recuperación de rendimiento y el costo computacional de cada
 acción, y (d) el aprendizaje automático de una política de decisión mediante aprendizaje
-por refuerzo que generalice a escenarios de drift no vistos.
+por refuerzo. En el caso de DARL, las marcas de la tabla indican lo que la propuesta
+aborda por diseño; su validación empírica se presenta en los capítulos de metodología y
+resultados.
  
 Los métodos de diagnóstico (DISDE, SHIFT) establecen con rigor qué tipo de drift ha
 ocurrido, pero dejan sin responder qué acción tomar. Los métodos de decisión de
@@ -154,12 +183,19 @@ emplean políticas de umbral fijo no adaptativas. Los trabajos de \textit{benchm
 \textit{self-healing} (Tanna) organizan el espacio de estrategias sin evaluarlas
 empíricamente y sin proponer un mecanismo de aprendizaje.
  
-Esta investigación aborda esa brecha al proponer DARL, un framework que (a) usa herramientas
-estándar de detección de drift ---PSI, KS y C2ST--- para construir el vector de observación
-del agente, (b) formaliza el problema de decisión como un POMDP donde el agente aprende
-mediante PPO a seleccionar la acción de actualización óptima entre cuatro posibles, y (c)
-mide la recuperación de AUC-ROC y el costo computacional relativo de la política aprendida
-bajo condiciones de drift sintético controlado sobre \textit{benchmarks} tabulares reales,
-comparándola contra una tabla de decisión empírica construida como \textit{baseline}. El
-resultado es un agente DARL que internaliza el trade-off rendimiento--costo y generaliza a
-combinaciones de tipo y severidad de drift no observadas durante el entrenamiento.
+A esto se suma una condición que los trabajos revisados rara vez consideran: en la
+práctica, los resultados reales llegan con retraso. Un sistema de mantenimiento debe decidir
+con la información disponible en el momento, sin saber todavía si su decisión anterior fue
+acertada. Los estudios sobre sepsis \cite{reyna2020sepsis} muestran además que el cambio de
+hospital degrada el rendimiento, pero no estudian cómo responder a esa degradación.
+
+Esta investigación aborda esa brecha al proponer DARL, un enfoque que (a) usa señales de
+monitoreo sobre las variables de entrada y sobre el rendimiento observado para construir la
+observación del agente, (b) formula el problema de decisión como un POMDP en el que un
+agente aprende, mediante una red Q profunda (DQN), a elegir entre esperar, corregir la
+preparación de los datos, volver a entrenar el modelo o volver a entrenar todo el
+\textit{pipeline}, y (c) mide la mejora del rendimiento y el costo computacional de la
+política aprendida en una UCI simulada del hospital B, con resultados que llegan con un día
+de retraso y con cambios de distribución inyectados de forma controlada. La política se
+contrasta con reglas de referencia sencillas, como no actuar nunca, volver a entrenar
+siempre, actuar al azar o seguir un umbral fijo.
