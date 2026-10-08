@@ -20,7 +20,7 @@ monitorea el cambio resultante mediante señales de \textit{covariate shift},
 aprendizaje por refuerzo observa esas señales y elige una acción de
 mantenimiento. Quinto, se ejecuta la acción seleccionada y se mide su efecto en
 rendimiento y cómputo. Finalmente, esas mediciones alimentan la recompensa que
-guía el entrenamiento de PPO.
+guía el entrenamiento del agente DQN.
 
 \begin{figure}[H]
     \centering
@@ -278,12 +278,11 @@ del drift.
 
 El problema de actualización selectiva se modela como un POMDP, porque el agente
 no observa directamente $P_t(X)$ ni $P_t(Y \mid X)$, sino métricas estimadas
-sobre ventanas finitas \cite{kaelbling1998pomdp}. En la configuración actual de
-la demo PPO, cada episodio contiene 100 pasos de decisión y la evaluación
-determinística final se realiza sobre 50 episodios. En cada paso se presenta un
-escenario de drift sintético, se calcula el vector de observación, el agente
-selecciona una acción y se mide si el rendimiento mejora frente al estado sin
-mantenimiento.
+sobre ventanas finitas \cite{kaelbling1998pomdp}. Cada episodio corresponde a 21
+días simulados de una UCI de 200 camas del hospital B. Al cierre de cada día, se
+calcula el vector de observación, el agente selecciona una acción y su efecto se
+aplica desde el día siguiente. La recompensa de esa decisión se conoce un día
+después, cuando llegan las etiquetas de los pacientes de evaluación.
 
 \begin{table}[H]
     \centering
@@ -327,7 +326,7 @@ En el notebook experimental, la tabla compara las acciones principales
 marginalmente las variables drifteadas hacia la distribución de referencia y
 mantiene congelados el preprocesamiento y el modelo. Esta estrategia se incluye
 como referencia empírica adicional, pero no forma parte del espacio de acciones
-del agente PPO.
+del agente DQN.
 
 \begin{table}[H]
     \centering
@@ -407,165 +406,101 @@ reentrenamiento consciente del costo \cite{mahadevan2024cost}:
 
 El baseline empírico funciona como una tabla de consulta
 construida con conocimiento explícito del tipo y severidad de drift. Por ello,
-no reemplaza al agente PPO ni resuelve el POMDP: sirve como punto de comparación
+no reemplaza al agente DQN ni resuelve el POMDP: sirve como punto de comparación
 para evaluar si la política aprendida selecciona acciones razonables sin recibir
 directamente la etiqueta de la condición experimental.
 
 % ------------------------------------------------------------
-\section{Recompensa y entrenamiento PPO}
+\section{Recompensa y entrenamiento del agente DQN}
 % ------------------------------------------------------------
 
-La recompensa combina recuperación de rendimiento y costo computacional. Para
-cada acción $a_t$, se compara el AUC obtenido después de aplicar la acción con
-el AUC del mismo estado drifted sin mantenimiento. El costo se normaliza contra
-el costo de reentrenar todo el \textit{pipeline}, usado como referencia de mayor
-intervención:
+La recompensa combina la mejora del rendimiento y el costo de cada acción. Para
+cada decisión $a_t$ tomada al cierre del día $t$, se comparan las predicciones del
+\textit{pipeline} actualizado con las que habría producido el \textit{pipeline}
+sin actualizar, sobre los mismos pacientes de evaluación del día $t+1$:
 
 \begin{equation}
     r_t(a_t)
     =
-    \lambda_A
-    \left(
-    AUC_t^{(a_t)} - AUC_t^{(\text{drift})}
-    \right)
+    \text{AP}\!\left(y_{t+1}, \hat{p}^{\,(a_t)}_{t+1}\right)
     -
-    \lambda_C
-    \left(
-    \frac{1}{2}
-    \frac{T_t^{(a_t)}}{T_t^{(\text{all})}}
-    +
-    \frac{1}{2}
-    \frac{M_t^{(a_t)}}{M_t^{(\text{all})}}
-    \right).
+    \text{AP}\!\left(y_{t+1}, \hat{p}^{\,(\text{previo})}_{t+1}\right)
+    -
+    \lambda\, c(a_t).
     \label{eq:darl_reward}
 \end{equation}
 
 \noindent\textbf{Donde:}
 \begin{itemize}
-    \item $r_t(a_t)$ representa la recompensa recibida tras ejecutar la acción $a_t$ en el paso $t$.
-    \item $AUC_t^{(a_t)}$ representa el AUC-ROC obtenido después de aplicar la acción seleccionada.
-    \item $AUC_t^{(\text{drift})}$ representa el AUC-ROC del pipeline drifted sin mantenimiento.
-    \item $T_t^{(a_t)}$ representa el tiempo de ejecución de la acción seleccionada.
-    \item $T_t^{(\text{all})}$ representa el tiempo requerido por el reentrenamiento completo.
-    \item $M_t^{(a_t)}$ representa el uso máximo de memoria de la acción seleccionada.
-    \item $M_t^{(\text{all})}$ representa el uso máximo de memoria del reentrenamiento completo.
-    \item $\lambda_A$ y $\lambda_C$ ponderan la importancia relativa de recuperar rendimiento y reducir costo.
+    \item $r_t(a_t)$ representa la recompensa de la acción $a_t$ elegida en el día $t$.
+    \item $\text{AP}(\cdot)$ representa la precisión promedio, usada como estimación de la AUPRC.
+    \item $y_{t+1}$ representa las etiquetas reales de los pacientes de evaluación en el día $t+1$.
+    \item $\hat{p}^{\,(a_t)}_{t+1}$ representa las probabilidades predichas después de aplicar la acción $a_t$.
+    \item $\hat{p}^{\,(\text{previo})}_{t+1}$ representa las probabilidades que habría predicho el \textit{pipeline} sin la acción.
+    \item $c(a_t)$ representa el costo relativo de la acción: $0$ para A1, $0.1$ para A2, $0.6$ para A3 y $1$ para A4.
+    \item $\lambda = 0.25$ representa el peso del costo frente a la mejora del rendimiento.
 \end{itemize}
 
-La recompensa evita que el agente elija siempre
-\textit{Retrain all}. Una acción recibe mayor recompensa si recupera AUC con bajo
-costo relativo; recibe menor recompensa si recupera poco rendimiento o si incurre
-en un costo similar al reentrenamiento completo sin una mejora proporcional. Este
-diseño sigue la motivación de mantenimiento consciente del costo: la mejor acción
-no es necesariamente la que maximiza rendimiento absoluto, sino la que ofrece el
-mejor balance entre recuperación y recursos \cite{mahadevan2024cost}.
+Esta recompensa evita que el agente elija siempre volver a entrenar todo el
+\textit{pipeline}. Una acción recibe una recompensa alta si mejora la calidad de
+las alertas con un costo bajo, y una recompensa negativa si su costo no se
+compensa con una mejora. Si el día de evaluación no tiene casos positivos, la
+mejora se toma como cero y solo se descuenta el costo. Además de este costo
+relativo, en cada acción se miden el tiempo de ejecución y el pico de memoria
+con \texttt{tracemalloc}, que se reportan en la evaluación pero no entran en la
+recompensa \cite{mahadevan2024cost}.
 
-\subsection{Diseño del agente PPO}
+\subsection{Diseño del agente DQN}
 
-El agente se entrena con PPO, descrito en la Sección~\ref{sec:ppo}. En esta
-metodología, PPO no reemplaza al detector de drift; aprende una política sobre
-las señales producidas por el monitor. Por ello, la entrada del agente no es el
-dataset completo ni las distribuciones reales $P_t(X)$ y $P_t(Y \mid X)$, sino
-el vector de observación $o_t$ definido en la Sección anterior. Este vector
-resume severidad estimada, señales de drift, degradación de AUC/F1 e historial
-reciente de costos. A partir de $o_t$, el agente produce una distribución
-categórica sobre las cuatro acciones de mantenimiento de la
-Tabla~\ref{tab:acciones_darl}.
+El agente se entrena con una red Q profunda, descrita en la
+Sección~\ref{sec:dqn}. El agente no reemplaza al monitor: aprende a decidir a
+partir de las señales que este produce. Su entrada no son los datos completos ni
+las distribuciones reales, sino la observación ampliada
+$\tilde{\mathbf{o}}_t$, formada por las siete señales diarias de los últimos
+cuatro días, es decir, 28 valores. A partir de ella, la red estima un valor $Q$
+para cada una de las cuatro acciones de la Tabla~\ref{tab:acciones_darl} y el
+agente elige la de mayor valor.
 
-Formalmente, la política aprendida por PPO se interpreta como:
-
-\begin{equation}
-    \pi_{\theta}(a_t \mid o_t)
-    =
-    P(a_t = a \mid o_t; \theta),
-    \qquad
-    a_t \in \mathcal{A}.
-    \label{eq:darl_ppo_policy}
-\end{equation}
-
-\noindent\textbf{Donde:}
-\begin{itemize}
-    \item $\pi_{\theta}(a_t \mid o_t)$ representa la política estocástica del agente PPO.
-    \item $o_t$ representa el vector de observación disponible en el paso de decisión $t$.
-    \item $a_t$ representa la acción de mantenimiento seleccionada en el paso $t$.
-    \item $\theta$ representa los parámetros entrenables de la política.
-    \item $\mathcal{A}$ representa el conjunto de acciones de DARL: diferir, actualizar \textit{features}, actualizar modelo y reentrenar todo.
-\end{itemize}
-
-Esta política asigna mayor probabilidad a las acciones que han
-producido mejores recompensas en escenarios similares. Durante el entrenamiento,
-la selección puede ser estocástica para explorar alternativas; durante la
-evaluación final se usa la acción determinística de mayor probabilidad para
-analizar de forma estable el comportamiento aprendido.
-
-Además de la política, PPO estima una función de valor:
-
-\begin{equation}
-    V_{\psi}(o_t)
-    \approx
-    \mathbb{E}
-    \left[
-        \sum_{k=0}^{\infty}
-        \gamma^{k} r_{t+k}
-        \mid o_t
-        \right].
-    \label{eq:darl_ppo_value}
-\end{equation}
-
-\noindent\textbf{Donde:}
-\begin{itemize}
-    \item $V_{\psi}(o_t)$ representa la recompensa acumulada esperada desde la observación $o_t$.
-    \item $\psi$ representa los parámetros entrenables del crítico.
-    \item $\gamma$ representa el factor de descuento de recompensas futuras.
-    \item $r_{t+k}$ representa la recompensa recibida $k$ pasos después del paso $t$.
-\end{itemize}
-
-Conceptualmente, el crítico funciona como una línea base que permite estimar si
-una acción fue mejor o peor de lo esperado para una observación dada. Esta señal
-reduce la varianza de las actualizaciones de política y permite que PPO mejore
-la probabilidad de acciones útiles sin depender únicamente de recompensas
-instantáneas ruidosas \cite{sutton2018rl,schulman2017ppo}.
-
-En la implementación práctica con SB3, se usa \texttt{MlpPolicy} para
-parametrizar el actor y el crítico mediante redes neuronales densas. El entorno
-sigue la interfaz Gymnasium: \texttt{reset} inicializa un episodio de drift
-sintético, \texttt{step} aplica una acción, calcula la recompensa de la
-Ecuación~\ref{eq:darl_reward} y retorna la siguiente observación. Cada
-transición usada por PPO tiene la forma $(o_t, a_t, r_t, o_{t+1})$.
+Durante el entrenamiento, la experiencia de cada día se guarda en la memoria de
+experiencias solo cuando su recompensa ya es conocida, es decir, un día después
+de la decisión. Luego, la red se actualiza con grupos de experiencias tomadas al
+azar de esa memoria. El entrenamiento se realiza con los pacientes de la
+partición de entrenamiento del hospital B; la versión del agente que se conserva
+es la que obtiene el mejor retorno promedio en la partición de validación, y la
+evaluación final se hace sobre la partición de prueba, que no se usa en ninguna
+etapa anterior.
 
 \begin{table}[H]
     \centering
-    \caption{Configuración práctica del agente PPO en la demo DARL}
-    \label{tab:ppo_config_darl}
+    \caption{Configuración del agente DQN en DARL}
+    \label{tab:dqn_config_darl}
     \begin{tabular}{p{0.38\textwidth}p{0.50\textwidth}}
         \hline
-        \textbf{Elemento}          & \textbf{Configuración}                                 \\
+        \textbf{Elemento}                & \textbf{Configuración}                                  \\
         \hline
-        Algoritmo                  & PPO con \texttt{MlpPolicy}                             \\
-        Espacio de acciones        & Discreto, con cuatro acciones de mantenimiento         \\
-        Observación                & Señales resumidas de drift, desempeño y costos previos \\
-        Horizonte por episodio     & 100 pasos de decisión                                  \\
-        Evaluación final           & 50 episodios determinísticos                           \\
-        Dispositivo                & CPU                                                    \\
-        Semilla                    & 42                                                     \\
-        Factor de descuento        & $\gamma = 0.95$                                        \\
-        Tamaño de \textit{rollout} & 64 pasos                                               \\
-        Tamaño de lote             & 32 transiciones                                        \\
-        Épocas por actualización   & 5                                                      \\
+        Algoritmo                        & DQN con red objetivo y memoria de experiencias          \\
+        Red Q                            & Dos capas ocultas de 128 neuronas con activación ReLU   \\
+        Entrada                          & 28 valores (7 señales $\times$ 4 días)                  \\
+        Acciones                         & 4 (A1, A2, A3, A4)                                      \\
+        Optimizador                      & Adam, tasa de aprendizaje $10^{-3}$                     \\
+        Función de pérdida               & Error cuadrático medio                                  \\
+        Factor de descuento              & $\gamma = 0.99$                                         \\
+        Exploración $\varepsilon$        & De 1.0 a 0.01, multiplicando por 0.995 en cada episodio \\
+        Memoria de experiencias          & 10\,000 experiencias                                    \\
+        Tamaño de lote                   & 32 experiencias                                         \\
+        Actualización de la red objetivo & Copia completa cada 200 actualizaciones                 \\
+        Duración del episodio            & 21 días (20 decisiones)                                 \\
+        Semillas de evaluación           & 42 a 46                                                 \\
         \hline
     \end{tabular}
 \end{table}
 
-La función del agente es mejorar gradualmente la probabilidad de seleccionar
-acciones que producen mayor recompensa acumulada, manteniendo actualizaciones de
-política estables mediante el objetivo recortado de PPO. Esta elección es
-adecuada para DARL porque el espacio de acciones es pequeño, la observación es
-parcial y ruidosa, y la recompensa combina recuperación predictiva con costo
-computacional. En consecuencia, el agente no memoriza una regla fija por tipo de
-drift; aprende una política aproximada que puede decidir, por ejemplo, diferir
-ante cambios leves, actualizar \textit{features} ante señales principalmente
-covariadas, actualizar el modelo ante señales conceptuales o reentrenar todo
-cuando la intervención parcial no compensa la degradación.
+En consecuencia, el agente no memoriza una regla fija por tipo de cambio, sino
+que aprende a estimar qué tan conveniente es cada acción según la evidencia
+disponible. Por ejemplo, puede esperar ante cambios leves, corregir la
+preparación de los datos ante cambios en la medición de los signos vitales,
+volver a entrenar el modelo ante cambios en las etiquetas o volver a entrenar
+todo cuando una corrección parcial no compensa la caída del rendimiento.
 
 % ------------------------------------------------------------
 \section{Métricas de evaluación}

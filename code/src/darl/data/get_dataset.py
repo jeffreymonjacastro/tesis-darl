@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import logging
 from pathlib import Path
 from typing import Any
 
@@ -12,6 +13,7 @@ from sklearn.model_selection import train_test_split
 from darl.utils import find_project_root
 
 
+logger = logging.getLogger(__name__)
 SEED = 42
 PHYSIONET_RELATIVE_ROOT = Path(
     "data/raw/tableshift_cache/physionet.org/files/" "challenge-2019/1.0.0/training"
@@ -55,15 +57,42 @@ def passthrough_preprocessor() -> Any:
 
 
 def load_dataset(dataset_name: str):
-    """Load a conventional TableShift dataset by name."""
+    """Load a TableShift dataset, reusing its processed disk cache when available."""
     from tableshift import get_dataset
-    cache_dir = find_project_root() / "data" / "raw" / "tableshift_cache"
 
-    return get_dataset(
+    project_root = find_project_root()
+    cache_dir = project_root / "data" / "raw" / "tableshift_cache"
+
+    logger.info("Project root: %s", project_root)
+    logger.info("Cache dir: %s", cache_dir)
+
+    common_kwargs = dict(
         name=dataset_name,
         cache_dir=str(cache_dir),
         preprocessor_config=passthrough_preprocessor(),
     )
+
+    # Cheap probe: build the dataset object without running the (slow)
+    # feature pipeline, just to check whether a processed cache already
+    # exists on disk for this name/splitter combination.
+    probe = get_dataset(**common_kwargs, initialize_data=False)
+
+    if probe.is_cached():
+        logger.info(
+            "Cache procesada encontrada para %s; cargando desde disco...",
+            dataset_name,
+        )
+        return get_dataset(**common_kwargs, use_cached=True)
+
+    logger.info(
+        "No hay cache procesada para %s; procesando desde los archivos raw "
+        "(puede tardar varios minutos) y guardando el resultado...",
+        dataset_name,
+    )
+    dset = get_dataset(**common_kwargs)
+    dset.to_sharded(file_type="csv")
+    logger.info("Cache procesada guardada en %s", dset.base_dir)
+    return dset
 
 
 def _physionet_files(data_root: Path) -> list[Path]:

@@ -1,3 +1,5 @@
-from .injector import SCENARIOS, DriftInjector
+from .injector import DriftInjector
+from .concept_injector import ConceptDriftInjector
+from .injector import SCENARIOS
 
-__all__ = ["DriftInjector", "SCENARIOS"]
+__all__ = ["DriftInjector", "ConceptDriftInjector", "SCENARIOS"]

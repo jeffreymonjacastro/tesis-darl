@@ -97,6 +97,55 @@ def plot_numeric_drift_grid(
     return fig
 
 
+def plot_conditional_risk(
+    X_before: pd.DataFrame,
+    y_before: pd.Series,
+    X_after: pd.DataFrame,
+    y_after: pd.Series,
+    cols: list[str],
+    ncols: int = 2,
+    n_bins: int = 10,
+    before_label: str = "Antes",
+    after_label: str = "Después",
+    figsize_per: tuple = (5, 3),
+) -> Figure:
+    """Grid of empirical P(Y=1) by bin of X, before vs after — shows concept drift."""
+    nrows = int(np.ceil(len(cols) / ncols))
+    fig, axes = plt.subplots(
+        nrows, ncols, figsize=(figsize_per[0] * ncols, figsize_per[1] * nrows)
+    )
+    axes = np.array(axes).flatten()
+    for j in range(len(cols), len(axes)):
+        fig.delaxes(axes[j])
+
+    y_before_arr = np.asarray(y_before, dtype=float)
+    y_after_arr = np.asarray(y_after, dtype=float)
+
+    for i, col in enumerate(cols):
+        ax = axes[i]
+        values = X_before[col].dropna()
+        bins = np.linspace(values.min(), values.max(), n_bins + 1)
+        bin_centers = 0.5 * (bins[:-1] + bins[1:])
+
+        idx_before = np.clip(np.digitize(X_before[col].to_numpy(), bins) - 1, 0, n_bins - 1)
+        idx_after = np.clip(np.digitize(X_after[col].to_numpy(), bins) - 1, 0, n_bins - 1)
+
+        risk_before = pd.Series(y_before_arr).groupby(idx_before).mean().reindex(range(n_bins))
+        risk_after = pd.Series(y_after_arr).groupby(idx_after).mean().reindex(range(n_bins))
+
+        ax.plot(bin_centers, risk_before.to_numpy(), marker="o", label=before_label, color="#1f77b4")
+        ax.plot(bin_centers, risk_after.to_numpy(), marker="o", label=after_label, color="#d62728")
+        ax.set_title(col, fontsize=10, fontweight="bold")
+        ax.set_xlabel(col)
+        ax.set_ylabel("P(Y=1) empírica")
+        ax.legend(fontsize=8)
+        ax.grid(True, linestyle="--", alpha=0.4)
+
+    plt.suptitle("Riesgo condicional P(Y|X) — antes vs después", fontsize=13, fontweight="bold")
+    plt.tight_layout()
+    return fig
+
+
 # ─── Categorical ──────────────────────────────────────────────────────────────
 
 

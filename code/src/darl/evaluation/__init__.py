@@ -1,3 +1,12 @@
+from darl.monitoring.drift_metrics import (
+    ks_stat,
+    psi_numeric,
+    psi_categorical,
+    js_divergence,
+    hellinger,
+    chi2_test,
+)
+from darl.evaluation.model_metrics import evaluate_auc
 """DARL baseline policies and evaluation metrics."""
 
 from darl.evaluation.baselines import (
@@ -25,6 +34,13 @@ from darl.evaluation.eval_metrics import (
 )
 
 __all__ = [
+    "ks_stat",
+    "psi_numeric",
+    "psi_categorical",
+    "js_divergence",
+    "hellinger",
+    "chi2_test",
+    "evaluate_auc",
     "AlwaysDeferPolicy",
     "DQNPolicy",
     "EmpiricalTablePolicy",

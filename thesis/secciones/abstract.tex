@@ -1,13 +1,27 @@
-\customchapter{ABSTRACT} 
+\customchapter{ABSTRACT}
 
 \begin{center}
 \large \vspace{-1.5cm} \textbf{\MakeUppercase{DARL: Drift-Aware Reinforcement Learning for Selective Updating of Two-Stage Tabular ML Pipelines}}
 \end{center}
 
-Lorem ipsum dolor sit amet.
-
+Machine learning models deployed in production lose quality when incoming data no longer
+resembles the data they were trained on. In a two-stage pipeline, made of a data
+preparation stage and a predictive model, this degradation may originate in either stage.
+Yet the usual response is to retrain the whole pipeline, which is costly and not always
+necessary. This thesis proposes DARL (Drift-Aware Reinforcement Learner), an approach that
+treats pipeline maintenance as a sequence of decisions. Each day, a reinforcement learning
+agent reviews monitoring signals and chooses between doing nothing, correcting only the data
+preparation stage, retraining only the model, or retraining the whole pipeline. Since the
+agent cannot directly observe the type of shift taking place, the problem is formulated as
+a Partially Observable Markov Decision Process and solved with a Deep Q-Network (DQN). The
+reward combines the improvement in the area under the precision-recall curve (AUPRC) with
+the cost of each action, and is computed with a one-day delay, once the true labels become
+available. The case study is early sepsis prediction using data from the
+PhysioNet/Computing in Cardiology Challenge 2019: a pipeline trained on patients from one
+hospital is used in a simulated 200-bed intensive care unit of another hospital, where
+controlled shifts in vital sign measurement, in sepsis labeling, and their combination are
+injected. The learned policy is contrasted with reference rules such as never acting,
+always retraining, acting at random, or following a fixed threshold.
 
 \noindent \textbf{Keywords:}\\
-\noindent Keyword 1; Keyword 2; Keyword 3; Keyword 4
-
-
+\noindent Distribution shift; Reinforcement learning; Model maintenance; Sepsis prediction
