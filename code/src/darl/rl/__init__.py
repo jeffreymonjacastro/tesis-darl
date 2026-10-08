@@ -1,10 +1,32 @@
-"""Reinforcement learning utilities for the DARL decision environment."""
+"""Sequential environment, empirical transitions and custom DQN."""
 
-from darl.rl.env import ACTION_NAMES, DarlUpdateEnv
-from darl.rl.scenarios import make_synthetic_scenarios
+from darl.rl.env import (
+    ACTION_NAMES,
+    DARLEnvironment,
+    DarlUpdateEnv,
+    recovery_reward,
+)
+from darl.rl.replay_buffer import ReplayBuffer, TransitionBatch
+from darl.rl.training import (
+    DQNAgent,
+    DQNConfig,
+    evaluate_policy,
+    split_transition_episodes,
+    train_dqn,
+)
+from darl.rl.transition_table import TransitionTableBuilder
 
 __all__ = [
     "ACTION_NAMES",
+    "DARLEnvironment",
+    "DQNAgent",
+    "DQNConfig",
     "DarlUpdateEnv",
-    "make_synthetic_scenarios",
+    "ReplayBuffer",
+    "TransitionBatch",
+    "TransitionTableBuilder",
+    "evaluate_policy",
+    "recovery_reward",
+    "split_transition_episodes",
+    "train_dqn",
 ]

@@ -1,25 +1,43 @@
-from .selective_update import (
+"""Selective pipeline maintenance actions."""
+
+from darl.actions.selective_update import (
+    ACTION_CODES,
+    ActionResult,
     apply_reference_location_scale_map,
     apply_reference_quantile_map,
     eval_metrics,
+    execute_action,
     fit_reference_location_scale_map,
     fit_reference_quantile_map,
     run_a1,
+    run_a1_xgb,
     run_a2,
     run_a2_corrective,
+    run_a2_with_contract,
+    run_a2_xgb,
     run_a3,
+    run_a3_xgb,
     run_a4,
+    run_a4_xgb,
 )
 
 __all__ = [
+    "ACTION_CODES",
+    "ActionResult",
     "apply_reference_location_scale_map",
     "apply_reference_quantile_map",
     "eval_metrics",
+    "execute_action",
     "fit_reference_location_scale_map",
     "fit_reference_quantile_map",
     "run_a1",
+    "run_a1_xgb",
     "run_a2",
     "run_a2_corrective",
+    "run_a2_with_contract",
+    "run_a2_xgb",
     "run_a3",
+    "run_a3_xgb",
     "run_a4",
+    "run_a4_xgb",
 ]

@@ -1,211 +1,208 @@
-"""Training and evaluation helpers for the DARL SB3 PPO demo."""
+"""Custom PyTorch DQN and offline training helpers for DARL."""
 
 from __future__ import annotations
 
-import argparse
+from dataclasses import asdict, dataclass
+from pathlib import Path
 
 import numpy as np
 import pandas as pd
-from stable_baselines3 import PPO
-from stable_baselines3.common.env_checker import check_env
+import torch
+from torch import nn
 
-from darl.rl.env import ACTION_NAMES, DarlUpdateEnv
-from darl.rl.scenarios import SEED, make_synthetic_scenarios
+from darl.rl.replay_buffer import ReplayBuffer
 
-
-def train_ppo(env: DarlUpdateEnv, total_timesteps: int = 3000, seed: int = SEED) -> PPO:
-    """Train PPO on the DARL update environment."""
-    model = PPO(
-        "MlpPolicy",
-        env,
-        seed=seed,
-        device="cpu",
-        verbose=0,
-        n_steps=64,
-        batch_size=32,
-        n_epochs=5,
-        gamma=0.95,
-    )
-    model.learn(total_timesteps=total_timesteps)
-    return model
+SEED = 42
 
 
-def training_progress(
-    env: DarlUpdateEnv,
-    checkpoints: tuple[int, ...] = (0, 500, 1000, 1500, 2000, 2500, 3000),
-    eval_episodes: int = 5,
-    seed: int = SEED,
-) -> tuple[PPO, pd.DataFrame]:
-    """Train PPO incrementally and return checkpoint-level evaluation metrics."""
-    model = PPO(
-        "MlpPolicy",
-        env,
-        seed=seed,
-        device="cpu",
-        verbose=0,
-        n_steps=64,
-        batch_size=32,
-        n_epochs=5,
-        gamma=0.95,
+def set_global_seed(seed: int = SEED) -> None:
+    """Seed NumPy and PyTorch deterministically."""
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed_all(seed)
+
+
+@dataclass(frozen=True)
+class DQNConfig:
+    """Serializable DQN hyperparameters and observation schema."""
+
+    obs_dim: int = 28
+    n_actions: int = 4
+    hidden: int = 128
+    lr: float = 1e-3
+    gamma: float = 0.99
+    tau: float = 0.005
+    seed: int = SEED
+    observation_schema: tuple[str, ...] = (
+        "p_covariate",
+        "p_concept",
+        "p_both",
+        "severity",
+        "confidence",
+        "delta_auc",
+        "last_action_cost",
     )
 
-    rows: list[dict[str, float | int]] = []
-    previous = 0
-    for checkpoint in checkpoints:
-        if checkpoint < previous:
-            raise ValueError("checkpoints must be sorted in ascending order.")
-        delta = checkpoint - previous
-        if delta:
-            model.learn(total_timesteps=delta, reset_num_timesteps=False)
 
-        eval_df = evaluate_policy(model, env, n_episodes=eval_episodes)
-        action_share = (
-            eval_df["action"]
-            .value_counts(normalize=True)
-            .reindex(ACTION_NAMES, fill_value=0.0)
+class QNetwork(nn.Module):
+    """Two-hidden-layer action-value approximator."""
+
+    def __init__(self, obs_dim: int, n_actions: int, hidden: int):
+        super().__init__()
+        self.layers = nn.Sequential(
+            nn.Linear(obs_dim, hidden),
+            nn.ReLU(),
+            nn.Linear(hidden, hidden),
+            nn.ReLU(),
+            nn.Linear(hidden, n_actions),
         )
-        episode_reward = eval_df.groupby("episode")["reward"].sum()
 
-        rows.append(
+    def forward(self, observations: torch.Tensor) -> torch.Tensor:
+        """Return one action value per action."""
+        return self.layers(observations)
+
+
+class DQNAgent:
+    """DQN with target network, replay updates and epsilon-greedy actions."""
+
+    def __init__(self, config: DQNConfig | None = None):
+        self.config = config or DQNConfig()
+        set_global_seed(self.config.seed)
+        self.online = QNetwork(
+            self.config.obs_dim, self.config.n_actions, self.config.hidden
+        )
+        self.target = QNetwork(
+            self.config.obs_dim, self.config.n_actions, self.config.hidden
+        )
+        self.target.load_state_dict(self.online.state_dict())
+        self.optimizer = torch.optim.Adam(self.online.parameters(), lr=self.config.lr)
+        self.loss_function = nn.SmoothL1Loss()
+        self.rng = np.random.default_rng(self.config.seed)
+
+    def select_action(self, observation, epsilon: float = 0.0) -> int:
+        """Select an epsilon-greedy discrete maintenance action."""
+        if self.rng.random() < epsilon:
+            return int(self.rng.integers(0, self.config.n_actions))
+        with torch.no_grad():
+            tensor = torch.as_tensor(observation, dtype=torch.float32).unsqueeze(0)
+            return int(self.online(tensor).argmax(dim=1).item())
+
+    def update(self, replay_buffer: ReplayBuffer, batch_size: int = 64) -> float:
+        """Run one Bellman update and softly update target parameters."""
+        batch = replay_buffer.sample(batch_size)
+        observations = torch.as_tensor(batch.observations, dtype=torch.float32)
+        actions = torch.as_tensor(batch.actions, dtype=torch.int64).unsqueeze(1)
+        rewards = torch.as_tensor(batch.rewards, dtype=torch.float32)
+        next_observations = torch.as_tensor(batch.next_observations, dtype=torch.float32)
+        terminated = torch.as_tensor(batch.terminated, dtype=torch.float32)
+        predicted = self.online(observations).gather(1, actions).squeeze(1)
+        with torch.no_grad():
+            next_values = self.target(next_observations).max(dim=1).values
+            targets = rewards + self.config.gamma * (1.0 - terminated) * next_values
+        loss = self.loss_function(predicted, targets)
+        self.optimizer.zero_grad()
+        loss.backward()
+        nn.utils.clip_grad_norm_(self.online.parameters(), max_norm=10.0)
+        self.optimizer.step()
+        with torch.no_grad():
+            for target_parameter, parameter in zip(
+                self.target.parameters(), self.online.parameters()
+            ):
+                target_parameter.mul_(1.0 - self.config.tau)
+                target_parameter.add_(self.config.tau * parameter)
+        return float(loss.item())
+
+    def save(self, path: str | Path) -> None:
+        """Save weights, hyperparameters and observation schema."""
+        torch.save(
             {
-                "timesteps": checkpoint,
-                "mean_reward": float(eval_df["reward"].mean()),
-                "std_reward": float(eval_df["reward"].std(ddof=0)),
-                "mean_episode_reward": float(episode_reward.mean()),
-                "std_episode_reward": float(episode_reward.std(ddof=0)),
-                "best_action_share": float(action_share.max()),
-                "defer_share": float(action_share["defer"]),
-                "update_features_share": float(action_share["update_features"]),
-                "update_model_share": float(action_share["update_model"]),
-                "retrain_all_share": float(action_share["retrain_all"]),
-            }
+                "config": asdict(self.config),
+                "online": self.online.state_dict(),
+                "target": self.target.state_dict(),
+            },
+            Path(path),
         )
-        previous = checkpoint
 
-    return model, pd.DataFrame(rows)
+    @classmethod
+    def load(cls, path: str | Path) -> "DQNAgent":
+        """Restore a saved DQN agent."""
+        payload = torch.load(Path(path), map_location="cpu", weights_only=True)
+        config_data = payload["config"]
+        config_data["observation_schema"] = tuple(config_data["observation_schema"])
+        agent = cls(DQNConfig(**config_data))
+        agent.online.load_state_dict(payload["online"])
+        agent.target.load_state_dict(payload["target"])
+        return agent
 
 
-def evaluate_policy(
-    model: PPO,
-    env: DarlUpdateEnv,
-    n_episodes: int = 10,
-) -> pd.DataFrame:
-    """Run deterministic PPO actions and return one row per environment step."""
-    rows: list[dict[str, float | int | str | bool]] = []
+def replay_from_transitions(
+    transitions: pd.DataFrame,
+    capacity: int | None = None,
+    seed: int = SEED,
+) -> ReplayBuffer:
+    """Convert long-form empirical transitions into replay memory."""
+    buffer = ReplayBuffer(capacity or max(len(transitions), 1), seed=seed)
+    for row in transitions.itertuples(index=False):
+        buffer.add(
+            row.observation,
+            row.action,
+            row.reward,
+            row.next_observation,
+            row.terminated,
+        )
+    return buffer
 
+
+def split_transition_episodes(
+    transitions: pd.DataFrame,
+    validation_fraction: float = 0.25,
+    seed: int = SEED,
+) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """Split whole empirical episodes, preventing transition leakage."""
+    if not 0.0 < validation_fraction < 1.0:
+        raise ValueError("validation_fraction must be between zero and one")
+    episode_ids = transitions["episode_id"].drop_duplicates().to_numpy()
+    if len(episode_ids) < 2:
+        raise ValueError("At least two episodes are required for train/validation")
+    rng = np.random.default_rng(seed)
+    shuffled = rng.permutation(episode_ids)
+    n_validation = max(1, int(round(len(shuffled) * validation_fraction)))
+    validation_ids = set(shuffled[:n_validation])
+    validation = transitions[transitions["episode_id"].isin(validation_ids)].copy()
+    train = transitions[~transitions["episode_id"].isin(validation_ids)].copy()
+    return train.reset_index(drop=True), validation.reset_index(drop=True)
+
+
+def train_dqn(
+    transitions: pd.DataFrame,
+    agent: DQNAgent | None = None,
+    updates: int = 1000,
+    batch_size: int = 64,
+    seed: int = SEED,
+) -> tuple[DQNAgent, pd.DataFrame]:
+    """Train custom DQN offline and return per-update loss history."""
+    if transitions.empty:
+        raise ValueError("transitions must not be empty")
+    set_global_seed(seed)
+    trained = agent or DQNAgent(DQNConfig(seed=seed))
+    replay = replay_from_transitions(transitions, seed=seed)
+    effective_batch = min(batch_size, len(replay))
+    losses = [trained.update(replay, effective_batch) for _ in range(updates)]
+    return trained, pd.DataFrame({"update": np.arange(updates), "loss": losses})
+
+
+def evaluate_policy(agent: DQNAgent, env, n_episodes: int = 1) -> pd.DataFrame:
+    """Evaluate a deterministic DQN policy in the live environment."""
+    rows: list[dict] = []
     for episode in range(n_episodes):
-        obs, _ = env.reset(seed=SEED + episode)
-        done = False
+        observation, _ = env.reset(seed=SEED)
+        terminated = False
         step = 0
-        while not done:
-            action, _ = model.predict(obs, deterministic=True)
-            obs, reward, terminated, truncated, info = env.step(int(np.asarray(action).item()))
-            done = bool(terminated or truncated)
-            rows.append(
-                {
-                    "episode": episode,
-                    "step": step,
-                    "action": info["action_name"],
-                    "action_id": ACTION_NAMES.index(info["action_name"]),
-                    "drift_type": info["drift_type"],
-                    "severity": info["severity_label"],
-                    "reward": reward,
-                    "auc_recovery": info["auc_recovery"],
-                    "time_cost": info["time_cost"],
-                    "ram_cost": info["ram_cost"],
-                    "done": done,
-                }
-            )
+        while not terminated:
+            action = agent.select_action(observation, epsilon=0.0)
+            observation, reward, terminated, truncated, info = env.step(action)
+            terminated = bool(terminated or truncated)
+            rows.append({"episode": episode, "step": step, "action": action, "reward": reward, **info})
             step += 1
-
     return pd.DataFrame(rows)
-
-
-def episode_reward_summary(eval_df: pd.DataFrame, rolling_window: int = 5) -> pd.DataFrame:
-    """Summarize total reward per evaluation episode."""
-    summary = (
-        eval_df.groupby("episode", as_index=False)["reward"]
-        .sum()
-        .rename(columns={"reward": "episode_reward"})
-    )
-    summary["rolling_mean"] = summary["episode_reward"].rolling(
-        window=rolling_window,
-        min_periods=1,
-    ).mean()
-    return summary
-
-
-def step_reward_summary(eval_df: pd.DataFrame, rolling_window: int = 3) -> pd.DataFrame:
-    """Summarize reward by step across evaluation episodes."""
-    summary = (
-        eval_df.groupby("step")["reward"]
-        .agg(
-            mean_reward="mean",
-            std_reward=lambda values: values.std(ddof=0),
-            count="count",
-        )
-        .reset_index()
-    )
-    summary["sem_reward"] = summary["std_reward"] / np.sqrt(summary["count"])
-    summary["smooth_reward"] = summary["mean_reward"].rolling(
-        window=rolling_window,
-        center=True,
-        min_periods=1,
-    ).mean()
-    summary["cumulative_mean_reward"] = summary["mean_reward"].cumsum()
-    return summary
-
-
-def normalized_action_distribution(eval_df: pd.DataFrame, by: str) -> pd.DataFrame:
-    """Return action shares normalized within a context column."""
-    if by not in eval_df.columns:
-        raise KeyError(f"{by!r} is not a column in eval_df.")
-
-    distribution = pd.crosstab(eval_df[by], eval_df["action"], normalize="index")
-    distribution = distribution.reindex(columns=ACTION_NAMES, fill_value=0.0)
-    return distribution.reset_index()
-
-
-def reward_context_summary(eval_df: pd.DataFrame) -> pd.DataFrame:
-    """Summarize reward, AUC recovery, and cost by drift context and action."""
-    df = eval_df.copy()
-    df["relative_cost"] = 0.5 * (df["time_cost"] + df["ram_cost"])
-    return (
-        df.groupby(["drift_type", "severity", "action"], as_index=False)
-        .agg(
-            n=("reward", "size"),
-            mean_reward=("reward", "mean"),
-            mean_auc_recovery=("auc_recovery", "mean"),
-            mean_relative_cost=("relative_cost", "mean"),
-        )
-        .sort_values(["drift_type", "severity", "mean_reward"], ascending=[True, True, False])
-    )
-
-
-def smoke_test(total_timesteps: int = 512) -> pd.DataFrame:
-    """Validate the env, train a small PPO model, and print a compact report."""
-    scenarios = make_synthetic_scenarios(n_per_type=12, seed=SEED)
-    env = DarlUpdateEnv(scenarios, episode_length=8, seed=SEED)
-    check_env(env, warn=True)
-
-    model = train_ppo(env, total_timesteps=total_timesteps, seed=SEED)
-    results = evaluate_policy(model, env, n_episodes=2)
-
-    print(f"scenarios_shape={scenarios.shape}")
-    print(f"mean_reward={results['reward'].mean():.4f}")
-    print("action_counts=")
-    print(results["action"].value_counts().sort_index().to_string())
-    return results
-
-
-def _parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="DARL SB3 PPO helper")
-    parser.add_argument("--smoke", action="store_true", help="Run a quick PPO smoke test.")
-    parser.add_argument("--timesteps", type=int, default=512, help="Smoke-test PPO timesteps.")
-    return parser.parse_args()
-
-
-if __name__ == "__main__":
-    args = _parse_args()
-    if args.smoke:
-        smoke_test(total_timesteps=args.timesteps)
