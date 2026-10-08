@@ -63,8 +63,8 @@ $P_t(X)$, $P_t(Y\mid X)$, tipo y severidad};
 \node[signal] (obs) at (10.35, 0.8)
 {\textbf{Observación}\\$o_t$};
 
-\node[agent] (ppo) at (10.35, -1.65)
-{\textbf{4. PPO}\\Actor-crítico\\$\pi_{\theta}(a_t\mid o_t)$};
+\node[agent] (dqn) at (10.35, -1.65)
+{\textbf{4. DQN}\\Red Q\\$\arg\max_a Q_{\theta}(o_t,a)$};
 
 \node[module] (action) at (6.9, -1.65)
 {\textbf{5. Acción $a_t$}\\Defer / Features\\Model / Retrain};
@@ -76,10 +76,10 @@ $P_t(X)$, $P_t(Y\mid X)$, tipo y severidad};
 \draw[arrow] (drift) -- (monitor);
 \draw[arrow] (state.south) -- (monitor.north);
 \draw[signalflow] (monitor) -- node[above] {$o_t$} (obs);
-\draw[signalflow] (obs) -- (ppo);
-\draw[actionflow] (ppo) -- node[above] {$a_t$} (action);
+\draw[signalflow] (obs) -- (dqn);
+\draw[actionflow] (dqn) -- node[above] {$a_t$} (action);
 \draw[actionflow] (action) -- (metric);
-\draw[feedback] (metric.south) |- node[pos=0.25, below] {$r_t$ actualiza PPO} (ppo.south);
+\draw[feedback] (metric.south) |- node[pos=0.25, below] {$r_t$ actualiza DQN} (dqn.south);
 \draw[feedback] (action.north) |- node[pos=0.28, above] {pipeline actualizado} (monitor.south);
 
 \end{tikzpicture}
