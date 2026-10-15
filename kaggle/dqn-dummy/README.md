@@ -173,3 +173,154 @@ Lectura:
 ![AUC DQN vs A1 v4](v4/outputs/figures/09_auc_dqn_vs_a1.png)
 
 ![Calendario de severidad v4](v4/outputs/figures/02_calendario_cambios.png)
+
+# DARL DQN Dummy v5
+
+[Protocolo completo](../../plan/dqn-dummy-v5.md) ·
+[Notebook autónomo](v5/input/main.ipynb) ·
+[Kernel privado](https://www.kaggle.com/code/jeffreyamc/darl-dqn-dummy-v5)
+
+XGBoost se prepara con `SepsisLabel` de A: particiones 60/20/20 por paciente,
+comprobación temporal 20+10 de A-train, ocho configuraciones seleccionadas con
+A-validation y medición independiente de A-test. B tiene sus propias particiones
+60/20/20. DDQN aprende solo con B-train, B-validation selecciona el checkpoint
+y B-test evalúa los pesos congelados.
+
+En B-test se congelan los pesos del agente DDQN. El pipeline XGBoost sí puede
+adaptarse según sus acciones, usando únicamente etiquetas de días anteriores
+de ese replay; así se mide la política de mantenimiento en funcionamiento.
+
+El replay completo usa **200 camas y 30 días simulados**. Cada paciente conserva
+el orden de ICULOS y cada fila aparece una vez por replay. Las mismas filas
+predichas aportan KS, PSI y AUC. Las etiquetas llegan al día siguiente; estado y
+ajustes usan tres días pasados, y el AUC se obtiene de probabilidades guardadas.
+Warmup A1 en días 1–3, decisiones 4–30 y cierre final de etiquetas el día 31.
+
+La red mantiene **30→128→128→4** y cuatro acciones: conservar, reajustar
+transformador, reentrenar clasificador o ambos. A3/A4 se deshabilitan cuando
+la ventana etiquetada tiene una sola clase. No se exigen cuatro acciones usadas
+ni una mejora frente a las políticas de referencia.
+
+En concept/combined, `scenario_label` adelanta artificialmente el primer positivo
+hasta 12 horas adicionales. `SepsisLabel` permanece intacta y se reporta también
+su AUC. Estos escenarios representan cambios artificiales del objetivo.
+El oracle es una auditoría inmediata offline; no interviene en el aprendizaje.
+
+## Validación de implementación
+
+El smoke remoto de la versión 3 terminó `COMPLETE`; el estado interno fue
+`complete`. GPU CUDA, 50 camas, 8 días B, 6 días A, 24 episodios y 57 gradientes.
+Se descargaron 55 archivos CSV/PNG en `.tmp/dqn-v5/kaggle-smoke/`.
+Se verificaron **29 CSV de predicciones y 276 000 filas**: AUC diarios
+reconstruidos coincidentes, etiquetas originales preservadas, horarios y acciones
+causales, ausencia de filas repetidas y pesos congelados en validation/test.
+Los nueve PNG fueron inspeccionados. La calibración del smoke no cumplió
+todos los criterios; sus resultados no se presentan como resultado completo.
+
+Siete contratos locales cubren capacidad/orden, deriva sintética, codificación
+del estado, demora y cierre de etiquetas, falta de AUC, máscaras/copia target
+y estabilidad evaluada con estados/máscaras comunes. El notebook y sus celdas
+compilan correctamente. Estos controles de integridad son independientes del
+rendimiento experimental.
+
+Las figuras se exportan exclusivamente como PNG y las tablas/datos como CSV.
+Los CSV de predicciones por fila se conservan localmente y quedan ignorados
+por Git. `run_summary.csv` registra configuración, versiones, avance y errores.
+
+## Ejecución completa y resultados
+
+Kernel **versión 4**, ejecutado el 10 de octubre de 2026: estado remoto
+**COMPLETE**, estado interno **complete**, modo **full**, T4/CUDA e internet
+deshabilitado. Código remoto idéntico al notebook local. **1000 episodios,
+26 937 actualizaciones DDQN** y checkpoint seleccionado **350** mediante
+la media de validaciones 330/340/350. Resultados en [v5/outputs](v5/outputs/README.md).
+
+Se descargaron 55 CSV/PNG y se añadieron tres CSV de auditoría/resumen local.
+La auditoría independiente comprobó **29 CSV de predicciones, 4 176 000 filas**,
+200 registros por hora, orden intrapaciente, ausencia de filas repetidas,
+etiquetas originales intactas, ajustes/estados causales y AUC diarios coincidentes
+con las probabilidades guardadas. Los nueve PNG fueron inspeccionados.
+
+### Preparación de A y consumo de pacientes
+
+XGBoost seleccionado: **max_depth=3, learning_rate=0.1, n_estimators=60**.
+AUC agregado A-validation **0.6414**, AUC A-test **0.6618** y average precision
+A-test **0.0427**. Referencia del estado: media diaria A-validation **0.6418**.
+
+| Partición | Pacientes disponibles | Utilizados en el replay principal | Filas consumidas |
+|---|---:|---:|---:|
+| A-train | 12 201 | 3 805 | 144 000 |
+| A-validation | 4 067 | 3 827 | 144 000 |
+| A-test | 4 068 | 3 824 | 144 000 |
+| B-train | 12 000 | 3 847 | 144 000 |
+| B-validation | 4 000 | 3 913 | 144 000 |
+| B-test | 4 000 | 3 924 | 144 000 |
+
+Estos conteos corresponden a cada replay de 30 días. Para entrenar DDQN se
+emplearon cuatro colas B-train, con 3 847 / 3 940 / 3 946 / 3 867 pacientes
+utilizados; sus pacientes pueden coincidir entre episodios/replays.
+La población disponible total es 40 336 pacientes. La asignación a una partición
+no implica que todos se consuman dentro de sus 30 días.
+
+### Comparación en B-test
+
+AUC medio sobre días válidos 1–30, contra `scenario_label`. Retorno acumulado
+sobre las 27 decisiones de días 4–30, con penalización de costo incluida.
+
+| Escenario | AUC DDQN | AUC A1 | Retorno DDQN | Retorno A1 | Mejor fija: retorno | Acciones DDQN A1/A2/A3/A4 |
+|---|---:|---:|---:|---:|---|---|
+| stable | 0.666 | 0.666 | 17.935 | 17.935 | A1: 17.935 | 27/0/0/0 |
+| covariate | 0.673 | 0.540 | 17.889 | 14.164 | A2: 17.776 | 5/22/0/0 |
+| concept | 0.658 | 0.658 | 17.722 | 17.722 | A1: 17.722 | 27/0/0/0 |
+| combined | 0.669 | 0.543 | 17.753 | 14.265 | A2: 17.645 | 5/22/0/0 |
+
+En estable/concept DDQN ejecuta la misma política que A1; las diferencias
+de retorno inferiores a 0.00001 proceden de tiempos de ejecución.
+En covariate/combined, reajustar el transformador mejora el AUC frente a A1.
+DDQN **no seleccionó A3/A4** en B-test. Contra `SepsisLabel` original, su AUC
+es **0.666** en concept y **0.673** en combined.
+Todas las políticas y sus métricas se encuentran en
+[policy_comparisons.csv](v5/outputs/policy_comparisons.csv).
+
+### Calibración y estabilidad: criterios no cumplidos
+
+- **Calibración no cumplida:** ningún candidato satisface simultáneamente
+  caída inicial ≤0.05, caída final ≥0.10 y recuperación ≥0.05 en B-train.
+  Se conservó el respaldo previsto: **0.25 IQR/día** y **0.25 horas/día**.
+  En el día final de calibración, las caídas fueron negativas: −0.0106 en
+  covariate y −0.0349 en concept. Por tanto, este resultado no confirma
+  el nivel de degradación deseado para el estrés conceptual.
+- **Checkpoint seleccionado sin estabilidad suficiente:** variación **8.33%**
+  en las validaciones 330/340/350; acuerdo exacto mínimo **68.52%** y acuerdo
+  con tolerancia Q, usando estados/máscaras comunes, **86.11%**.
+  Se alcanzó el límite de 1000 episodios. Estos números corresponden a la
+  ventana del modelo seleccionado, no a los últimos checkpoints.
+- **Oracle inmediato:** regret acumulado DDQN de **0.408 / 0.281 / 0.363 / 0.253**
+  en stable/covariate/concept/combined. Cada comparación parte del pipeline
+  vigente y ajusta con pasado; las etiquetas futuras se consultan solo en la
+  auditoría offline. El agente conserva sus pesos en validation/test.
+
+La ejecución cumple los controles de integridad. Los resultados muestran mejora
+ante cambios de medición en este replay; la calibración fallida y la variabilidad
+de validación limitan las conclusiones sobre adaptación conceptual y estabilidad.
+El protocolo y el checkpoint no se cambiaron después de observar B-test.
+
+### Figuras y lectura
+
+| PNG | Qué muestra |
+|---|---|
+| [Preparación A](v5/outputs/figures/a_preparation.png) | Corte 20+10 y AUC de las ocho configuraciones |
+| [Ocupación](v5/outputs/figures/occupancy.png) | 200 camas por hora y pacientes nuevos por día |
+| [Deriva](v5/outputs/figures/drift_calendar.png) | Rampa de medición y adelanto sintético, con desfase de dos días en combined |
+| [Monitoreo](v5/outputs/figures/monitoring.png) | KS/PSI, AUC de ambas etiquetas y versión del pipeline; AUC del día d recibido en d+1 |
+| [Entrenamiento](v5/outputs/figures/training.png) | Retornos, validación greedy, epsilon y pérdida Huber |
+| [Acciones](v5/outputs/figures/actions.png) | Elecciones DDQN y alternativas del oracle inmediato |
+| [AUC](v5/outputs/figures/auc_by_policy.png) | AUC diario medio de las siete políticas por escenario |
+| [Retorno](v5/outputs/figures/return_by_policy.png) | AUC y costo acumulados en la recompensa por política |
+| [Regret y costo](v5/outputs/figures/regret_and_cost.png) | Regret inmediato acumulado y segundos empleados en ajustes |
+
+![AUC por política v5](v5/outputs/figures/auc_by_policy.png)
+
+![Acciones DDQN y oracle v5](v5/outputs/figures/actions.png)
+
+![Entrenamiento DDQN v5](v5/outputs/figures/training.png)
