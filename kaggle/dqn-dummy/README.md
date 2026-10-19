@@ -75,10 +75,10 @@ de A4. La versión 2 ([v2/input/main.ipynb](v2/input/main.ipynb), detalle en
 
 Resultado en Kaggle (`jeffreyamc/darl-dqn-dummy-v2`, estado `COMPLETE`, 400 episodios):
 
-| | A1 | A2 | A3 | A4 |
-|---|---|---|---|---|
-| DQN en prueba (60 decisiones) | 42 | 10 | 7 | 1 |
-| Oracle inmediato | 43 | 9 | 5 | 3 |
+|                               | A1  | A2  | A3  | A4  |
+| ----------------------------- | --- | --- | --- | --- |
+| DQN en prueba (60 decisiones) | 42  | 10  | 7   | 1   |
+| Oracle inmediato              | 43  | 9   | 5   | 3   |
 
 El DQN coincide con el oracle en el 80% de las decisiones. En los interiores de
 régimen, el 92% de sus decisiones queda a ≤0,01 del oracle. Su retorno es mayor
@@ -105,18 +105,18 @@ por episodio y selección por media móvil de tres validaciones
 `jeffreyamc/darl-dqn-dummy-v3`, estado `COMPLETE`, `status = complete` (todos los
 gates cumplidos).
 
-| | v2 | v3 |
-|---|---|---|
-| Episodios / actualizaciones | 400 / 5.937 | 750 (parada temprana) / 11.187 |
-| Checkpoint elegido | 400 | 560 |
-| Variación de validación | 2,9% | 0,6% |
-| Acuerdo entre últimos checkpoints | 78% | 98% |
-| `validation_converged` | ✗ | ✓ |
-| Acciones DQN A1/A2/A3/A4 | 42/10/7/1 | 36/16/5/3 |
-| Coincidencia con oracle | 80% | 72% |
-| ≤0,01 del oracle en interiores | 92% | 92% |
-| Retorno covariate / concept / combined | 13,05 / 13,02 / 12,24 | 13,01 / 13,05 / 12,18 |
-| Heurística (mismo replay) | 12,98 / 13,13 / 12,24 | 12,99 / 13,13 / 12,24 |
+|                                        | v2                    | v3                             |
+| -------------------------------------- | --------------------- | ------------------------------ |
+| Episodios / actualizaciones            | 400 / 5.937           | 750 (parada temprana) / 11.187 |
+| Checkpoint elegido                     | 400                   | 560                            |
+| Variación de validación                | 2,9%                  | 0,6%                           |
+| Acuerdo entre últimos checkpoints      | 78%                   | 98%                            |
+| `validation_converged`                 | ✗                     | ✓                              |
+| Acciones DQN A1/A2/A3/A4               | 42/10/7/1             | 36/16/5/3                      |
+| Coincidencia con oracle                | 80%                   | 72%                            |
+| ≤0,01 del oracle en interiores         | 92%                   | 92%                            |
+| Retorno covariate / concept / combined | 13,05 / 13,02 / 12,24 | 13,01 / 13,05 / 12,18          |
+| Heurística (mismo replay)              | 12,98 / 13,13 / 12,24 | 12,99 / 13,13 / 12,24          |
 
 Lectura honesta:
 
@@ -145,12 +145,12 @@ B-train: covariate **0,25 IQR/día** y concept **0,15 unidades/día**. Con ellas
 el primer día cae menos de 0,01 de AUC y tras seis días la caída acumulada es de
 0,16 y 0,28 sin actuar. Kaggle: `jeffreyamc/darl-dqn-dummy-v4`, estado `COMPLETE`.
 
-| Escenario | DQN | A1 | Mejor acción fija | Heurística | Acciones DQN A1/A2/A3/A4 |
-|---|---|---|---|---|---|
-| stable | 14,106 | 14,106 | A1 14,106 | 14,106 | 15/0/0/0 |
-| covariate | **13,843** | 11,794 | A2 13,776 | 13,807 | 4/11/0/0 |
-| concept | 13,382 | 11,369 | A3 13,271 | **13,405** | 13/0/1/1 |
-| combined | **13,467** | 11,700 | A4 13,090 | 13,422 | 6/7/0/2 |
+| Escenario | DQN        | A1     | Mejor acción fija | Heurística | Acciones DQN A1/A2/A3/A4 |
+| --------- | ---------- | ------ | ----------------- | ---------- | ------------------------ |
+| stable    | 14,106     | 14,106 | A1 14,106         | 14,106     | 15/0/0/0                 |
+| covariate | **13,843** | 11,794 | A2 13,776         | 13,807     | 4/11/0/0                 |
+| concept   | 13,382     | 11,369 | A3 13,271         | **13,405** | 13/0/1/1                 |
+| combined  | **13,467** | 11,700 | A4 13,090         | 13,422     | 6/7/0/2                  |
 
 AUC media sin actuar frente al DQN: covariate 0,796 → 0,930; concept
 0,769 → 0,901; combined 0,790 → 0,910.
@@ -247,14 +247,14 @@ XGBoost seleccionado: **max_depth=3, learning_rate=0.1, n_estimators=60**.
 AUC agregado A-validation **0.6414**, AUC A-test **0.6618** y average precision
 A-test **0.0427**. Referencia del estado: media diaria A-validation **0.6418**.
 
-| Partición | Pacientes disponibles | Utilizados en el replay principal | Filas consumidas |
-|---|---:|---:|---:|
-| A-train | 12 201 | 3 805 | 144 000 |
-| A-validation | 4 067 | 3 827 | 144 000 |
-| A-test | 4 068 | 3 824 | 144 000 |
-| B-train | 12 000 | 3 847 | 144 000 |
-| B-validation | 4 000 | 3 913 | 144 000 |
-| B-test | 4 000 | 3 924 | 144 000 |
+| Partición    | Pacientes disponibles | Utilizados en el replay principal | Filas consumidas |
+| ------------ | --------------------: | --------------------------------: | ---------------: |
+| A-train      |                12 201 |                             3 805 |          144 000 |
+| A-validation |                 4 067 |                             3 827 |          144 000 |
+| A-test       |                 4 068 |                             3 824 |          144 000 |
+| B-train      |                12 000 |                             3 847 |          144 000 |
+| B-validation |                 4 000 |                             3 913 |          144 000 |
+| B-test       |                 4 000 |                             3 924 |          144 000 |
 
 Estos conteos corresponden a cada replay de 30 días. Para entrenar DDQN se
 emplearon cuatro colas B-train, con 3 847 / 3 940 / 3 946 / 3 867 pacientes
@@ -268,11 +268,11 @@ AUC medio sobre días válidos 1–30, contra `scenario_label`. Retorno acumulad
 sobre las 27 decisiones de días 4–30, con penalización de costo incluida.
 
 | Escenario | AUC DDQN | AUC A1 | Retorno DDQN | Retorno A1 | Mejor fija: retorno | Acciones DDQN A1/A2/A3/A4 |
-|---|---:|---:|---:|---:|---|---|
-| stable | 0.666 | 0.666 | 17.935 | 17.935 | A1: 17.935 | 27/0/0/0 |
-| covariate | 0.673 | 0.540 | 17.889 | 14.164 | A2: 17.776 | 5/22/0/0 |
-| concept | 0.658 | 0.658 | 17.722 | 17.722 | A1: 17.722 | 27/0/0/0 |
-| combined | 0.669 | 0.543 | 17.753 | 14.265 | A2: 17.645 | 5/22/0/0 |
+| --------- | -------: | -----: | -----------: | ---------: | ------------------- | ------------------------- |
+| stable    |    0.666 |  0.666 |       17.935 |     17.935 | A1: 17.935          | 27/0/0/0                  |
+| covariate |    0.673 |  0.540 |       17.889 |     14.164 | A2: 17.776          | 5/22/0/0                  |
+| concept   |    0.658 |  0.658 |       17.722 |     17.722 | A1: 17.722          | 27/0/0/0                  |
+| combined  |    0.669 |  0.543 |       17.753 |     14.265 | A2: 17.645          | 5/22/0/0                  |
 
 En estable/concept DDQN ejecuta la misma política que A1; las diferencias
 de retorno inferiores a 0.00001 proceden de tiempos de ejecución.
@@ -307,20 +307,22 @@ El protocolo y el checkpoint no se cambiaron después de observar B-test.
 
 ### Figuras y lectura
 
-| PNG | Qué muestra |
-|---|---|
-| [Preparación A](v5/outputs/figures/a_preparation.png) | Corte 20+10 y AUC de las ocho configuraciones |
-| [Ocupación](v5/outputs/figures/occupancy.png) | 200 camas por hora y pacientes nuevos por día |
-| [Deriva](v5/outputs/figures/drift_calendar.png) | Rampa de medición y adelanto sintético, con desfase de dos días en combined |
-| [Monitoreo](v5/outputs/figures/monitoring.png) | KS/PSI, AUC de ambas etiquetas y versión del pipeline; AUC del día d recibido en d+1 |
-| [Entrenamiento](v5/outputs/figures/training.png) | Retornos, validación greedy, epsilon y pérdida Huber |
-| [Acciones](v5/outputs/figures/actions.png) | Elecciones DDQN y alternativas del oracle inmediato |
-| [AUC](v5/outputs/figures/auc_by_policy.png) | AUC diario medio de las siete políticas por escenario |
-| [Retorno](v5/outputs/figures/return_by_policy.png) | AUC y costo acumulados en la recompensa por política |
-| [Regret y costo](v5/outputs/figures/regret_and_cost.png) | Regret inmediato acumulado y segundos empleados en ajustes |
+| PNG                                                      | Qué muestra                                                                          |
+| -------------------------------------------------------- | ------------------------------------------------------------------------------------ |
+| [Preparación A](v5/outputs/figures/a_preparation.png)    | Corte 20+10 y AUC de las ocho configuraciones                                        |
+| [Ocupación](v5/outputs/figures/occupancy.png)            | 200 camas por hora y pacientes nuevos por día                                        |
+| [Deriva](v5/outputs/figures/drift_calendar.png)          | Rampa de medición y adelanto sintético, con desfase de dos días en combined          |
+| [Monitoreo](v5/outputs/figures/monitoring.png)           | KS/PSI, AUC de ambas etiquetas y versión del pipeline; AUC del día d recibido en d+1 |
+| [Entrenamiento](v5/outputs/figures/training.png)         | Retornos, validación greedy, epsilon y pérdida Huber                                 |
+| [Acciones](v5/outputs/figures/actions.png)               | Elecciones DDQN y alternativas del oracle inmediato                                  |
+| [AUC](v5/outputs/figures/auc_by_policy.png)              | AUC diario medio de las siete políticas por escenario                                |
+| [Retorno](v5/outputs/figures/return_by_policy.png)       | AUC y costo acumulados en la recompensa por política                                 |
+| [Regret y costo](v5/outputs/figures/regret_and_cost.png) | Regret inmediato acumulado y segundos empleados en ajustes                           |
 
 ![AUC por política v5](v5/outputs/figures/auc_by_policy.png)
 
 ![Acciones DDQN y oracle v5](v5/outputs/figures/actions.png)
 
 ![Entrenamiento DDQN v5](v5/outputs/figures/training.png)
+
+# DARL DQN Dummy v6 (DAYI)
