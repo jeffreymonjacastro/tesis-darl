@@ -308,5 +308,4 @@ __pycache__/
 .tmp/
 
 # v5: versionar solo la documentación de outputs; excluir resultados generados.
-/kaggle/dqn-dummy/v5/outputs/*
-!/kaggle/dqn-dummy/v5/outputs/README.md
+kaggle/dqn-dummy/v5/outputs/predictions/*
