@@ -1,0 +1,11 @@
+partition,patients_available,patients_used,rows_consumed,days,beds,capacity_passed
+a_train,12201,3805,144000,30,200,True
+a_validation,4067,3827,144000,30,200,True
+a_test,4068,3824,144000,30,200,True
+b_train,12000,3847,144000,30,200,True
+b_validation,4000,3913,144000,30,200,True
+b_test,4000,3924,144000,30,200,True
+b_train_replay_0,12000,3847,144000,30,200,True
+b_train_replay_1,12000,3940,144000,30,200,True
+b_train_replay_2,12000,3946,144000,30,200,True
+b_train_replay_3,12000,3867,144000,30,200,True

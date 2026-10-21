@@ -313,3 +313,4 @@ kaggle/ppo-dummy/v1/outputs/predictions/*
 kaggle/ppo-dummy/v2/outputs/predictions/*
 kaggle/ppo-dummy/v3/outputs/predictions/*
 kaggle/ppo-dummy/seeds/*/outputs/predictions/*
+kaggle/ppo-dummy/**/*.log

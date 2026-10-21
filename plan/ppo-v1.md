@@ -253,3 +253,26 @@ Retorno en B-test con costo fijo común (media de los 4 escenarios):
 - **Ninguno domina.** Cada agente tiene una semilla mala de tres; con 3 semillas no
   se puede afirmar que uno supere al otro. La diferencia útil es de estabilidad,
   a favor de PPO v3.
+
+## Réplicas con 8 semillas (42–49)
+
+Semillas 45–49 en CPU (límite de Kaggle: 5 sesiones CPU y 2 GPU); 43–44 en GPU. El
+entorno es idéntico a v5 en las 16 corridas. Tablas en
+`kaggle/ppo-dummy/analisis/semillas_ddqn_vs_ppo.csv` (por escenario) y
+`semillas_resumen.csv` (por semilla); figura `semillas_ddqn_vs_ppo.png`.
+
+Retorno medio en B-test (4 escenarios, costo fijo común). "Falla" = algún escenario
+más de 1,0 por debajo de la mejor acción fija.
+
+| Agente | Media | Desv. est. | Mediana | Mín–máx | Fallas | Acuerdo medio |
+|---|---|---|---|---|---|---|
+| DDQN v5 | 16,26 | 1,40 | 16,06 | 14,62–17,83 | 5 de 8 | 0,24 |
+| PPO v3 | **17,16** | **0,74** | **17,49** | 16,11–17,81 | 4 de 8 | **0,98** |
+
+- **Diferencia no significativa.** PPO − DDQN = +0,90; IC 95 % bootstrap [−0,12; 1,92];
+  Mann-Whitney p = 0,27. Con 8 semillas no se afirma que un agente supere al otro.
+- **Los fallos son de distinto tipo.** PPO falla solo en covariate/combined (no usa A2
+  y conserva el modelo); en stable y concept elige A1 en las 8 semillas. DDQN, cuando
+  falla, reentrena también en stable y concept, donde no hace falta.
+- **PPO es más predecible.** Menor dispersión entre semillas (0,74 vs 1,40) y política
+  casi fija entre checkpoints (0,98 vs 0,24).

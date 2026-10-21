@@ -1,0 +1,16 @@
+{
+  "id": "bikaxd/darl-ddqn-v5-seed-47",
+  "title": "DARL DDQN v5 seed 47",
+  "code_file": "main.ipynb",
+  "language": "python",
+  "kernel_type": "notebook",
+  "is_private": true,
+  "enable_gpu": false,
+  "enable_internet": false,
+  "dataset_sources": [
+    "jeffreyamc/physionet-sepsis-processed"
+  ],
+  "competition_sources": [],
+  "kernel_sources": [],
+  "model_sources": []
+}
