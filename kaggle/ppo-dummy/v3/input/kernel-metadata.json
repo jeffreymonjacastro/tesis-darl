@@ -1,0 +1,17 @@
+{
+  "id": "bikaxd/darl-ppo-dummy-v3",
+  "title": "DARL PPO Dummy v3",
+  "code_file": "main.ipynb",
+  "language": "python",
+  "kernel_type": "notebook",
+  "is_private": true,
+  "enable_gpu": true,
+  "enable_internet": false,
+  "machine_shape": "NvidiaTeslaT4",
+  "dataset_sources": [
+    "jeffreyamc/physionet-sepsis-processed"
+  ],
+  "competition_sources": [],
+  "kernel_sources": [],
+  "model_sources": []
+}

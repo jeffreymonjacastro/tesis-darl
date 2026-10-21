@@ -309,3 +309,7 @@ __pycache__/
 
 # v5: versionar solo la documentación de outputs; excluir resultados generados.
 kaggle/dqn-dummy/v5/outputs/predictions/*
+kaggle/ppo-dummy/v1/outputs/predictions/*
+kaggle/ppo-dummy/v2/outputs/predictions/*
+kaggle/ppo-dummy/v3/outputs/predictions/*
+kaggle/ppo-dummy/seeds/*/outputs/predictions/*
