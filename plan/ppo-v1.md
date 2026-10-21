@@ -267,7 +267,7 @@ más de 1,0 por debajo de la mejor acción fija.
 | Agente | Media | Desv. est. | Mediana | Mín–máx | Fallas | Acuerdo medio |
 |---|---|---|---|---|---|---|
 | DDQN v5 | 16,26 | 1,40 | 16,06 | 14,62–17,83 | 5 de 8 | 0,24 |
-| PPO v3 | **17,16** | **0,74** | **17,49** | 16,11–17,81 | 4 de 8 | **0,98** |
+| PPO v3 | **17,16** | **0,74** | **17,49** | 16,11–17,81 | 4 de 8 | **0,97** |
 
 - **Diferencia no significativa.** PPO − DDQN = +0,90; IC 95 % bootstrap [−0,12; 1,92];
   Mann-Whitney p = 0,27. Con 8 semillas no se afirma que un agente supere al otro.
@@ -275,4 +275,4 @@ más de 1,0 por debajo de la mejor acción fija.
   y conserva el modelo); en stable y concept elige A1 en las 8 semillas. DDQN, cuando
   falla, reentrena también en stable y concept, donde no hace falta.
 - **PPO es más predecible.** Menor dispersión entre semillas (0,74 vs 1,40) y política
-  casi fija entre checkpoints (0,98 vs 0,24).
+  casi fija entre checkpoints (0,97 vs 0,24).
