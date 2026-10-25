@@ -9,19 +9,15 @@ aprendizaje por refuerzo que se comparan en esta tesis (Double DQN y PPO). La fo
 estos conceptos se aplican en DARL se describe en el Capítulo~\ref{chap:metodologia}.
 
 % ------------------------------------------------------------
-\section{Datos tabulares y registros clínicos por hora}
+\section{Datos tabulares}
 % ------------------------------------------------------------
 
-En los datos tabulares cada fila es una observación y cada columna una variable, que puede
-ser numérica o categórica y puede tener valores faltantes. En el caso de estudio, cada fila
-corresponde a una hora de estancia de un paciente en la UCI y las columnas contienen sus
-signos vitales en esa hora \cite{reyna2020sepsis}. Este formato tiene tres
-particularidades. Primero, muchos valores faltan porque no todos los signos se miden cada
-hora. Segundo, las filas de un mismo paciente no son independientes, por lo que todas deben
-quedar en la misma partición (entrenamiento, validación o prueba). Tercero, la clase
-positiva es poco frecuente: la etiqueta de sepsis se activa unas horas antes del inicio
-clínico para premiar la detección temprana \cite{reyna2020sepsis,singer2016sepsis3}, y la
-mayoría de las horas corresponde a pacientes sin sepsis.
+En los datos tabulares cada fila representa una observación y cada columna una variable,
+que puede ser numérica o categórica. Algunos conjuntos contienen valores faltantes,
+observaciones agrupadas por entidad o clases con distinta frecuencia. Estas características
+condicionan la preparación de los datos, la partición entre entrenamiento, validación y
+prueba, y la selección de métricas. La evaluación de cambios de distribución en tareas
+tabulares se ha estudiado en conjuntos de distintos dominios \cite{gardner2023tableshift}.
 
 % ------------------------------------------------------------
 \section{Pipeline de dos etapas}
@@ -57,17 +53,52 @@ $f_\phi$ exige una condición: la salida debe conservar el número, el orden y e
 de las columnas, para que $g_\theta$ pueda seguir interpretándola
 \cite{sculley2015debt}.
 
-XGBoost \cite{chen2016xgboost} es el modelo predictivo usado. Construye una suma de árboles
-de decisión pequeños, entrenados uno tras otro, en la que cada árbol corrige los errores de
-los anteriores, y penaliza la complejidad de los árboles para limitar el sobreajuste. Es una
-de las opciones con mejor rendimiento en datos tabulares \cite{gardner2023tableshift}.
+% ------------------------------------------------------------
+\section{XGBoost}
+\label{sec:xgboost}
+% ------------------------------------------------------------
+
+XGBoost es un sistema de \textit{gradient tree boosting} que combina árboles de decisión
+de manera aditiva. En la clasificación binaria usada en esta tesis, la suma de las salidas
+de los árboles se transforma en una probabilidad mediante la función logística
+\cite{chen2016xgboost}:
+
+\begin{equation}
+    \begin{aligned}
+        s_i &= \sum_{k=1}^{K} f_k(z_i),
+        &\hat{y}_i &= \sigma(s_i), \\
+        \mathcal{L} &= \sum_{i=1}^{N} \ell(y_i, \hat{y}_i)
+        + \sum_{k=1}^{K} \Omega(f_k), \\
+        \Omega(f_k) &= \gamma_{\text{hoja}} T_k
+        + \frac{\lambda_{\text{L2}}}{2}\sum_{j=1}^{T_k} w_{kj}^{2}.
+    \end{aligned}
+    \label{eq:xgboost_objective}
+\end{equation}
+
+\noindent\textbf{Donde:}
+\begin{itemize}
+    \item $z_i$ es la observación $i$ después de la preparación de datos y $y_i$ su etiqueta real.
+    \item $f_k$ es el árbol agregado en la iteración $k$; $K$ es el número de árboles y $s_i$ la suma de sus salidas para la observación $i$.
+    \item $\sigma$ es la función logística y $\hat{y}_i$ la probabilidad predicha para la clase positiva.
+    \item $N$ es el número de observaciones de entrenamiento y $\ell$ la pérdida logística que compara las etiquetas con las probabilidades predichas.
+    \item $T_k$ es el número de hojas del árbol $f_k$ y $w_{kj}$ el valor asignado a su hoja $j$.
+    \item $\gamma_{\text{hoja}}$ penaliza la cantidad de hojas y $\lambda_{\text{L2}}$ regulariza la magnitud de sus valores.
+\end{itemize}
+
+El objetivo combina el error predictivo con una penalización por complejidad, lo que permite
+controlar el tamaño de los árboles y sus valores de salida \cite{chen2016xgboost}. Durante
+el entrenamiento, XGBoost agrega un árbol por iteración y utiliza derivadas de primer y
+segundo orden de la pérdida para orientar su construcción \cite{chen2016xgboost}. En el
+\textit{pipeline} de DARL, XGBoost corresponde al modelo predictivo $g_\theta$ de la segunda
+etapa.
 
 % ------------------------------------------------------------
 \section{Drift: tipos y forma}
 % ------------------------------------------------------------
 
 Se dice que hay drift cuando la distribución conjunta de entradas y etiqueta cambia con el
-tiempo \cite{gama2014survey,morenotorres2012shift}:
+tiempo \cite{gama2014survey}. Esta formulación también corresponde al marco general de
+\textit{dataset shift} descrito por Moreno-Torres et al. \cite{morenotorres2012shift}:
 
 \begin{equation}
     P_t(X,Y) \neq P_{t+d}(X,Y).
@@ -89,12 +120,12 @@ puede venir de dos fuentes \cite{morenotorres2012shift}:
     \item \textbf{\textit{Covariate shift}}: cambia la distribución de las entradas,
     $P_t(X) \neq P_{t+d}(X)$, pero la relación con la etiqueta se mantiene,
     $P_t(Y \mid X) = P_{t+d}(Y \mid X)$. En el \textit{pipeline} afecta primero a $f_\phi$.
-    Un ejemplo es un monitor que registra la frecuencia cardiaca unos latidos por encima de
-    lo habitual: los valores se desplazan aunque el estado del paciente sea el mismo.
+    Un ejemplo es un sensor cuyo procedimiento de calibración cambia y desplaza sus
+    mediciones aunque la magnitud observada permanezca estable.
     \item \textbf{\textit{Concept drift}}: cambia la relación entre entradas y etiqueta,
     $P_t(Y \mid X) \neq P_{t+d}(Y \mid X)$. Afecta sobre todo a $g_\theta$. Un ejemplo es un
-    cambio en el criterio con el que se marca el inicio de la sepsis: los mismos signos
-    vitales pasan a asociarse con otra etiqueta. Este cambio no se ve mirando solo las
+    cambio en la regla que define la clase positiva: observaciones con los mismos valores de
+    entrada pueden pasar a recibir otra etiqueta. Este cambio no se ve mirando solo las
     entradas; para detectarlo hay que comparar predicciones con etiquetas reales.
 \end{itemize}
 
@@ -128,9 +159,9 @@ confunden con la variación normal de los datos.
 Para decidir si el \textit{pipeline} necesita mantenimiento hacen falta señales que
 resuman el estado de los datos. Se dividen en dos grupos. Las señales sin etiquetas se
 calculan solo con las entradas y detectan cambios en $P(X)$. Las señales con etiquetas
-comparan predicciones con resultados reales y detectan si la relación $P(Y \mid X)$ sigue
-siendo válida; como las etiquetas llegan con retraso, siempre se refieren a un periodo
-anterior \cite{gama2014survey,singh2025shift}.
+comparan predicciones con resultados reales para evaluar si la relación $P(Y \mid X)$ sigue
+siendo válida \cite{gama2014survey}. Como las etiquetas llegan con retraso, estas señales
+supervisadas siempre se refieren a un periodo anterior.
 
 \subsection{Índice de estabilidad poblacional (PSI)}
 
@@ -226,9 +257,9 @@ positiva \cite{saito2015prc}:
 \end{itemize}
 
 Un modelo aleatorio obtiene una AP aproximadamente igual a la proporción de positivos. Por
-eso, con sepsis, una AP baja en valor absoluto puede representar una mejora real frente al
-azar. Ambas medidas se complementan: el AUROC describe la capacidad de ordenar y la AP la
-calidad de las alertas.
+eso, cuando la clase positiva es poco frecuente, una AP baja en valor absoluto puede aun
+así representar una mejora frente al azar. Ambas medidas se complementan: el AUROC describe
+la capacidad de ordenar y la AP la calidad de las predicciones positivas.
 
 % ------------------------------------------------------------
 \section{Aprendizaje por refuerzo}
