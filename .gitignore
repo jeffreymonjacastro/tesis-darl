@@ -309,3 +309,11 @@ __pycache__/
 
 # v5: versionar solo la documentación de outputs; excluir resultados generados.
 kaggle/dqn-dummy/v5/outputs/predictions/*
+
+# v6: resultados y modelos permanecen locales; versionar solo su documentación.
+kaggle/dqn-dummy/v6/outputs/**
+!kaggle/dqn-dummy/v6/outputs/README.md
+
+# v7 y continuaciones: conservar resultados fuera de Git, salvo documentación.
+kaggle/dqn-dummy/v[789]/outputs/**
+!kaggle/dqn-dummy/v[789]/outputs/README.md

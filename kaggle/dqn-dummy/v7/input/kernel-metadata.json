@@ -1,0 +1,18 @@
+{
+  "id": "jeffreyamc/darl-dqn-dummy-v7",
+  "title": "DARL DQN Dummy v7",
+  "code_file": "main.ipynb",
+  "language": "python",
+  "kernel_type": "notebook",
+  "is_private": true,
+  "enable_gpu": true,
+  "enable_internet": false,
+  "machine_shape": "NvidiaTeslaT4",
+  "docker_image": "gcr.io/kaggle-private-byod/python@sha256:9a6bcfda6d03b2cd9aa347ee8c1bae62043328ed0f4afe9bda014e4f8bbf9435",
+  "dataset_sources": [
+    "jeffreyamc/physionet-sepsis-processed"
+  ],
+  "competition_sources": [],
+  "kernel_sources": [],
+  "model_sources": []
+}
