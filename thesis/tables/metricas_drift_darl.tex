@@ -1,18 +1,14 @@
 \begin{table}[H]
     \centering
-    \caption{Clasificación de las señales de monitoreo en DARL}
+    \caption{Señales de monitoreo usadas en DARL}
     \label{tab:metricas_drift_darl}
     \begin{tabular}{lll}
         \toprule
-        \textbf{Señal}                  & \textbf{Información utilizada} & \textbf{Tipo principal de señal}      \\
+        \textbf{Señal}               & \textbf{Información usada} & \textbf{Tipo de drift que refleja}        \\
         \midrule
-        PSI                             & $X$                            & \textit{Covariate shift}              \\
-        KS                              & $X$                            & \textit{Covariate shift}              \\
-        C2ST                            & $X$                            & \textit{Covariate shift} multivariado \\
-        Desplazamiento $\delta_t$       & $X$                            & \textit{Covariate shift}              \\
-        Proporción de faltantes         & $X$                            & Cambio en la medición                 \\
-        $\Delta M$ (AUPRC, AUROC)       & $\hat{Y},Y$                    & \textit{Concept/performance drift}    \\
-        Proporción de positivos         & $Y$                            & \textit{Concept drift} en etiquetas   \\
+        PSI                          & $X$                        & \textit{Covariate shift}                  \\
+        KS                           & $X$                        & \textit{Covariate shift}                  \\
+        Caída de AUROC $\Delta M_t$  & $\hat{Y}$, $Y$             & \textit{Concept drift} o ambos tipos      \\
         \bottomrule
     \end{tabular}
 \end{table}
