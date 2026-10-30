@@ -3,8 +3,10 @@
 [Notebook](input/main.ipynb) · [Protocolo](../../../plan/dqn-dummy-v7.md) ·
 [Estado y resultados](outputs/README.md)
 
-Base: v6 local, conservado intacto. Kernel privado
-`jeffreyamc/darl-dqn-dummy-v7`, T4 e internet deshabilitado.
+Base: v6 local, conservado intacto. Ejecución FULL completa: nueve agentes,
+9000 episodios. Kernel real privado: `jeffreyamc/darl-ddqn-v7-full-auc-ap`, T4
+e internet deshabilitado. [Resultados y gráficas](outputs/analysis-20261027/README.md).
+La metadata local usa el título corregido para el slug previsto.
 
 ## Experimento
 

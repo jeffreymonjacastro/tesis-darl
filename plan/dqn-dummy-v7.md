@@ -83,3 +83,8 @@ ventana. Desempate por AP, AUC, menor tiempo e identificador. Test no interviene
 Curvas nativas de rewards diferentes no establecen superioridad. La banda de
 una semilla es temporal, no incertidumbre entre semillas. AUC/AP/costo y
 calibración se reportan separados, sin exigir mejoría para aprobar integridad.
+
+
+## Resultados verificados — 27 de octubre de 2026
+
+Ejecución real `jeffreyamc/darl-ddqn-v7-full-auc-ap`, versión 1: COMPLETE remoto, complete interno, 9000 episodios/243 000 decisiones, 74 comprobaciones aprobadas. Nueve configuraciones completas; no se requieren continuaciones. Calibración no cualificada. Seleccionada α=0.75, β=0.5, λ=0.025, checkpoint 890 por B-validation. Descargados 439 outputs (245 CSV, 155 PNG; 1.89 GB). Gráficas legibles y hallazgos en kaggle/dqn-dummy/v7/outputs/analysis-20261027/README.md. No se ejecutó entrenamiento adicional ni local.
