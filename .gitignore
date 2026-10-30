@@ -240,7 +240,6 @@ __pycache__/
 # --- tesis-darl: datos locales ---
 data/raw/*
 data/interim/*
-data/processed/*
 data/external/*
 !data/**/README.md
 
