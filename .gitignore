@@ -314,3 +314,22 @@ kaggle/ppo-dummy/v2/outputs/predictions/*
 kaggle/ppo-dummy/v3/outputs/predictions/*
 kaggle/ppo-dummy/seeds/*/outputs/predictions/*
 kaggle/ppo-dummy/**/*.log
+
+# v6: resultados y modelos permanecen locales; versionar solo su documentación.
+kaggle/dqn-dummy/v6/outputs/**
+!kaggle/dqn-dummy/v6/outputs/README.md
+
+# v7 y continuaciones: conservar resultados fuera de Git, salvo documentación.
+kaggle/dqn-dummy/v7/outputs/**
+!kaggle/dqn-dummy/v7/outputs/README.md
+
+# v8
+kaggle/dqn-dummy/v8/outputs/**
+!kaggle/dqn-dummy/v8/outputs/
+!kaggle/dqn-dummy/v8/outputs/full-20261030/
+!kaggle/dqn-dummy/v8/outputs/full-20261030/**
+
+
+# Khipu: generated results, checkpoints and executed notebooks stay outside Git.
+/khipu/**/outputs/**
+!/khipu/**/outputs/README.md

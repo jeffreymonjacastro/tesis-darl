@@ -1,0 +1,2 @@
+auc_reference,ap_reference,source,history_days,dimension
+0.67640990345944796,0.031452165726262811,train_internal_patient_holdout_days_1_7,3,15
