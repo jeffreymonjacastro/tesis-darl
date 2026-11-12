@@ -333,3 +333,7 @@ kaggle/dqn-dummy/v8/outputs/**
 # Khipu: generated results, checkpoints and executed notebooks stay outside Git.
 /khipu/**/outputs/**
 !/khipu/**/outputs/README.md
+
+# ddqn-fraud: resultados, checkpoints y logs fuera de Git.
+kaggle/ddqn-fraud/outputs/**
+!kaggle/ddqn-fraud/outputs/README.md
