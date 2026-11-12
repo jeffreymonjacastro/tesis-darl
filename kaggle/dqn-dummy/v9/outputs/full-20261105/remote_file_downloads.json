@@ -1,0 +1,1067 @@
+[
+  {
+    "path": "ddqn-v9/actions.csv",
+    "state": "existing",
+    "bytes": 2925637
+  },
+  {
+    "path": "ddqn-v9/baseline_v8/actions.csv",
+    "state": "existing",
+    "bytes": 1699159
+  },
+  {
+    "path": "ddqn-v9/baseline_reference.csv",
+    "state": "existing",
+    "bytes": 1597
+  },
+  {
+    "path": "ddqn-v9/artifact_manifest.csv",
+    "state": "existing",
+    "bytes": 10900
+  },
+  {
+    "path": "ddqn-v9/baseline_v8/checkpoint_selection.csv",
+    "state": "existing",
+    "bytes": 253
+  },
+  {
+    "path": "ddqn-v9/action_counts.csv",
+    "state": "existing",
+    "bytes": 1106
+  },
+  {
+    "path": "ddqn-v9/baseline_v8/policy_comparisons.csv",
+    "state": "existing",
+    "bytes": 22641
+  },
+  {
+    "path": "ddqn-v9/baseline_v8/training_history.csv",
+    "state": "existing",
+    "bytes": 332061
+  },
+  {
+    "path": "ddqn-v9/baseline_v8/validation_history.csv",
+    "state": "existing",
+    "bytes": 126236
+  },
+  {
+    "path": "ddqn-v9/calibration.csv",
+    "state": "existing",
+    "bytes": 600
+  },
+  {
+    "path": "ddqn-v9/checkpoint_history.csv",
+    "state": "existing",
+    "bytes": 8318
+  },
+  {
+    "path": "ddqn-v9/checkpoint_selection.csv",
+    "state": "existing",
+    "bytes": 299
+  },
+  {
+    "path": "ddqn-v9/concept_audits/test_mixed_test_combined_43d262e6e71b4ce4e404.csv",
+    "state": "existing",
+    "bytes": 1883651
+  },
+  {
+    "path": "ddqn-v9/concept_audits/test_mixed_test_concept_129b0703681fad122ef5.csv",
+    "state": "existing",
+    "bytes": 1868114
+  },
+  {
+    "path": "ddqn-v9/concept_audits/train_0_combined_15ac591b786fc71cc976.csv",
+    "state": "existing",
+    "bytes": 1835706
+  },
+  {
+    "path": "ddqn-v9/concept_audits/train_0_combined_01b47e248c84bf95153d.csv",
+    "state": "existing",
+    "bytes": 1832973
+  },
+  {
+    "path": "ddqn-v9/concept_audits/train_0_combined_2236471cb9d49b235285.csv",
+    "state": "existing",
+    "bytes": 1835134
+  },
+  {
+    "path": "ddqn-v9/concept_audits/train_0_combined_49be11edbed6d6776de8.csv",
+    "state": "existing",
+    "bytes": 1836496
+  },
+  {
+    "path": "ddqn-v9/concept_audits/train_0_combined_20f8f36b8c0f9f170149.csv",
+    "state": "existing",
+    "bytes": 1987899
+  },
+  {
+    "path": "ddqn-v9/concept_audits/train_0_combined_54ccdf4f8b64c154d223.csv",
+    "state": "existing",
+    "bytes": 1837749
+  },
+  {
+    "path": "ddqn-v9/concept_audits/train_0_combined_607addba226dd60ec976.csv",
+    "state": "existing",
+    "bytes": 1837317
+  },
+  {
+    "path": "ddqn-v9/concept_audits/train_0_combined_7688a8e7fd6119d1fb99.csv",
+    "state": "existing",
+    "bytes": 1985766
+  },
+  {
+    "path": "ddqn-v9/concept_audits/train_0_combined_78bf55219eced3d01686.csv",
+    "state": "downloaded",
+    "bytes": 1987404
+  },
+  {
+    "path": "ddqn-v9/concept_audits/train_0_combined_8664308705ba9f52197e.csv",
+    "state": "downloaded",
+    "bytes": 1833410
+  },
+  {
+    "path": "ddqn-v9/concept_audits/train_0_combined_89344aa143ef60826bc8.csv",
+    "state": "downloaded",
+    "bytes": 1986068
+  },
+  {
+    "path": "ddqn-v9/concept_audits/train_0_combined_a1f3bd0f7009d8852c43.csv",
+    "state": "downloaded",
+    "bytes": 1834330
+  },
+  {
+    "path": "ddqn-v9/concept_audits/train_0_combined_ea705d43edc577ae31de.csv",
+    "state": "downloaded",
+    "bytes": 1832951
+  },
+  {
+    "path": "ddqn-v9/concept_audits/train_0_concept_0d84f656f28f8a9e0e9a.csv",
+    "state": "downloaded",
+    "bytes": 1825322
+  },
+  {
+    "path": "ddqn-v9/concept_audits/train_0_combined_8c8784523ff99dfe5e36.csv",
+    "state": "downloaded",
+    "bytes": 1986093
+  },
+  {
+    "path": "ddqn-v9/concept_audits/train_0_concept_102e2787a4f96c608007.csv",
+    "state": "downloaded",
+    "bytes": 1828077
+  },
+  {
+    "path": "ddqn-v9/concept_audits/train_0_concept_6f4aff2251230579d85f.csv",
+    "state": "downloaded",
+    "bytes": 1978439
+  },
+  {
+    "path": "ddqn-v9/concept_audits/train_0_concept_28a4fdbd4f4f759a7cac.csv",
+    "state": "downloaded",
+    "bytes": 1825781
+  },
+  {
+    "path": "ddqn-v9/concept_audits/train_0_concept_22572d9d7d4c03a142b2.csv",
+    "state": "downloaded",
+    "bytes": 1828867
+  },
+  {
+    "path": "ddqn-v9/concept_audits/train_0_concept_34b424543e3767da91f1.csv",
+    "state": "downloaded",
+    "bytes": 1820108
+  },
+  {
+    "path": "ddqn-v9/concept_audits/train_0_concept_3f49d19e20702d4326f6.csv",
+    "state": "downloaded",
+    "bytes": 1969820
+  },
+  {
+    "path": "ddqn-v9/concept_audits/train_0_concept_8ddba9fe6b6e596b4fb9.csv",
+    "state": "downloaded",
+    "bytes": 1969033
+  },
+  {
+    "path": "ddqn-v9/concept_audits/train_0_concept_9907cd8f98b455a12454.csv",
+    "state": "downloaded",
+    "bytes": 1816775
+  },
+  {
+    "path": "ddqn-v9/concept_audits/train_0_concept_ca836a4a7515cd0f9157.csv",
+    "state": "downloaded",
+    "bytes": 1817294
+  },
+  {
+    "path": "ddqn-v9/concept_audits/train_0_concept_a4fca6c2116520ef9773.csv",
+    "state": "downloaded",
+    "bytes": 1978137
+  },
+  {
+    "path": "ddqn-v9/concept_audits/train_0_concept_ba13f6632445744e3e1f.csv",
+    "state": "downloaded",
+    "bytes": 1828159
+  },
+  {
+    "path": "ddqn-v9/concept_audits/train_0_concept_ebb3a26bdd922245070d.csv",
+    "state": "downloaded",
+    "bytes": 1819561
+  },
+  {
+    "path": "ddqn-v9/concept_audits/train_1_combined_0e03226f77bdc2add562.csv",
+    "state": "downloaded",
+    "bytes": 2010219
+  },
+  {
+    "path": "ddqn-v9/concept_audits/train_0_concept_c51068b85f4bb8e1c959.csv",
+    "state": "downloaded",
+    "bytes": 1825344
+  },
+  {
+    "path": "ddqn-v9/concept_audits/train_0_concept_ffc8fb31b5386a209e3f.csv",
+    "state": "downloaded",
+    "bytes": 1978464
+  },
+  {
+    "path": "ddqn-v9/concept_audits/train_1_combined_16c76a1bd3094dac6edf.csv",
+    "state": "downloaded",
+    "bytes": 1859405
+  },
+  {
+    "path": "ddqn-v9/concept_audits/train_1_combined_06ef1f30aa63b1cbd811.csv",
+    "state": "downloaded",
+    "bytes": 2011520
+  },
+  {
+    "path": "ddqn-v9/concept_audits/train_1_combined_5af81b362c1687548670.csv",
+    "state": "downloaded",
+    "bytes": 1856139
+  },
+  {
+    "path": "ddqn-v9/concept_audits/train_1_combined_792eee4c4e827b65c4e0.csv",
+    "state": "downloaded",
+    "bytes": 1857302
+  },
+  {
+    "path": "ddqn-v9/concept_audits/train_1_combined_94fe8f1b95e56e4110b0.csv",
+    "state": "downloaded",
+    "bytes": 2012119
+  },
+  {
+    "path": "ddqn-v9/concept_audits/train_1_combined_4b91eb16fb4562aa26fa.csv",
+    "state": "downloaded",
+    "bytes": 1860647
+  },
+  {
+    "path": "ddqn-v9/concept_audits/train_1_combined_a20b97e2d591a29f7cb3.csv",
+    "state": "downloaded",
+    "bytes": 1857016
+  },
+  {
+    "path": "ddqn-v9/concept_audits/train_1_combined_adc191ed084d3b518269.csv",
+    "state": "downloaded",
+    "bytes": 1855285
+  },
+  {
+    "path": "ddqn-v9/concept_audits/train_1_combined_c65d5806ebeafc2e4fb1.csv",
+    "state": "downloaded",
+    "bytes": 1859993
+  },
+  {
+    "path": "ddqn-v9/baseline_v8/validation_actions.csv",
+    "state": "downloaded",
+    "bytes": 25146755
+  },
+  {
+    "path": "ddqn-v9/concept_audits/train_1_combined_d33f544f57dd86659fba.csv",
+    "state": "downloaded",
+    "bytes": 1855479
+  },
+  {
+    "path": "ddqn-v9/concept_audits/train_1_combined_ba9d37998da477fd3e46.csv",
+    "state": "downloaded",
+    "bytes": 1859589
+  },
+  {
+    "path": "ddqn-v9/concept_audits/train_1_combined_b665d3062b376576c398.csv",
+    "state": "downloaded",
+    "bytes": 1858294
+  },
+  {
+    "path": "ddqn-v9/concept_audits/train_1_concept_3af81001d0fd3085f59e.csv",
+    "state": "downloaded",
+    "bytes": 1847562
+  },
+  {
+    "path": "ddqn-v9/concept_audits/train_1_combined_e67a5c931a9af1764652.csv",
+    "state": "downloaded",
+    "bytes": 2010257
+  },
+  {
+    "path": "ddqn-v9/concept_audits/train_1_combined_f1692dd61bd6a0598eae.csv",
+    "state": "downloaded",
+    "bytes": 2010609
+  },
+  {
+    "path": "ddqn-v9/concept_audits/train_1_concept_0924131a10bfeb2a8d03.csv",
+    "state": "downloaded",
+    "bytes": 2002534
+  },
+  {
+    "path": "ddqn-v9/concept_audits/train_1_concept_477ef009630ae1528d72.csv",
+    "state": "downloaded",
+    "bytes": 1838749
+  },
+  {
+    "path": "ddqn-v9/concept_audits/train_1_concept_01c1b03c01904bea6e6e.csv",
+    "state": "downloaded",
+    "bytes": 1841792
+  },
+  {
+    "path": "ddqn-v9/concept_audits/train_1_concept_5b27d3dc5d2f77cd23fe.csv",
+    "state": "downloaded",
+    "bytes": 1847756
+  },
+  {
+    "path": "ddqn-v9/concept_audits/train_1_concept_5e835f5451abec671841.csv",
+    "state": "downloaded",
+    "bytes": 1993981
+  },
+  {
+    "path": "ddqn-v9/concept_audits/train_1_concept_3d02baeaa9b8c29d74cd.csv",
+    "state": "downloaded",
+    "bytes": 1839054
+  },
+  {
+    "path": "ddqn-v9/concept_audits/train_1_concept_689c4ac2e54b1e7d0860.csv",
+    "state": "downloaded",
+    "bytes": 1848416
+  },
+  {
+    "path": "ddqn-v9/concept_audits/train_1_concept_def88f9cee075b980242.csv",
+    "state": "downloaded",
+    "bytes": 2002496
+  },
+  {
+    "path": "ddqn-v9/concept_audits/train_1_concept_bd139dcb248a61820598.csv",
+    "state": "downloaded",
+    "bytes": 1850571
+  },
+  {
+    "path": "ddqn-v9/concept_audits/train_1_concept_b36bcfebb5e646fc3e22.csv",
+    "state": "downloaded",
+    "bytes": 1842676
+  },
+  {
+    "path": "ddqn-v9/concept_audits/train_1_concept_d6c38a4582cf4432ce89.csv",
+    "state": "downloaded",
+    "bytes": 2002886
+  },
+  {
+    "path": "ddqn-v9/concept_audits/train_1_concept_fac8dca70b1eac8a2637.csv",
+    "state": "downloaded",
+    "bytes": 1851682
+  },
+  {
+    "path": "ddqn-v9/concept_audits/train_1_concept_f14288945586c926d793.csv",
+    "state": "downloaded",
+    "bytes": 1851866
+  },
+  {
+    "path": "ddqn-v9/concept_audits/train_1_concept_7bf6b414a8300619552a.csv",
+    "state": "downloaded",
+    "bytes": 1994131
+  },
+  {
+    "path": "ddqn-v9/concept_audits/train_2_combined_1ef245a794f748ab1e20.csv",
+    "state": "downloaded",
+    "bytes": 2009863
+  },
+  {
+    "path": "ddqn-v9/concept_audits/train_2_combined_7b87019b431a4ec41d60.csv",
+    "state": "downloaded",
+    "bytes": 1856651
+  },
+  {
+    "path": "ddqn-v9/concept_audits/train_2_combined_40ff82018d096414e51f.csv",
+    "state": "downloaded",
+    "bytes": 1857948
+  },
+  {
+    "path": "ddqn-v9/concept_audits/train_2_combined_2ea7af518ebbc14563e4.csv",
+    "state": "downloaded",
+    "bytes": 1853332
+  },
+  {
+    "path": "ddqn-v9/concept_audits/train_2_combined_1616b2ce7370d78ec82c.csv",
+    "state": "downloaded",
+    "bytes": 1856064
+  },
+  {
+    "path": "ddqn-v9/concept_audits/train_2_combined_8933e2da06dc4f6f5199.csv",
+    "state": "downloaded",
+    "bytes": 1855596
+  },
+  {
+    "path": "ddqn-v9/concept_audits/train_2_combined_32772c91f82c67e8b719.csv",
+    "state": "downloaded",
+    "bytes": 1853589
+  },
+  {
+    "path": "ddqn-v9/concept_audits/train_2_combined_7ce0f1c99194c52ca68b.csv",
+    "state": "downloaded",
+    "bytes": 2009619
+  },
+  {
+    "path": "ddqn-v9/concept_audits/train_2_combined_8f3777961db8a500ea8d.csv",
+    "state": "downloaded",
+    "bytes": 2008715
+  },
+  {
+    "path": "ddqn-v9/concept_audits/train_2_combined_943f0a0650f325985bad.csv",
+    "state": "downloaded",
+    "bytes": 2008247
+  },
+  {
+    "path": "ddqn-v9/concept_audits/train_2_combined_8dbb33467971c41e5638.csv",
+    "state": "downloaded",
+    "bytes": 1854963
+  },
+  {
+    "path": "ddqn-v9/concept_audits/train_2_combined_f7735e6d269fc80443d0.csv",
+    "state": "downloaded",
+    "bytes": 2007858
+  },
+  {
+    "path": "ddqn-v9/concept_audits/train_2_combined_e208bb6c8edcdbea7821.csv",
+    "state": "downloaded",
+    "bytes": 1854217
+  },
+  {
+    "path": "ddqn-v9/concept_audits/train_2_combined_fa7e82fb5b9e8d7a37e7.csv",
+    "state": "downloaded",
+    "bytes": 1858193
+  },
+  {
+    "path": "ddqn-v9/concept_audits/train_2_concept_0828161c6c6f3f6fc547.csv",
+    "state": "downloaded",
+    "bytes": 1837200
+  },
+  {
+    "path": "ddqn-v9/concept_audits/train_2_combined_f009dee9f4b68035fc75.csv",
+    "state": "downloaded",
+    "bytes": 1857493
+  },
+  {
+    "path": "ddqn-v9/concept_audits/train_2_concept_22b786495cc1e69c8e0c.csv",
+    "state": "downloaded",
+    "bytes": 2000999
+  },
+  {
+    "path": "ddqn-v9/concept_audits/train_2_concept_700d8361972fcee3b760.csv",
+    "state": "downloaded",
+    "bytes": 1840076
+  },
+  {
+    "path": "ddqn-v9/concept_audits/train_2_concept_44229146571299569480.csv",
+    "state": "downloaded",
+    "bytes": 1991645
+  },
+  {
+    "path": "ddqn-v9/concept_audits/train_2_concept_90446db9957d4f6ba06a.csv",
+    "state": "downloaded",
+    "bytes": 1849777
+  },
+  {
+    "path": "ddqn-v9/concept_audits/train_2_concept_7b4df7df34a9ebebf3e1.csv",
+    "state": "downloaded",
+    "bytes": 1840604
+  },
+  {
+    "path": "ddqn-v9/concept_audits/train_2_concept_37d9bf52dc50dd15e9d7.csv",
+    "state": "downloaded",
+    "bytes": 1991872
+  },
+  {
+    "path": "ddqn-v9/concept_audits/train_2_concept_ac920bfed0f29ed49337.csv",
+    "state": "downloaded",
+    "bytes": 1846501
+  },
+  {
+    "path": "ddqn-v9/concept_audits/train_2_concept_9acc78950a7f8818b712.csv",
+    "state": "downloaded",
+    "bytes": 1845873
+  },
+  {
+    "path": "ddqn-v9/concept_audits/train_2_concept_c3a3342d62c24276e907.csv",
+    "state": "downloaded",
+    "bytes": 1848935
+  },
+  {
+    "path": "ddqn-v9/concept_audits/train_2_concept_94e7e3f07523965bccdb.csv",
+    "state": "downloaded",
+    "bytes": 2000531
+  },
+  {
+    "path": "ddqn-v9/concept_audits/train_2_concept_d8c4f545db3cda0c7720.csv",
+    "state": "downloaded",
+    "bytes": 1837446
+  },
+  {
+    "path": "ddqn-v9/concept_audits/train_2_concept_c9c96c1d1057f0bd1544.csv",
+    "state": "downloaded",
+    "bytes": 1848348
+  },
+  {
+    "path": "ddqn-v9/concept_audits/train_2_concept_ea3e6e967af9ac4442cd.csv",
+    "state": "downloaded",
+    "bytes": 2000142
+  },
+  {
+    "path": "ddqn-v9/concept_audits/train_3_combined_40ba864335dad2098cd8.csv",
+    "state": "downloaded",
+    "bytes": 1986327
+  },
+  {
+    "path": "ddqn-v9/concept_audits/train_2_concept_fab5b3fa5d65e85bd227.csv",
+    "state": "downloaded",
+    "bytes": 1845616
+  },
+  {
+    "path": "ddqn-v9/concept_audits/train_3_combined_39cda6a234b78212cecd.csv",
+    "state": "downloaded",
+    "bytes": 1832146
+  },
+  {
+    "path": "ddqn-v9/concept_audits/train_3_combined_7c49c08598162d4dbe01.csv",
+    "state": "downloaded",
+    "bytes": 1834438
+  },
+  {
+    "path": "ddqn-v9/concept_audits/train_3_combined_752b7b5eae767dbae8ba.csv",
+    "state": "downloaded",
+    "bytes": 1837140
+  },
+  {
+    "path": "ddqn-v9/concept_audits/train_3_combined_37dcb7ac9de289f91e72.csv",
+    "state": "downloaded",
+    "bytes": 1985174
+  },
+  {
+    "path": "ddqn-v9/concept_audits/train_3_combined_83e300c530a1512f772e.csv",
+    "state": "downloaded",
+    "bytes": 1833139
+  },
+  {
+    "path": "ddqn-v9/concept_audits/train_3_combined_8d3c4e6de10f21123c6b.csv",
+    "state": "downloaded",
+    "bytes": 1987416
+  },
+  {
+    "path": "ddqn-v9/concept_audits/train_3_combined_d15d04548bc367d645c0.csv",
+    "state": "downloaded",
+    "bytes": 1836797
+  },
+  {
+    "path": "ddqn-v9/concept_audits/train_3_combined_af09db2b2de515668be2.csv",
+    "state": "downloaded",
+    "bytes": 1984898
+  },
+  {
+    "path": "ddqn-v9/concept_audits/train_3_combined_86a4eec44f0ef169fc01.csv",
+    "state": "downloaded",
+    "bytes": 1985228
+  },
+  {
+    "path": "ddqn-v9/concept_audits/train_3_combined_d844baad36f86aff2606.csv",
+    "state": "downloaded",
+    "bytes": 1836130
+  },
+  {
+    "path": "ddqn-v9/concept_audits/train_3_combined_ec2bc7e6aa32de96ce01.csv",
+    "state": "downloaded",
+    "bytes": 1836007
+  },
+  {
+    "path": "ddqn-v9/concept_audits/train_3_combined_b4e0fc554e734c2a9fc3.csv",
+    "state": "downloaded",
+    "bytes": 1832358
+  },
+  {
+    "path": "ddqn-v9/concept_audits/train_3_concept_121f1998f59a4fbef84f.csv",
+    "state": "downloaded",
+    "bytes": 1828440
+  },
+  {
+    "path": "ddqn-v9/concept_audits/train_3_combined_fe8c398cdd7cbb6c73f2.csv",
+    "state": "downloaded",
+    "bytes": 1836068
+  },
+  {
+    "path": "ddqn-v9/concept_audits/train_3_combined_fd2efba0479af3f93d01.csv",
+    "state": "downloaded",
+    "bytes": 1833519
+  },
+  {
+    "path": "ddqn-v9/concept_audits/train_3_concept_8138ea6ff8a57f7ad87f.csv",
+    "state": "downloaded",
+    "bytes": 1825891
+  },
+  {
+    "path": "ddqn-v9/concept_audits/train_3_concept_4dc480147a9d26b25dd5.csv",
+    "state": "downloaded",
+    "bytes": 1977270
+  },
+  {
+    "path": "ddqn-v9/concept_audits/train_3_concept_77bc3c7392c9dfdc8433.csv",
+    "state": "downloaded",
+    "bytes": 1824730
+  },
+  {
+    "path": "ddqn-v9/concept_audits/train_3_concept_3ce7639137707e9e46dd.csv",
+    "state": "downloaded",
+    "bytes": 1819092
+  },
+  {
+    "path": "ddqn-v9/concept_audits/train_3_concept_2366e7791d1ff21a1e7f.csv",
+    "state": "downloaded",
+    "bytes": 1978699
+  },
+  {
+    "path": "ddqn-v9/concept_audits/train_3_concept_c39ec109b6ddb2cd049c.csv",
+    "state": "downloaded",
+    "bytes": 1816102
+  },
+  {
+    "path": "ddqn-v9/concept_audits/train_3_concept_8ae1f9849bda69cd39fb.csv",
+    "state": "downloaded",
+    "bytes": 1968918
+  },
+  {
+    "path": "ddqn-v9/concept_audits/train_3_concept_c469ae2216bb6151beed.csv",
+    "state": "downloaded",
+    "bytes": 1968722
+  },
+  {
+    "path": "ddqn-v9/concept_audits/train_3_concept_e6f48b8bda5a05ef4e98.csv",
+    "state": "downloaded",
+    "bytes": 1828502
+  },
+  {
+    "path": "ddqn-v9/concept_audits/train_3_concept_e8673c039574e06e5f39.csv",
+    "state": "downloaded",
+    "bytes": 1819277
+  },
+  {
+    "path": "ddqn-v9/concept_timelines.csv",
+    "state": "downloaded",
+    "bytes": 197093
+  },
+  {
+    "path": "ddqn-v9/controller_freeze.csv",
+    "state": "downloaded",
+    "bytes": 8528
+  },
+  {
+    "path": "ddqn-v9/cost_calibration.csv",
+    "state": "downloaded",
+    "bytes": 329
+  },
+  {
+    "path": "ddqn-v9/drift_calendar.csv",
+    "state": "downloaded",
+    "bytes": 18909
+  },
+  {
+    "path": "ddqn-v9/concept_audits/train_3_concept_e598af60b27d37d07728.csv",
+    "state": "downloaded",
+    "bytes": 1824518
+  },
+  {
+    "path": "ddqn-v9/episode_manifest.csv",
+    "state": "downloaded",
+    "bytes": 21308
+  },
+  {
+    "path": "ddqn-v9/f1_threshold.csv",
+    "state": "downloaded",
+    "bytes": 77
+  },
+  {
+    "path": "ddqn-v9/concept_audits/train_3_concept_c53f87fa772dc551ac26.csv",
+    "state": "downloaded",
+    "bytes": 1828379
+  },
+  {
+    "path": "ddqn-v9/figure_manifest.csv",
+    "state": "downloaded",
+    "bytes": 432
+  },
+  {
+    "path": "ddqn-v9/daily_metrics.csv",
+    "state": "downloaded",
+    "bytes": 2925637
+  },
+  {
+    "path": "ddqn-v9/concept_audits/train_3_concept_e770d1072e0dbfaca29a.csv",
+    "state": "downloaded",
+    "bytes": 1815643
+  },
+  {
+    "path": "ddqn-v9/figures/04_comparacion_politicas.png",
+    "state": "downloaded",
+    "bytes": 85154
+  },
+  {
+    "path": "ddqn-v9/figures/02_retorno_por_escenario.png",
+    "state": "downloaded",
+    "bytes": 216961
+  },
+  {
+    "path": "ddqn-v9/figures/01_aprendizaje.png",
+    "state": "downloaded",
+    "bytes": 221754
+  },
+  {
+    "path": "ddqn-v9/figures/03_acciones.png",
+    "state": "downloaded",
+    "bytes": 77802
+  },
+  {
+    "path": "ddqn-v9/drift_samples.csv",
+    "state": "downloaded",
+    "bytes": 5559193
+  },
+  {
+    "path": "ddqn-v9/figures/07_monitoreo.png",
+    "state": "downloaded",
+    "bytes": 223704
+  },
+  {
+    "path": "ddqn-v9/figures/05_auc_pre_post.png",
+    "state": "downloaded",
+    "bytes": 321523
+  },
+  {
+    "path": "ddqn-v9/figures/08_deriva_etiquetas.png",
+    "state": "downloaded",
+    "bytes": 260170
+  },
+  {
+    "path": "ddqn-v9/figures/06_componentes_reward.png",
+    "state": "downloaded",
+    "bytes": 352812
+  },
+  {
+    "path": "ddqn-v9/figures/10_deriva_vitales.png",
+    "state": "downloaded",
+    "bytes": 142318
+  },
+  {
+    "path": "ddqn-v9/figures/09_exploracion_huber.png",
+    "state": "downloaded",
+    "bytes": 55058
+  },
+  {
+    "path": "ddqn-v9/figures/11_ddqn_frente_a1.png",
+    "state": "downloaded",
+    "bytes": 311689
+  },
+  {
+    "path": "ddqn-v9/initial_config.csv",
+    "state": "downloaded",
+    "bytes": 484
+  },
+  {
+    "path": "ddqn-v9/figures/12_diagnosticos_q_td.png",
+    "state": "downloaded",
+    "bytes": 220160
+  },
+  {
+    "path": "ddqn-v9/initial_transforms.csv",
+    "state": "downloaded",
+    "bytes": 1033
+  },
+  {
+    "path": "ddqn-v9/integrity_checks.csv",
+    "state": "downloaded",
+    "bytes": 2987
+  },
+  {
+    "path": "ddqn-v9/figures/13_monitoreo_por_vital.png",
+    "state": "downloaded",
+    "bytes": 694652
+  },
+  {
+    "path": "ddqn-v9/observation_reference.csv",
+    "state": "downloaded",
+    "bytes": 151
+  },
+  {
+    "path": "ddqn-v9/numerical_contracts.csv",
+    "state": "downloaded",
+    "bytes": 423
+  },
+  {
+    "path": "ddqn-v9/models/selected.pt",
+    "state": "downloaded",
+    "bytes": 98145
+  },
+  {
+    "path": "ddqn-v9/initial_holdout_patients.csv",
+    "state": "downloaded",
+    "bytes": 358194
+  },
+  {
+    "path": "ddqn-v9/concept_patients.csv",
+    "state": "downloaded",
+    "bytes": 3746676
+  },
+  {
+    "path": "ddqn-v9/observation_schema.csv",
+    "state": "downloaded",
+    "bytes": 1448
+  },
+  {
+    "path": "ddqn-v9/partition_counts.csv",
+    "state": "downloaded",
+    "bytes": 300
+  },
+  {
+    "path": "ddqn-v9/policy_comparisons.csv",
+    "state": "downloaded",
+    "bytes": 22641
+  },
+  {
+    "path": "ddqn-v9/patient_partitions.csv",
+    "state": "downloaded",
+    "bytes": 839031
+  },
+  {
+    "path": "ddqn-v9/predictions/test_combined_A1.csv",
+    "state": "downloaded",
+    "bytes": 33805687
+  },
+  {
+    "path": "ddqn-v9/predictions/test_combined_heuristic.csv",
+    "state": "downloaded",
+    "bytes": 35727037
+  },
+  {
+    "path": "ddqn-v9/predictions/test_combined_A2.csv",
+    "state": "downloaded",
+    "bytes": 34084316
+  },
+  {
+    "path": "ddqn-v9/predictions/test_combined_dqn.csv",
+    "state": "downloaded",
+    "bytes": 34299959
+  },
+  {
+    "path": "ddqn-v9/predictions/test_combined_A3.csv",
+    "state": "downloaded",
+    "bytes": 34124795
+  },
+  {
+    "path": "ddqn-v9/predictions/test_combined_A4.csv",
+    "state": "downloaded",
+    "bytes": 34078237
+  },
+  {
+    "path": "ddqn-v9/predictions/test_concept_A3.csv",
+    "state": "downloaded",
+    "bytes": 33840737
+  },
+  {
+    "path": "ddqn-v9/predictions/test_concept_A1.csv",
+    "state": "downloaded",
+    "bytes": 33503605
+  },
+  {
+    "path": "ddqn-v9/predictions/test_combined_random.csv",
+    "state": "downloaded",
+    "bytes": 34970168
+  },
+  {
+    "path": "ddqn-v9/predictions/test_concept_A4.csv",
+    "state": "downloaded",
+    "bytes": 33838692
+  },
+  {
+    "path": "ddqn-v9/predictions/test_concept_dqn.csv",
+    "state": "downloaded",
+    "bytes": 34049386
+  },
+  {
+    "path": "ddqn-v9/predictions/test_concept_A2.csv",
+    "state": "downloaded",
+    "bytes": 33841362
+  },
+  {
+    "path": "ddqn-v9/predictions/test_concept_random.csv",
+    "state": "downloaded",
+    "bytes": 34731299
+  },
+  {
+    "path": "ddqn-v9/predictions/test_covariate_A1.csv",
+    "state": "downloaded",
+    "bytes": 34043287
+  },
+  {
+    "path": "ddqn-v9/predictions/test_concept_heuristic.csv",
+    "state": "downloaded",
+    "bytes": 35475432
+  },
+  {
+    "path": "ddqn-v9/predictions/test_covariate_A3.csv",
+    "state": "downloaded",
+    "bytes": 34325350
+  },
+  {
+    "path": "ddqn-v9/predictions/test_covariate_A2.csv",
+    "state": "downloaded",
+    "bytes": 34321916
+  },
+  {
+    "path": "ddqn-v9/predictions/test_covariate_A4.csv",
+    "state": "downloaded",
+    "bytes": 34318574
+  },
+  {
+    "path": "ddqn-v9/predictions/test_covariate_dqn.csv",
+    "state": "downloaded",
+    "bytes": 34538644
+  },
+  {
+    "path": "ddqn-v9/predictions/test_covariate_random.csv",
+    "state": "downloaded",
+    "bytes": 35217742
+  },
+  {
+    "path": "ddqn-v9/predictions/test_stable_A1.csv",
+    "state": "downloaded",
+    "bytes": 33266005
+  },
+  {
+    "path": "ddqn-v9/predictions/test_stable_A2.csv",
+    "state": "downloaded",
+    "bytes": 33603762
+  },
+  {
+    "path": "ddqn-v9/predictions/test_stable_A3.csv",
+    "state": "downloaded",
+    "bytes": 33600344
+  },
+  {
+    "path": "ddqn-v9/predictions/test_covariate_heuristic.csv",
+    "state": "downloaded",
+    "bytes": 35965963
+  },
+  {
+    "path": "ddqn-v9/provenance.csv",
+    "state": "downloaded",
+    "bytes": 364
+  },
+  {
+    "path": "ddqn-v9/resume.pt",
+    "state": "downloaded",
+    "bytes": 11522711
+  },
+  {
+    "path": "ddqn-v9/resume_manifest.json",
+    "state": "downloaded",
+    "bytes": 249
+  },
+  {
+    "path": "ddqn-v9/reward_configs.csv",
+    "state": "downloaded",
+    "bytes": 166
+  },
+  {
+    "path": "ddqn-v9/run_summary.csv",
+    "state": "downloaded",
+    "bytes": 651
+  },
+  {
+    "path": "ddqn-v9/predictions/test_stable_A4.csv",
+    "state": "downloaded",
+    "bytes": 33604561
+  },
+  {
+    "path": "ddqn-v9/run_summary.json",
+    "state": "downloaded",
+    "bytes": 883
+  },
+  {
+    "path": "ddqn-v9/scenario_smoothing.csv",
+    "state": "downloaded",
+    "bytes": 49857
+  },
+  {
+    "path": "ddqn-v9/selection_freeze.csv",
+    "state": "downloaded",
+    "bytes": 345
+  },
+  {
+    "path": "ddqn-v9/td_diagnostics.csv",
+    "state": "downloaded",
+    "bytes": 157237
+  },
+  {
+    "path": "ddqn-v9/predictions/test_stable_heuristic.csv",
+    "state": "downloaded",
+    "bytes": 35192892
+  },
+  {
+    "path": "ddqn-v9/training_history.csv",
+    "state": "downloaded",
+    "bytes": 333731
+  },
+  {
+    "path": "ddqn-v9/training_smoothing.csv",
+    "state": "downloaded",
+    "bytes": 336421
+  },
+  {
+    "path": "ddqn-v9/predictions/test_stable_dqn.csv",
+    "state": "downloaded",
+    "bytes": 33812869
+  },
+  {
+    "path": "ddqn-v9/predictions/test_stable_random.csv",
+    "state": "downloaded",
+    "bytes": 34498230
+  },
+  {
+    "path": "ddqn-v9/validation_history.csv",
+    "state": "downloaded",
+    "bytes": 126568
+  },
+  {
+    "path": "ddqn-v9/xgboost_search.csv",
+    "state": "downloaded",
+    "bytes": 2142
+  },
+  {
+    "path": "ddqn-v9/prepared.pkl.gz",
+    "state": "downloaded",
+    "bytes": 27614118
+  },
+  {
+    "path": "ddqn-v9/validation_actions.csv",
+    "state": "downloaded",
+    "bytes": 43159719
+  },
+  {
+    "path": "ddqn-v9/validation_daily_metrics.csv",
+    "state": "downloaded",
+    "bytes": 43159719
+  },
+  {
+    "path": "ddqn-v9/train_daily_metrics.csv",
+    "state": "downloaded",
+    "bytes": 108142460
+  },
+  {
+    "path": "ddqn-v9/train_actions.csv",
+    "state": "downloaded",
+    "bytes": 108142460
+  }
+]

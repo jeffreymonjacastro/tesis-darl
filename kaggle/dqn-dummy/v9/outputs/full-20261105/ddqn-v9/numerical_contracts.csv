@@ -1,0 +1,17 @@
+check,passed
+positive_gain,True
+negative_gain_positive_reward,True
+a1_zero_gain,True
+invalid_cost_only,True
+absolute_gain_cost_arithmetic,True
+aggregate_dimension,True
+per_vital_dimension,True
+horizon_initial,True
+horizon_last_decision,True
+horizon_final,True
+individual_ks_order,True
+individual_psi_transform,True
+invalid_predictive_fallback,True
+terminal_td_target,True
+diagnostic_state_roundtrip,True
+schema_unique,True
