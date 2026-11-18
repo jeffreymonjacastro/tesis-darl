@@ -1,14 +1,14 @@
 \chapter{MARCO METODOLÓGICO}
 \label{chap:metodologia}
 
-Este capítulo describe cómo se aplican los conceptos del Capítulo~ef{chap:marco} para construir y
-evaluar DARL. La Sección~\ref{sec:met_vision} presenta el método completo. Las
-Secciones~\ref{sec:met_datos} a \ref{sec:met_drift} describen el entorno: los datos, la
-simulación de la UCI, el \textit{pipeline} y los escenarios de drift. Las
-Secciones~\ref{sec:met_acciones} y \ref{sec:met_pomdp} formulan el problema de decisión.
-Las Secciones~\ref{sec:met_ddqn} a \ref{sec:met_entrenamiento} describen los agentes y su
-entrenamiento, y las Secciones~\ref{sec:met_referencias} a \ref{sec:met_integridad}, el
-protocolo de evaluación.
+Este capítulo describe cómo se aplican los conceptos del Capítulo~\ref{chap:marco} para construir
+y evaluar DARL. La Sección~\ref{sec:met_vision} presenta el método completo. Las
+Secciones~\ref{sec:met_datos} a \ref{sec:met_drift} describen el entorno: los datos de los dos
+casos de estudio, la simulación del flujo diario, el \textit{pipeline} y los escenarios de drift.
+Las Secciones~\ref{sec:met_acciones} y \ref{sec:met_pomdp} formulan el problema de decisión. Las
+Secciones~\ref{sec:met_ddqn} a \ref{sec:met_versiones} describen el agente, su entrenamiento y
+las versiones del protocolo, y las Secciones~\ref{sec:met_referencias} a
+\ref{sec:met_integridad}, la forma de evaluarlo.
 
 % ------------------------------------------------------------
 \section{Visión general del método}
@@ -16,12 +16,13 @@ protocolo de evaluación.
 % ------------------------------------------------------------
 
 DARL se organiza como un ciclo diario (Figura~\ref{fig:metodologia_darl}). Un
-\textit{pipeline} entrenado en el hospital A predice el riesgo de sepsis de los pacientes
-del hospital B, sobre los que se inyecta un drift controlado. Al inicio de cada día llegan
-las etiquetas del día anterior; con ellas se calculan señales de monitoreo, que el agente
-recibe como observación. El agente elige una acción de mantenimiento, la acción se ejecuta
-usando solo datos pasados, y el \textit{pipeline} resultante predice el día. Al día
-siguiente, cuando llegan las etiquetas de ese día, se calcula la recompensa de la decisión.
+\textit{pipeline} de dos etapas predice cada día el riesgo de un evento poco frecuente: la
+sepsis en una UCI o el fraude en transacciones con tarjeta. Sobre los datos se inyecta un drift
+controlado. Al inicio de cada día llegan las etiquetas del día anterior; con ellas se calculan
+señales de monitoreo, que el agente recibe como observación. El agente elige una acción de
+mantenimiento, la acción se ajusta usando solo datos pasados y el \textit{pipeline} resultante
+predice el día. Al día siguiente, cuando llegan las etiquetas de ese día, se calcula la
+recompensa de la decisión.
 
 \begin{figure}[H]
     \centering
@@ -30,60 +31,92 @@ siguiente, cuando llegan las etiquetas de ese día, se calcula la recompensa de 
     \label{fig:metodologia_darl}
 \end{figure}
 
-El agente nunca ve el tipo ni la intensidad del drift (el estado oculto), solo las señales
-de monitoreo. El agente principal es Double DQN y, para justificar esa elección con
-evidencia, se compara con PPO en el mismo entorno (Secciones~\ref{sec:met_ddqn} y
-\ref{sec:met_ppo}).
+El agente nunca ve el tipo ni la intensidad del drift (el estado oculto), solo las señales de
+monitoreo. El agente es Double DQN (Sección~\ref{sec:met_ddqn}). El mismo protocolo se aplica a
+dos casos de estudio con datos de naturaleza distinta, para comprobar que el método no depende
+de un solo conjunto de datos. Los dos casos comparten las acciones, la recompensa, el agente y
+la forma de evaluar; solo cambia lo que obliga cada conjunto de datos.
 
 % ------------------------------------------------------------
-\section{Datos y particiones}
+\section{Casos de estudio y datos}
 \label{sec:met_datos}
 % ------------------------------------------------------------
 
-Se usan los datos del PhysioNet/Computing in Cardiology Challenge 2019
-\cite{reyna2020sepsis}: 20\,336 pacientes del hospital A y 20\,000 del hospital B, con un
-registro por hora de estancia en la UCI. Las entradas son siete signos vitales: frecuencia
-cardiaca (HR), saturación de oxígeno (O2Sat), temperatura (Temp), presión arterial
-sistólica (SBP), media (MAP) y diastólica (DBP), y frecuencia respiratoria (Resp). La
-etiqueta es \texttt{SepsisLabel}, que vale 1 en las horas cercanas al inicio de la sepsis.
-Los valores faltantes se completan hacia adelante solo dentro de la historia de cada
-paciente y en orden horario.
+\subsection{Caso 1: sepsis en PhysioNet}
 
-Cada hospital se divide por paciente en 60\,\% para entrenamiento, 20\,\% para validación y
-20\,\% para prueba, estratificando por la presencia de sepsis. Las seis particiones son
-disjuntas y tienen un papel fijo:
+Se usan los datos del PhysioNet/Computing in Cardiology Challenge 2019
+\cite{reyna2020sepsis}: 40\,336 pacientes de dos hospitales (20\,336 del hospital A y 20\,000
+del hospital B), con un registro por hora de estancia en la UCI. Las entradas son siete signos
+vitales: frecuencia cardiaca (HR), saturación de oxígeno (O2Sat), temperatura (Temp), presión
+arterial sistólica (SBP), media (MAP) y diastólica (DBP), y frecuencia respiratoria (Resp). La
+etiqueta es \texttt{SepsisLabel}, que vale 1 en las horas cercanas al inicio de la sepsis. Los
+valores faltantes se completan hacia adelante solo dentro de la historia de cada paciente y en
+orden horario.
+
+Los pacientes de ambos hospitales se mezclan y se dividen por paciente en 60\,\% para
+entrenamiento, 20\,\% para validación y 20\,\% para prueba, estratificando por hospital y por la
+presencia de sepsis. Las tres particiones son disjuntas y tienen un papel fijo:
 
 \begin{itemize}
-    \item \textbf{A-train}: ajustar el \textit{pipeline} inicial.
-    \item \textbf{A-validation}: elegir los hiperparámetros de XGBoost y fijar el rendimiento de referencia.
-    \item \textbf{A-test}: medir una sola vez el \textit{pipeline} inicial, sin influir en ninguna decisión.
-    \item \textbf{B-train}: calibrar el drift y el costo, y entrenar a los agentes; es la única partición que produce gradientes.
-    \item \textbf{B-validation}: elegir el \textit{checkpoint} de cada agente.
-    \item \textbf{B-test}: evaluar una sola vez las políticas congeladas.
+    \item \textbf{Entrenamiento}: elegir los hiperparámetros de XGBoost, calibrar el drift y el
+    costo, y entrenar al agente. Es la única partición que produce gradientes.
+    \item \textbf{Validación}: elegir el \textit{checkpoint} del agente.
+    \item \textbf{Prueba}: evaluar una sola vez las políticas congeladas.
 \end{itemize}
 
+\subsection{Caso 2: fraude en IEEE-CIS}
+
+Se usa el conjunto IEEE-CIS Fraud Detection \cite{ieeecis2019fraud}, con transacciones de comercio electrónico
+ordenadas en el tiempo y la etiqueta \texttt{isFraud}. Tras la limpieza se conservan 578\,324
+transacciones de 182 días, con una tasa de fraude de 2,18\,\% y entre 2\,008 y 6\,725
+transacciones por día. Para que el modelo no use atajos se excluyen el reloj de la transacción,
+las variables D1--D15, los identificadores de cliente y las transacciones de cada cliente
+posteriores a su primer fraude. De las variables restantes se eligen las 30 con mayor
+importancia SHAP \cite{lundberg2017shap} media en un modelo de referencia: 21 numéricas y 9 categóricas.
+
+Como las transacciones tienen fecha, la partición es temporal y no por cliente:
+
+\begin{itemize}
+    \item \textbf{Entrenamiento}: días 1 a 79.
+    \item \textbf{Validación}: días 81 a 120.
+    \item \textbf{Prueba}: días 143 a 182. Los días 121 a 142 no se usan.
+\end{itemize}
+
+Así el agente se evalúa siempre sobre transacciones posteriores a las que vio al entrenar, como
+ocurriría en producción.
+
 % ------------------------------------------------------------
-\section{Simulación de la UCI}
+\section{Simulación del flujo diario}
 \label{sec:met_uci}
 % ------------------------------------------------------------
 
-Los datos no tienen fechas absolutas, por lo que el uso del \textit{pipeline} se simula
-como una UCI de 200 camas durante 30 días. Cada partición se convierte en un
-\textit{replay}: una cola reproducible de pacientes en la que cada cama reproduce, hora a
-hora, los registros de un paciente en el orden de su estancia y, cuando la historia de ese
-paciente termina, recibe al siguiente de la cola en la hora siguiente. Cada hora tiene
-exactamente 200 registros, cada \textit{replay} consume 144\,000 filas y cada par paciente
-y hora de estancia aparece una sola vez. Un paciente puede ocupar una cama varios días.
+Cada episodio dura 40 días. Los primeros siete días sirven para ajustar el \textit{pipeline}
+inicial y los 33 restantes (días 8 a 40) son días de decisión. Las etiquetas de un día se
+conocen al inicio del día siguiente. Este retraso de un día es una simplificación: confirmar
+una sepsis o un fraude puede tomar más tiempo.
 
-Las etiquetas de un día se conocen al inicio del día siguiente. Este retraso de un día es
-una simplificación del retraso real, en el que confirmar la sepsis puede tomar más tiempo.
+\textbf{PhysioNet.} Los datos no tienen fechas absolutas, por lo que el uso del
+\textit{pipeline} se simula como una UCI de 300 camas. Cada partición se convierte en un
+\textit{replay}: una cola reproducible de pacientes en la que cada cama reproduce, hora a hora,
+los registros de un paciente en el orden de su estancia y, cuando la historia de ese paciente
+termina, recibe al siguiente de la cola en la hora siguiente. Cada hora tiene exactamente 300
+registros, cada \textit{replay} tiene 288\,000 filas de unos 7\,700 pacientes, y cada par
+paciente y hora de estancia aparece una sola vez. De la partición de entrenamiento se construyen
+cuatro \textit{replays} con colas distintas; validación y prueba tienen uno cada una.
+
+\textbf{IEEE-CIS.} No hace falta simular: un episodio son 40 días reales consecutivos. En
+entrenamiento hay cuatro ventanas, que empiezan en los días 1, 14, 27 y 40; en validación y
+prueba hay una ventana cada una.
+
+En los dos casos se usa la palabra \textit{replay} para referirse a la secuencia de 40 días de un
+episodio.
 
 % ------------------------------------------------------------
 \section{Pipeline de dos etapas}
 \label{sec:met_pipeline}
 % ------------------------------------------------------------
 
-\textbf{Preparación de los datos ($f_\phi$).} Cada signo vital se completa con su mediana,
+\textbf{Preparación de los datos ($f_\phi$).} Cada variable numérica se completa con su mediana,
 se centra con esa mediana, se divide por su rango intercuartílico (RIC) y se recorta al
 intervalo $[-2, 2]$:
 
@@ -94,49 +127,59 @@ intervalo $[-2, 2]$:
 
 \noindent\textbf{Donde:}
 \begin{itemize}
-    \item $\tilde{x}_j$ es el valor del signo vital $j$, reemplazado por $\operatorname{med}_j$ si falta.
-    \item $\operatorname{med}_j$ y $\operatorname{RIC}_j$ son la mediana y el rango intercuartílico (percentil 75 menos percentil 25) del signo $j$ en la ventana de ajuste; son los parámetros $\phi$.
+    \item $\tilde{x}_j$ es el valor de la variable $j$, reemplazado por $\operatorname{med}_j$ si falta.
+    \item $\operatorname{med}_j$ y $\operatorname{RIC}_j$ son la mediana y el rango intercuartílico (percentil 75 menos percentil 25) de la variable $j$ en la ventana de ajuste; son los parámetros $\phi$.
     \item $z_j$ es el valor preparado que recibe el modelo.
 \end{itemize}
 
-Se usan la mediana y el RIC porque los valores extremos, frecuentes en registros clínicos,
-los afectan menos que a la media y la desviación estándar. El recorte limita el efecto de
-valores fuera de rango. Reajustar $\phi$ no cambia el número ni el orden de las columnas,
-por lo que el modelo puede seguir usándolas (Sección~ef{sec:pipeline}).
+Se usan la mediana y el RIC porque los valores extremos, frecuentes en registros clínicos y
+transaccionales, los afectan menos que a la media y la desviación estándar. El recorte limita el
+efecto de valores fuera de rango, y es también lo que hace útil reajustar $\phi$: XGBoost divide
+cada variable por umbrales, por lo que un desplazamiento o un cambio de escala que conserve el
+orden de los valores no lo afecta; en cambio, cuando los valores con drift se acumulan en el
+borde del recorte, el modelo pierde información que solo se recupera reajustando $\phi$.
+Reajustar $\phi$ no cambia el número ni el orden de las columnas, por lo que el modelo puede
+seguir usándolas (Sección~\ref{sec:pipeline}).
 
-\textbf{Modelo predictivo ($g_\theta$).} XGBoost \cite{chen2016xgboost} con el peso de la
-clase positiva igual al cociente entre negativos y positivos de cada ventana de ajuste,
-para compensar el desbalance. Los hiperparámetros se eligen una sola vez en el hospital A
-entre ocho combinaciones (profundidad $\{3, 5\}$, tasa de aprendizaje $\{0{,}05; 0{,}1\}$ y
-número de árboles $\{60, 120\}$). Cada combinación se ajusta con los días 1--20 de A-train,
-se mide sin reajustar en los días 21--30, se vuelve a ajustar con los 30 días y se mide en
-A-validation. Se elige la de mayor AUROC en A-validation; los empates se resuelven por AP y
-luego por el modelo más pequeño. La combinación elegida (profundidad 3, tasa 0,1 y 60
-árboles) se mantiene en todos los reentrenamientos.
+En fraude, $f_\phi$ tiene dos diferencias. Las 9 variables categóricas se reemplazan por la
+frecuencia de cada valor en la ventana de ajuste (codificación por frecuencia), y esas
+frecuencias también forman parte de $\phi$. Además, muchas variables de conteo tienen un RIC
+igual a cero porque casi siempre valen lo mismo; en ese caso se usa la desviación estándar.
 
-El rendimiento de referencia $M_{\text{ref}}$ es la media de los AUROC diarios del
-\textit{pipeline} inicial en A-validation (0,642). Todas las caídas de rendimiento se
-miden respecto a este valor.
+\textbf{Modelo predictivo ($g_\theta$).} XGBoost \cite{chen2016xgboost} con el peso de la clase
+positiva igual al cociente entre negativos y positivos de cada ventana de ajuste, para compensar
+el desbalance. Los hiperparámetros se eligen una sola vez, con datos de entrenamiento, entre ocho
+combinaciones (profundidad $\{3, 5\}$, tasa de aprendizaje $\{0{,}05; 0{,}1\}$ y número de
+árboles $\{60, 120\}$). Cada combinación se ajusta con siete días y se mide en un grupo separado:
+en PhysioNet, un 20\,\% de los pacientes de entrenamiento; en fraude, los días 8 a 14. Se elige
+la de mayor AUROC; los empates se resuelven por AP y luego por el modelo más pequeño. En
+PhysioNet se eligió profundidad 3, tasa 0,1 y 60 árboles. La combinación elegida se mantiene en
+todos los reentrenamientos.
+
+El \textit{pipeline} inicial de cada \textit{replay} se ajusta con sus propios días 1 a 7. El
+AUROC y la AP de referencia, $M_{\text{ref}}$ y $\text{AP}_{\text{ref}}$, son los del grupo
+separado: 0,676 y 0,031 en PhysioNet, y 0,891 y 0,202 en fraude. Las caídas de rendimiento se
+miden respecto a estos valores.
 
 % ------------------------------------------------------------
 \section{Escenarios de drift}
 \label{sec:met_drift}
 % ------------------------------------------------------------
 
-Sobre el hospital B se definen cuatro escenarios. En todos existe el drift natural entre
-hospitales; en tres de ellos se añade un drift artificial y gradual, cuyo inicio y velocidad
-están controlados.
+Sobre cada \textit{replay} se definen cuatro escenarios. En \textit{stable} solo existe el drift
+natural de los datos; en los otros tres se añade un drift artificial y gradual, cuyo inicio y
+velocidad están controlados.
 
-\textbf{Stable.} Los signos vitales y las etiquetas se conservan sin cambios.
+\textbf{Stable.} Las variables y las etiquetas se conservan sin cambios.
 
-\textbf{Covariate.} Simula un cambio progresivo en la medición de los signos vitales. Desde
-el día de inicio $d_0$, cada signo se desplaza en una dirección fija y se ensancha
-alrededor de su mediana:
+\textbf{Covariate.} Simula un cambio progresivo en la medición de las variables numéricas. Desde
+el día de inicio $d_0$, cada variable se desplaza en una dirección fija y se ensancha alrededor
+de su mediana:
 
 \begin{equation}
     \begin{gathered}
     x'_{j} = \operatorname{med}_j + s_d\,(x_j - \operatorname{med}_j) + c_d\,\operatorname{RIC}_j\,u_j, \\
-    c_d = v_{\text{cov}} \max(0,\, d - d_0 + 1),
+    c_d = \min\!\left(C_{\max},\; v_{\text{cov}} \max(0,\, d - d_0 + 1)\right),
     \qquad
     s_d = 1 + 0{,}4 \min\!\left(1, \tfrac{c_d}{3}\right).
     \end{gathered}
@@ -145,66 +188,83 @@ alrededor de su mediana:
 
 \noindent\textbf{Donde:}
 \begin{itemize}
-    \item $x_j$ y $x'_j$ son el valor original y el valor con drift del signo $j$ en el día $d$.
-    \item $\operatorname{med}_j$ y $\operatorname{RIC}_j$ son los parámetros del transformador inicial ajustado en A-train.
-    \item $c_d$ es el desplazamiento acumulado, en unidades de RIC, que crece a la velocidad $v_{\text{cov}}$ (RIC por día).
+    \item $x_j$ y $x'_j$ son el valor original y el valor con drift de la variable $j$ en el día $d$.
+    \item $\operatorname{med}_j$ y $\operatorname{RIC}_j$ son los parámetros del \textit{pipeline} inicial del \textit{replay}.
+    \item $c_d$ es el desplazamiento acumulado, en unidades de RIC, que crece a la velocidad $v_{\text{cov}}$ (RIC por día) hasta el tope $C_{\max}$.
     \item $s_d$ es el factor de escala, que crece hasta 1,4.
-    \item $u_j \in \{+1, -1\}$ es la dirección del desplazamiento: hacia abajo para O2Sat y MAP, hacia arriba para el resto.
+    \item $u_j \in \{+1, -1\}$ es la dirección del desplazamiento. En PhysioNet es hacia abajo para O2Sat y MAP y hacia arriba para el resto; en fraude es hacia arriba para todas.
 \end{itemize}
 
 El desplazamiento crece cada día, lo que corresponde a un drift gradual
-(Ecuación~\ref{eq:drift_shape}). Las etiquetas no cambian: solo cambia $P(X)$.
+(Ecuación~\ref{eq:drift_shape}). Las etiquetas no cambian: solo cambia $P(X)$. En PhysioNet no
+hay tope ($C_{\max} = \infty$). En fraude se fija $C_{\max} = 3$: sin tope, el desplazamiento
+crecía tan rápido que una ventana de siete días quedaba siempre atrasada y ninguna acción podía
+corregirlo. Con el tope el escenario sigue siendo difícil, pero se puede corregir.
 
-\textbf{Concept.} Simula un cambio progresivo en el criterio con el que se marca la sepsis:
-el inicio de las horas positivas se adelanta cada día. Para cada paciente con sepsis, la
-etiqueta del escenario es:
+\textbf{Concept.} Simula un cambio progresivo en la relación entre las variables y la etiqueta.
+La intensidad del cambio en el día $d$ es:
 
 \begin{equation}
-    y'_{h} = \mathbb{1}\!\left[h \geq h^{+} - e_d\right],
-    \qquad
-    e_d = \min\!\left(12,\; v_{\text{con}} \max(0,\, d - d_0 + 1)\right).
-    \label{eq:concept_injection}
+    \iota_d = \min\!\left(1,\; \frac{v_{\text{con}} \max(0,\, d - d_c + 1)}{3}\right).
+    \label{eq:concept_intensity}
 \end{equation}
 
 \noindent\textbf{Donde:}
 \begin{itemize}
-    \item $h$ es la hora de estancia del registro y $h^{+}$ la primera hora positiva del paciente en la etiqueta original.
-    \item $e_d$ es el adelanto, en horas, en el día $d$, que crece a la velocidad $v_{\text{con}}$ (horas por día) hasta un máximo de 12.
-    \item $\mathbb{1}[\cdot]$ vale 1 si se cumple la condición y 0 en otro caso.
+    \item $\iota_d \in [0, 1]$ es la intensidad del cambio de concepto en el día $d$.
+    \item $d_c$ es el día de inicio del cambio de concepto.
+    \item $v_{\text{con}}$ es la velocidad del cambio; la intensidad llega a 1 cuando el nivel acumulado alcanza 3.
 \end{itemize}
 
-Los pacientes sin sepsis siguen siendo negativos y los signos vitales no cambian: solo
-cambia $P(Y \mid X)$. La etiqueta original \texttt{SepsisLabel} se conserva; la etiqueta
-del escenario se guarda aparte y es la que usan el reentrenamiento y la recompensa. Este
-cambio es una prueba de exigencia artificial y no representa un cambio clínico real.
+La forma de cambiar las etiquetas depende del caso:
 
-\textbf{Combined.} Aplica ambos cambios. El componente de concepto empieza dos días después
-que el de medición.
+\begin{itemize}
+    \item \textbf{PhysioNet: adelanto del inicio de la sepsis.} Para cada paciente que ingresa
+    desde el día $d_c$, con intensidad $\iota$ según su día de ingreso, la primera hora positiva
+    se adelanta un número de horas sorteado entre 0 y $\lfloor 24\,\iota \rfloor$. Además, cada
+    paciente sin sepsis pasa a tenerla con probabilidad $0{,}10\,\iota$, con un inicio sorteado
+    dentro de su estancia.
+    \item \textbf{Fraude: los fraudes migran a un segmento nuevo.} Se define un segmento que el
+    modelo inicial considera de bajo riesgo: compras del producto W con tarjeta de débito,
+    correo \texttt{gmail.com} y monto menor que la mediana. Cada día, cada fraude fuera del
+    segmento pasa a ser legítimo con probabilidad $0{,}3\,\iota_d$, y el mismo número de
+    transacciones legítimas del segmento pasa a ser fraude. La tasa de fraude no cambia, pero sí
+    dónde ocurre.
+\end{itemize}
 
-\textbf{Calibración.} Las velocidades se calibran solo con B-train. Para cada candidata
-($v_{\text{cov}} \in \{0{,}25; 0{,}35; 0{,}5\}$ RIC por día y $v_{\text{con}} \in \{0{,}25;
-0{,}5; 1\}$ horas por día) se compara el AUROC del \textit{pipeline} inicial con y sin drift
-el primer y el último día, y se mide cuánto recupera la acción que debería corregir ese
-drift (A2 para \textit{covariate}, A3 para \textit{concept}). Se busca la menor velocidad
-que cause una caída pequeña al inicio ($\leq 0{,}05$), una caída clara al final
-($\geq 0{,}10$) y una recuperación medible ($\geq 0{,}05$). Si ninguna cumple, se elige la
-de mayor caída final y se registra que la calibración no se cumplió. Se eligieron
-$v_{\text{cov}} = 0{,}25$ y $v_{\text{con}} = 0{,}25$; ninguna candidata cumplió los tres
-criterios, lo que se discute en el Capítulo~ef{chap:resultados}.
+En ambos casos las variables no cambian: solo cambia $P(Y \mid X)$. Los sorteos dependen solo de
+una semilla fija y del paciente o del día, de modo que todas las políticas ven exactamente las
+mismas etiquetas. La etiqueta original se conserva; la etiqueta del escenario se guarda aparte
+y es la que usan el reentrenamiento y la recompensa. Este cambio es una prueba de exigencia
+artificial y no representa un cambio clínico ni comercial real.
 
-En validación y prueba el drift empieza el día $d_0 = 5$ con las velocidades calibradas.
-En entrenamiento, para que el agente no memorice un único calendario, el día de inicio se
-sortea entre 3 y 7 y las velocidades se multiplican por un factor sorteado entre
-$\{0{,}75; 1; 1{,}25\}$.
+\textbf{Combined.} Aplica ambos cambios. El componente de concepto empieza dos días después que
+el de medición.
+
+\textbf{Calibración.} Las velocidades se calibran solo con datos de entrenamiento. Para cada
+candidata ($v_{\text{cov}} \in \{0{,}25; 0{,}35; 0{,}5\}$ RIC por día y $v_{\text{con}} \in
+\{0{,}1; 0{,}15; 0{,}2\}$) se compara el AUROC del \textit{pipeline} inicial con y sin drift el
+primer día del drift y el último día del episodio, y se mide cuánto recupera la acción que
+debería corregir ese drift (A2 para \textit{covariate}, A3 para \textit{concept}). Se busca la
+menor velocidad que cause una caída pequeña al inicio ($\leq 0{,}05$), una caída clara al final
+($\geq 0{,}10$) y una recuperación medible ($\geq 0{,}05$). Si ninguna cumple, se elige la de
+mayor caída final y se registra que la calibración no se cumplió. En PhysioNet se eligieron
+$v_{\text{cov}} = 0{,}5$ y $v_{\text{con}} = 0{,}15$ sin que ninguna candidata cumpliera los tres
+criterios; en fraude, $v_{\text{cov}} = 0{,}5$ y $v_{\text{con}} = 0{,}1$, ambas cumpliéndolos.
+
+En validación y prueba el drift empieza el día $d_0 = 8$, el primer día de decisión, con las
+velocidades calibradas. En entrenamiento, para que el agente no memorice un único calendario, el
+día de inicio se sortea entre 8 y 12 y las velocidades se multiplican por un factor sorteado
+entre $\{0{,}75; 1; 1{,}25\}$.
 
 % ------------------------------------------------------------
 \section{Acciones de mantenimiento}
 \label{sec:met_acciones}
 % ------------------------------------------------------------
 
-Al inicio de cada día el agente elige una de cuatro acciones
-(Tabla~\ref{tab:acciones_darl}). Todas se ajustan con los tres últimos días cuyas
-etiquetas ya llegaron.
+Al inicio de cada día de decisión el agente elige una de cuatro acciones
+(Tabla~\ref{tab:acciones_darl}). Todas se ajustan con los siete días anteriores, cuyas etiquetas
+ya llegaron.
 
 \begin{table}[H]
     \centering
@@ -216,18 +276,22 @@ etiquetas ya llegaron.
         \textbf{Acción} & \textbf{Etapa afectada} & \textbf{Qué hace} & \textbf{Cuándo debería convenir} \\
         \hline
         A1 & Ninguna            & Conserva el \textit{pipeline}                      & Sin caída de rendimiento \\
-        A2 & $f_\phi$           & Reajusta mediana y RIC, y la referencia de KS/PSI  & \textit{Covariate shift} \\
-        A3 & $g_\theta$         & Vuelve a entrenar XGBoost con el transformador actual & \textit{Concept drift} \\
-        A4 & $f_\phi$ y $g_\theta$ & Reajusta el transformador y vuelve a entrenar XGBoost & Ambos tipos \\
+        A2 & $f_\phi$           & Reajusta $\phi$ y la referencia de KS/PSI          & \textit{Covariate shift} \\
+        A3 & $g_\theta$         & Vuelve a entrenar XGBoost con el $f_\phi$ vigente  & \textit{Concept drift} \\
+        A4 & $f_\phi$ y $g_\theta$ & Reajusta $\phi$ y vuelve a entrenar XGBoost     & Ambos tipos \\
         \hline
     \end{tabular}%
     }
 \end{table}
 
-A3 y A4 necesitan ambas clases en la ventana de ajuste; si los tres días previos no tienen
-ningún positivo, quedan deshabilitadas mediante una máscara y el agente solo puede elegir
-entre A1 y A2. Cada acción crea una nueva versión del \textit{pipeline}, que se usa a partir
-de ese día y no recalcula predicciones pasadas.
+El \textit{pipeline} es persistente: cada acción parte del \textit{pipeline} vigente, no del
+inicial, y la nueva versión se usa desde ese día hasta la siguiente acción. Por eso una acción
+de hoy cambia lo que conviene hacer mañana; por ejemplo, después de un A4, un A3 ya entrena
+sobre un $f_\phi$ actualizado. Ninguna acción recalcula predicciones pasadas.
+
+A3 y A4 necesitan ambas clases en la ventana de ajuste; si los siete días previos no tienen
+ningún positivo, quedan deshabilitadas mediante una máscara y el agente solo puede elegir entre
+A1 y A2.
 
 % ------------------------------------------------------------
 \section{Formulación como POMDP}
@@ -236,99 +300,112 @@ de ese día y no recalcula predicciones pasadas.
 
 \subsection{Estado oculto y ciclo diario}
 
-El estado real del entorno incluye la distribución de los signos vitales, la relación de
-estos con la etiqueta, el tipo y la intensidad del drift y la versión del
-\textit{pipeline} desplegado. Nada de esto se muestra al agente. Cada episodio recorre los
-30 días con el siguiente ciclo, que garantiza que ninguna decisión use información futura:
+El estado real del entorno incluye la distribución de las variables, su relación con la
+etiqueta, el tipo y la intensidad del drift y la versión del \textit{pipeline} desplegado. Nada
+de esto se muestra al agente. Cada día de decisión $d$ sigue el ciclo siguiente, que garantiza
+que ninguna decisión use información futura:
 
 \begin{enumerate}
-    \item Al inicio del día $d$ llegan las etiquetas del día $d-1$. Con las probabilidades
-    guardadas al predecir ese día se calcula su AUROC y se cierra la recompensa de la
-    decisión del día $d-1$.
+    \item Al inicio del día $d$ llegan las etiquetas del día $d-1$ y se cierra la recompensa de la decisión de ese día.
     \item Se construye la observación con las señales de los días $d-3$, $d-2$ y $d-1$.
-    \item El agente elige una acción; la acción se ajusta con los días $d-3$ a $d-1$.
-    \item El \textit{pipeline} resultante predice todas las horas del día $d$. No hay
-    ajustes dentro del día.
+    \item El \textit{pipeline} vigente predice el día $d$ y esas probabilidades se guardan como predicción \textit{pre}.
+    \item El agente elige una acción, que se ajusta con los días $d-7$ a $d-1$.
+    \item El \textit{pipeline} resultante vuelve a predecir el día $d$; esa es la predicción \textit{post}, la que se usa. Con A1 ambas predicciones son iguales.
 \end{enumerate}
 
-Los días 1 a 3 son de calentamiento: se conserva el \textit{pipeline} inicial (A1) para
-acumular tres días de señales. Las decisiones van del día 4 al 30, es decir, 27 decisiones
-por episodio.
+Guardar las dos predicciones permite medir, con las mismas filas, cuánto mejoró el día gracias a
+la acción. Las decisiones van del día 8 al 40, es decir, 33 decisiones por episodio.
 
 \subsection{Observación}
 
-Para cada día con etiquetas se calculan tres señales sobre exactamente las filas que
-recibieron predicciones:
+Para cada día con etiquetas se calculan, sobre exactamente las filas que recibieron
+predicciones, cinco señales:
 
 \begin{itemize}
-    \item \textbf{KS}: el mayor estadístico de Kolmogorov--Smirnov entre los siete signos
-    vitales, frente a una muestra de referencia de hasta 1000 valores por signo.
-    \item \textbf{PSI}: el mayor PSI entre los siete signos, con diez intervalos definidos
-    por los deciles de la referencia.
-    \item \textbf{Caída de AUROC}: $\Delta M = M_{\text{ref}} - \text{AUROC}$ del día. Si el
-    día no tiene ambas clases, se usa el último AUROC válido y se marca el día como no
-    válido.
+    \item \textbf{KS}: el estadístico de Kolmogorov--Smirnov de cada variable numérica, frente a
+    una muestra de referencia.
+    \item \textbf{PSI}: el PSI de cada variable numérica, con diez intervalos definidos por los
+    deciles de la referencia. Se transforma como $\text{PSI}/(1+\text{PSI})$ para llevarlo al
+    intervalo $[0, 1)$.
+    \item \textbf{Caída de AUROC}: transformada como $(M_{\text{ref}} - \text{AUROC} + 1)/2$,
+    que vale 0,5 cuando el AUROC del día es igual al de referencia.
+    \item \textbf{AP} del día.
+    \item \textbf{Validez}: vale 1 si el día tiene ambas clases y 0 si no; en ese caso se usan el
+    último AUROC y la última AP válidos.
 \end{itemize}
 
-La referencia de KS y PSI es inicialmente A-train y solo cambia cuando se ejecuta A2 o A4,
-porque esas acciones redefinen qué datos se consideran normales. Cada señal se discretiza
-en tres niveles y se codifica en \textit{one-hot}. Los cortes siguen los umbrales prácticos
-del Capítulo~ef{chap:marco}: KS en 0,10 y 0,30; PSI en 0,10 y 0,25; y caída de AUROC en 0,03 y 0,10.
-Con un indicador de validez, cada día aporta diez entradas, y la observación apila los tres
-últimos días (Ecuación~\ref{eq:stacked_observation} con $H = 3$):
+La referencia de KS y PSI es inicialmente la de los días 1 a 7 y solo cambia cuando se ejecuta
+A2 o A4, porque esas acciones redefinen qué datos se consideran normales. KS y PSI se monitorean
+sobre las variables numéricas: los 7 signos vitales en PhysioNet y las 21 variables numéricas en
+fraude.
+
+Hay dos formas de resumir KS y PSI. En el modo \textbf{agregado} se usa el máximo entre las
+variables, y cada día aporta cinco valores. En el modo \textbf{por variable} se usa el valor de
+cada una de las $m$ variables, y cada día aporta $2m + 3$ valores. La observación apila los tres
+últimos días (Ecuación~\ref{eq:stacked_observation} con $H = 3$) y añade el horizonte:
 
 \begin{equation}
-    \tilde{\mathbf{o}}_d = \left[\mathbf{b}_{d-3},\, \mathbf{b}_{d-2},\, \mathbf{b}_{d-1}\right] \in \{0,1\}^{30},
+    \tilde{\mathbf{o}}_d = \left[\mathbf{b}_{d-3},\, \mathbf{b}_{d-2},\, \mathbf{b}_{d-1},\, h_d\right],
     \qquad
-    \mathbf{b}_{k} = \left[\mathbf{e}(\text{KS}_k),\, \mathbf{e}(\text{PSI}_k),\, \mathbf{e}(\Delta M_k),\, v_k\right].
+    h_d = \frac{D - d + 1}{D - W}.
     \label{eq:darl_observation}
 \end{equation}
 
-\noindent\textbf{Donde:}
 \begin{itemize}
     \item $\tilde{\mathbf{o}}_d$ es la observación que recibe el agente al decidir en el día $d$.
-    \item $\mathbf{b}_k$ es el bloque de diez entradas del día $k$.
-    \item $\mathbf{e}(\cdot) \in \{0,1\}^3$ codifica el nivel (bajo, medio o alto) de cada señal.
-    \item $v_k$ vale 1 si el AUROC del día $k$ es válido y 0 en otro caso.
+    \item $\mathbf{b}_k$ es el bloque de señales del día $k$: 5 valores en modo agregado o $2m + 3$ en modo por variable.
+    \item $h_d$ es la fracción de decisiones que quedan en el episodio: vale 1 el día 8, $1/33$ el día 40 y 0 al terminar.
+    \item $D = 40$ es el número de días del episodio y $W = 7$ el número de días iniciales.
 \end{itemize}
 
-La discretización hace que la observación sea robusta a pequeñas variaciones y fácil de
-interpretar, a costa de perder detalle. La observación no incluye el día del episodio ni
-las acciones anteriores: el agente debe inferir el efecto de sus decisiones pasadas a
-través de las señales.
+El horizonte le dice al agente cuánto falta para que termine el episodio. Sin él, el agente
+no puede distinguir el último día de los demás, aunque una acción tomada al final tiene menos
+días para dar frutos. Las señales se usan como valores continuos, sin discretizar. Antes del día
+8 no hay tres días de señales, por lo que los primeros bloques se llenan con valores neutros y
+se marcan como no válidos.
 
 \subsection{Recompensa}
 
 La recompensa de la decisión del día $d$ se conoce al inicio del día $d+1$ y combina el
-rendimiento obtenido con el costo de la acción:
+rendimiento obtenido, la mejora que produjo la acción y su costo:
 
 \begin{equation}
-    r_d = \text{AUROC}_d - \lambda\,\frac{t(a_d)}{t_{\text{ref}}}.
+    \begin{gathered}
+    r_d = \alpha\,\text{AUROC}^{\text{post}}_d + \beta\,\text{AP}^{\text{post}}_d
+    + \eta\,G_d - \lambda\,\frac{t(a_d)}{t_{\text{ref}}}, \\
+    G_d = \left(\text{AUROC}^{\text{post}}_d - \text{AUROC}^{\text{pre}}_d\right)
+    + \left(\text{AP}^{\text{post}}_d - \text{AP}^{\text{pre}}_d\right).
+    \end{gathered}
     \label{eq:darl_reward}
 \end{equation}
 
 \noindent\textbf{Donde:}
 \begin{itemize}
-    \item $\text{AUROC}_d$ es el AUROC de las predicciones del día $d$ hechas con el \textit{pipeline} resultante de la acción $a_d$, medido con la etiqueta del escenario. Si el día no tiene ambas clases, vale 0.
-    \item $t(a_d)$ es el tiempo de cómputo medido de la acción, en segundos.
-    \item $t_{\text{ref}}$ es la unidad de costo: la mediana de cinco ejecuciones de A4 sobre los tres primeros días de B-train (0,074 segundos).
-    \item $\lambda = 0{,}05$ es el peso del costo; un reentrenamiento completo cuesta así unos 0,05 puntos de AUROC.
+    \item $\text{AUROC}^{\text{post}}_d$ y $\text{AP}^{\text{post}}_d$ miden las predicciones del día $d$ hechas con el \textit{pipeline} que resulta de la acción $a_d$, con la etiqueta del escenario.
+    \item $\text{AUROC}^{\text{pre}}_d$ y $\text{AP}^{\text{pre}}_d$ miden las predicciones del mismo día hechas con el \textit{pipeline} anterior a la acción.
+    \item $G_d$ es la ganancia de la acción: cuánto mejoraron el AUROC y la AP en las mismas filas. Con A1 vale 0.
+    \item $t(a_d)$ es el tiempo de cómputo medido de la acción, en segundos, y $t_{\text{ref}}$ la unidad de costo: la mediana de cinco ejecuciones de A4 sobre siete días de entrenamiento (0,154 segundos en PhysioNet y 0,275 en fraude).
+    \item $\alpha = \beta = \eta = 1$ son los pesos del rendimiento y de la ganancia, y $\lambda = 0{,}025$ es el peso del costo.
 \end{itemize}
 
-Se usa el AUROC porque, a diferencia de la AP, no depende de la proporción diaria de
-positivos, que varía mucho entre días con pocos casos de sepsis; la AP se reporta como
-medida complementaria. Medir el costo como tiempo de cómputo permite compararlo entre
-acciones; otros costos, como el clínico, no se modelan. El retorno de un episodio es la
-suma de las 27 recompensas.
+Los dos primeros términos premian que el \textit{pipeline} funcione bien; el tercero premia que
+la acción haya servido, y separa el mérito de la acción del de un día fácil o difícil; el último
+cobra el cómputo usado. Con $\lambda = 0{,}025$, un A4 completo cuesta 0,025 puntos, menos que
+una mejora típica de la AP cuando hay drift. Se incluye la AP junto al AUROC porque, con eventos
+tan poco frecuentes, el AUROC puede seguir alto aunque el modelo deje de encontrar los casos
+positivos, y la AP sí lo refleja. Si el día no tiene ambas clases, el rendimiento y la ganancia
+no se pueden medir y la recompensa es solo $-\lambda\,t(a_d)/t_{\text{ref}}$. Medir el costo como
+tiempo de cómputo permite compararlo entre acciones; otros costos, como el de revisar alertas,
+no se modelan. El retorno de un episodio es la suma de las 33 recompensas.
 
 % ------------------------------------------------------------
-\section{Agente principal: Double DQN}
+\section{Agente: Double DQN}
 \label{sec:met_ddqn}
 % ------------------------------------------------------------
 
 \subsection{Justificación de la elección}
 
-Se eligió Double DQN como agente principal por cuatro características del problema:
+Se eligió Double DQN por cuatro características del problema:
 
 \begin{enumerate}
     \item \textbf{Pocas acciones discretas.} DQN estima un valor por acción y elige la mayor,
@@ -336,26 +413,24 @@ Se eligió Double DQN como agente principal por cuatro características del prob
     \item \textbf{Experiencia costosa.} Cada decisión implica ajustar y evaluar un
     \textit{pipeline}. Al ser un método fuera de política, DQN reutiliza cada experiencia
     varias veces desde su memoria.
-    \item \textbf{Acciones irreversibles.} Volver a entrenar el modelo con tres días de datos
-    cambia el \textit{pipeline} para el resto del episodio. Un método fuera de política
-    conserva en su memoria experiencias de episodios en los que no se reentrenó, aunque su
-    política actual ya no las genere (Sección~ef{sec:onoff}).
-    \item \textbf{Sobreestimación.} Las recompensas tienen mucho ruido de un día a otro;
-    Double DQN reduce la sobreestimación de valores que ese ruido produce en DQN
+    \item \textbf{Acciones con efecto duradero.} Como el \textit{pipeline} es persistente, una
+    acción cambia el resto del episodio. Un método fuera de política conserva en su memoria
+    experiencias de episodios en los que no se actualizó, aunque su política actual ya no las
+    genere (Sección~\ref{sec:onoff}).
+    \item \textbf{Sobreestimación.} Las recompensas tienen mucho ruido de un día a otro; Double
+    DQN reduce la sobreestimación de valores que ese ruido produce en DQN
     \cite{vanhasselt2016ddqn}.
 \end{enumerate}
 
-Como la literatura no ofrece una comparación de algoritmos para este problema, la elección
-se contrasta empíricamente con PPO (Sección~\ref{sec:met_ppo}).
-
 \subsection{Configuración}
 
-La Tabla~\ref{tab:ddqn_config} resume la configuración. La red recibe las 30 entradas de la
-observación y devuelve un valor por acción. Las acciones deshabilitadas se excluyen tanto
-al elegir la acción como al calcular el objetivo de Double DQN
-(Ecuación~\ref{eq:ddqn_target}): cada experiencia guarda la máscara del estado siguiente.
-Una experiencia entra a la memoria solo cuando se conoce su recompensa, es decir, al día
-siguiente de la decisión; con cada experiencia nueva se da un paso de gradiente.
+La Tabla~\ref{tab:ddqn_config} resume la configuración, que es la misma en los dos casos; solo
+cambia el tamaño de la entrada, que depende del modo de observación
+(Sección~\ref{sec:met_versiones}). La red devuelve un valor por acción. Las acciones
+deshabilitadas se excluyen tanto al elegir la acción como al calcular el objetivo de Double DQN
+(Ecuación~\ref{eq:ddqn_target}): cada experiencia guarda la máscara del estado siguiente. Una
+experiencia entra a la memoria solo cuando se conoce su recompensa, es decir, al día siguiente
+de la decisión; con cada experiencia nueva se da un paso de gradiente.
 
 \begin{table}[H]
     \centering
@@ -365,7 +440,7 @@ siguiente de la decisión; con cada experiencia nueva se da un paso de gradiente
         \hline
         \textbf{Elemento} & \textbf{Valor} \\
         \hline
-        Red                         & $30 \rightarrow 128 \rightarrow 128 \rightarrow 4$, ReLU \\
+        Red                         & entrada $\rightarrow 128 \rightarrow 128 \rightarrow 4$, ReLU \\
         Optimizador                 & Adam \cite{kingma2015adam}, tasa de $5 \times 10^{-4}$ a $5 \times 10^{-5}$ \\
         Pérdida                     & Huber \\
         Factor de descuento $\gamma$ & 0,99 \\
@@ -373,192 +448,123 @@ siguiente de la decisión; con cada experiencia nueva se da un paso de gradiente
         Tamaño de lote              & 64 \\
         Red objetivo                & Copia cada 50 pasos de gradiente \\
         Exploración $\varepsilon$   & De 1 a 0,05, multiplicada por 0,99 en cada episodio \\
-        Episodios                   & 500 a 1000 (regla de parada de la Sección~\ref{sec:met_entrenamiento}) \\
+        Episodios                   & 1000 (33\,000 decisiones) \\
         \hline
     \end{tabular}
 \end{table}
-
-% ------------------------------------------------------------
-\section{Agente de comparación: PPO}
-\label{sec:met_ppo}
-% ------------------------------------------------------------
-
-PPO \cite{schulman2017ppo} se entrena en el mismo entorno, con la misma observación,
-acciones, recompensa, particiones y regla de selección de \textit{checkpoint}; solo cambia
-el agente. Esto permite atribuir las diferencias de resultados al algoritmo.
-
-\textbf{Diseño.} El actor ($30 \rightarrow 128 \rightarrow 128 \rightarrow 4$) da las
-probabilidades de cada acción; las acciones deshabilitadas reciben un \textit{logit} de
-$-10^9$, lo que anula su probabilidad. El crítico, una red separada del mismo tamaño con una
-salida, estima el valor del estado. La ventaja se calcula con GAE
-(Ecuación~\ref{eq:gae}) y se normaliza en cada actualización. El retorno que aprende el
-crítico se estandariza con una media y una varianza acumuladas, porque los retornos de
-alrededor de 15 hacían que el error del crítico dominara la pérdida. Se usan Adam con tasa
-de $3 \times 10^{-4}$ a $3 \times 10^{-5}$, recorte $\epsilon = 0{,}2$, coeficiente de
-entropía de 0,01 a 0,001 y recorte de la norma del gradiente en 0,5. En validación y prueba
-se elige la acción de mayor probabilidad.
-
-\textbf{Versiones.} PPO se ajustó en tres versiones (Tabla~\ref{tab:ppo_versiones}). Cada
-cambio responde a un diagnóstico de la versión anterior hecho con el entrenamiento y la
-validación, nunca con B-test.
-
-\begin{table}[H]
-    \centering
-    \caption{Versiones del agente PPO}
-    \label{tab:ppo_versiones}
-    \small
-    \begin{tabular}{p{1.4cm}p{5.8cm}p{5.8cm}}
-        \hline
-        \textbf{Versión} & \textbf{Cambio} & \textbf{Motivo} \\
-        \hline
-        v1 & Actualiza cada 4 episodios, 4 épocas, lote 32, $\lambda = 0{,}5$ & Configuración inicial con el mismo presupuesto que Double DQN \\
-        v2 & Actualiza cada 20 episodios (540 decisiones), 10 épocas, lote 64, $\lambda = 0{,}95$ & En v1 la política casi no cambiaba (recorte en menos del 1,2\,\% de las muestras) \\
-        v3 & v2 con política inicial prudente, $\pi_0(\text{A1}) = 0{,}9$ & En v2 ningún episodio de entrenamiento terminó sin reentrenar \\
-        \hline
-    \end{tabular}
-\end{table}
-
-La inicialización prudente de v3 responde a la irreversibilidad del reentrenamiento. Como
-PPO solo aprende de su política actual, si desde el inicio reentrena en casi todos los
-episodios, nunca observa qué ocurre si no lo hace. Para evitarlo, los pesos de la última
-capa del actor se multiplican por 0,01 y su sesgo se fija en:
-
-\begin{equation}
-    \beta_{\text{A1}} = \ln\!\left(\frac{p\,(|\mathcal{A}| - 1)}{1 - p}\right),
-    \qquad \beta_{\text{A2}} = \beta_{\text{A3}} = \beta_{\text{A4}} = 0.
-    \label{eq:ppo_init}
-\end{equation}
-
-\noindent\textbf{Donde:}
-\begin{itemize}
-    \item $\beta_a$ es el sesgo de salida de la acción $a$.
-    \item $p = 0{,}9$ es la probabilidad inicial deseada de A1.
-    \item $|\mathcal{A}| = 4$ es el número de acciones.
-\end{itemize}
-
-Con esta inicialización la política parte con probabilidad 0,9 para A1 y 0,033 para cada
-una de las demás, casi sin depender de la observación, y alrededor del 15\,\% de los
-primeros episodios no reentrena nunca: en cada decisión la probabilidad de no reentrenar es
-$0{,}9 + 0{,}033 = 0{,}933$, y $0{,}933^{27} \approx 0{,}15$. El agente puede así comparar episodios con y sin reentrenamiento.
 
 % ------------------------------------------------------------
 \section{Entrenamiento y selección del checkpoint}
 \label{sec:met_entrenamiento}
 % ------------------------------------------------------------
 
-Cada episodio de entrenamiento reinicia el \textit{pipeline} inicial de A y usa uno de
-cuatro \textit{replays} de B-train, en rotación. Los escenarios siguen el ciclo
+Cada episodio de entrenamiento reinicia el \textit{pipeline} inicial del \textit{replay} y usa
+uno de los cuatro \textit{replays} de entrenamiento, en rotación. Los escenarios siguen el ciclo
 \textit{stable}, \textit{covariate}, \textit{concept}, \textit{combined}, \textit{covariate},
-\textit{concept}, \textit{combined}, que da más peso a los escenarios con drift.
+\textit{concept}, \textit{combined}, que da más peso a los escenarios con drift. El escenario,
+el \textit{replay}, el día de inicio y el factor de velocidad de cada episodio se fijan antes de
+entrenar y no dependen de las acciones del agente.
 
-Cada 10 episodios, la política actual se evalúa de forma determinista en los cuatro
-escenarios de B-validation. El \textit{checkpoint} elegido es el de mayor media en tres
-validaciones consecutivas, y no el de una validación aislada, para no premiar un resultado
-por azar. Double DQN y PPO v1 pueden detenerse desde el episodio 500 si cinco validaciones
-seguidas varían menos del 5\,\% y coinciden en al menos el 95\,\% de las acciones; el
-límite es de 1000 episodios. PPO v2 y v3 completan siempre 1000 episodios.
+Cada 10 episodios, la política actual se evalúa sin exploración en los cuatro escenarios de
+validación. El \textit{checkpoint} elegido es el último de la ventana de tres validaciones
+consecutivas con mayor retorno medio, y no el de una validación aislada, para no premiar un
+resultado por azar. Los empates se resuelven por AP, luego por AUROC y luego por menor tiempo.
+La prueba se hace una sola vez, con el \textit{checkpoint} elegido y sus pesos congelados.
 
-Como medida de estabilidad se reporta el \textbf{acuerdo} de la ventana elegida: la
-fracción de decisiones de validación en las que las tres políticas consecutivas eligen la
-misma acción. Un acuerdo cercano a 1 indica una política que ya no cambia.
+% ------------------------------------------------------------
+\section{Versiones del protocolo}
+\label{sec:met_versiones}
+% ------------------------------------------------------------
+
+El protocolo se construyó por versiones. Este capítulo describe la versión v9, la más reciente.
+La versión v8 es igual, salvo que usa la observación agregada y no incluye el horizonte. La
+Tabla~\ref{tab:versiones_protocolo} resume las versiones que se reportan.
+
+\begin{table}[H]
+    \centering
+    \caption{Versiones del protocolo DARL reportadas}
+    \label{tab:versiones_protocolo}
+    \small
+    \begin{tabular}{p{2.2cm}p{2.2cm}p{5.4cm}p{1.8cm}}
+        \hline
+        \textbf{Versión} & \textbf{Caso} & \textbf{Observación} & \textbf{Entradas} \\
+        \hline
+        v8          & PhysioNet & Agregada, sin horizonte                          & 15 \\
+        v9          & PhysioNet & Por signo vital ($m = 7$) y horizonte            & 52 \\
+        Fraude v1   & IEEE-CIS  & Agregada, sin horizonte (igual que v8)           & 15 \\
+        Fraude v2   & IEEE-CIS  & Por variable ($m = 20$) y horizonte (igual que v9) & 130 \\
+        \hline
+    \end{tabular}
+\end{table}
+
+% TODO: definir cuáles son las 20 variables monitoreadas en Fraude v2.
+v9 reutiliza la preparación de v8 (particiones, \textit{replays}, \textit{pipelines} iniciales,
+calibración y unidad de costo), pero entrena un agente nuevo, de modo que el único cambio de
+diseño entre ambas es la observación. Fraude v1 aplica el protocolo v8 al segundo caso. Fraude
+v2 aplicará el protocolo v9 monitoreando 20 variables.
 
 % ------------------------------------------------------------
 \section{Políticas de referencia}
 \label{sec:met_referencias}
 % ------------------------------------------------------------
 
-Las políticas aprendidas se comparan con:
+La política aprendida se compara con:
 
 \begin{itemize}
     \item \textbf{Políticas fijas}: elegir siempre A1, A2, A3 o A4. Corresponden a las
     estrategias de corrección única descritas en la literatura de \textit{pipelines} con
-    corrección automática (Sección~\ref{sec:lit_selfhealing}). Si una política fija pide
-    una acción deshabilitada, ejecuta A1 y se registra el motivo.
+    corrección automática (Sección~\ref{sec:lit_selfhealing}). Si una política fija pide una
+    acción deshabilitada, ejecuta A1 y se registra el motivo.
     \item \textbf{Política aleatoria}: elige al azar entre las acciones habilitadas.
-    \item \textbf{Regla de umbral}: indica \textit{covariate shift} si KS $\geq 0{,}30$ o
-    PSI $\geq 0{,}25$, y caída de rendimiento si $\Delta M \geq 0{,}03$. Elige A4 si se
-    cumplen ambas, A2 si solo hay \textit{covariate shift}, A3 si solo cae el rendimiento y
-    A1 en otro caso.
-    \item \textbf{Oráculo inmediato} (solo auditoría): cada día evalúa las cuatro acciones
-    con las etiquetas del día que se va a predecir y registra la de mayor recompensa. Usa
-    información futura, por lo que no participa en el aprendizaje; sirve para medir el
-    \textit{regret}, es decir, cuánta recompensa se pierde frente a la mejor acción de cada
-    día.
+    \item \textbf{Regla de umbral}: indica \textit{covariate shift} si el mayor KS es al menos
+    0,30 o el mayor PSI es al menos 0,25, y caída de rendimiento si $M_{\text{ref}} -
+    \text{AUROC} \geq 0{,}03$. Elige A4 si se cumplen ambas, A2 si solo hay \textit{covariate
+    shift}, A3 si solo cae el rendimiento y A1 en otro caso.
 \end{itemize}
 
-% ------------------------------------------------------------
-\section{Protocolo de semillas}
-\label{sec:met_semillas}
-% ------------------------------------------------------------
-
-El resultado de un agente de RL puede cambiar mucho solo por su semilla aleatoria
-\cite{henderson2018matters}. Por eso, Double DQN y la versión final de PPO (v3) se entrenan
-con ocho semillas cada uno (42 a 49). La semilla del agente controla los pesos iniciales,
-la exploración, el muestreo de la memoria o de los minilotes y el sorteo de escenarios de
-entrenamiento. La semilla del entorno se mantiene en 42 en todas las ejecuciones, de modo
-que las particiones, el XGBoost inicial, los \textit{replays} y el episodio de B-test son
-idénticos: todas las ejecuciones resuelven el mismo examen. PPO v1 y v2 se ejecutan solo con
-la semilla 42, como parte del ajuste.
-
-Las ejecuciones se hicieron en Kaggle; por el límite de sesiones simultáneas, algunas usaron
-GPU (NVIDIA T4) y otras CPU. XGBoost se ejecuta siempre en CPU.
+Todas las políticas se evalúan sobre los mismos \textit{replays} y las mismas etiquetas del
+escenario.
 
 % ------------------------------------------------------------
 \section{Métricas de evaluación}
 \label{sec:met_metricas}
 % ------------------------------------------------------------
 
-Cada política congelada se evalúa en los cuatro escenarios de B-test. Como el costo de la
-Ecuación~\eqref{eq:darl_reward} depende del tiempo medido en cada máquina, para comparar
-ejecuciones se recalcula el retorno con un costo fijo por acción:
-
-\begin{equation}
-    R^{\text{fijo}} = \sum_{d=4}^{30} \left( \text{AUROC}_d - \bar{c}(a_d) \right).
-    \label{eq:retorno_fijo}
-\end{equation}
-
-\noindent\textbf{Donde:}
-\begin{itemize}
-    \item $R^{\text{fijo}}$ es el retorno de un escenario con costo fijo.
-    \item $\bar{c}(a)$ es el costo medio de la acción $a$ en las políticas fijas de la ejecución de referencia (Double DQN, semilla 42).
-\end{itemize}
-
-Se reportan las siguientes métricas:
+Cada política congelada se evalúa una vez en cada uno de los cuatro escenarios de prueba. Se
+reportan:
 
 \begin{itemize}
-    \item \textbf{Rendimiento}: retorno con costo fijo, AUROC medio diario y AP media.
+    \item \textbf{Rendimiento}: retorno del episodio (Ecuación~\ref{eq:darl_reward}), y AUROC y
+    AP medios de los 33 días de decisión.
     \item \textbf{Comportamiento}: número de veces que se elige cada acción.
-    \item \textbf{Regret} frente al oráculo inmediato.
-    \item \textbf{Brecha} frente a la mejor política fija de cada escenario. Una semilla
-    \textbf{falla} si en algún escenario queda más de 1,0 por debajo de la mejor acción fija.
-    \item \textbf{Estabilidad}: acuerdo de la ventana elegida y dispersión del retorno entre
-    semillas.
+    \item \textbf{Brecha} frente a la mejor política fija y frente a la política aleatoria en
+    cada escenario.
+    \item \textbf{Aprendizaje}: retorno por episodio de entrenamiento y retorno en validación a
+    lo largo del entrenamiento.
 \end{itemize}
 
-Para comparar Double DQN y PPO se usa el retorno medio de los cuatro escenarios de cada
-semilla. Se reportan la media, la desviación estándar y el número de semillas que fallan; la
-diferencia de medias se evalúa con la prueba de Mann--Whitney \cite{mann1947test} y con un
-intervalo de confianza del 95\,\% obtenido con 10\,000 remuestreos \textit{bootstrap}
-\cite{efron1979bootstrap}.
+Como la recompensa es la misma en todas las versiones, los retornos se pueden comparar
+directamente entre versiones de un mismo caso. No se comparan entre casos, porque el nivel de
+AUROC y AP de cada conjunto de datos es distinto. Cada versión se entrena con una sola semilla
+(42), por lo que las diferencias pequeñas entre políticas no permiten afirmar que una sea mejor
+que otra \cite{henderson2018matters}.
 
 % ------------------------------------------------------------
 \section{Controles de integridad}
 \label{sec:met_integridad}
 % ------------------------------------------------------------
 
-Cada ejecución verifica automáticamente 33 controles antes de aceptar sus resultados, entre
-ellos:
+Cada ejecución verifica automáticamente entre 75 y 97 controles, según la versión, antes de
+aceptar sus resultados. Entre ellos:
 
 \begin{itemize}
-    \item Las particiones son disjuntas y cada hora del \textit{replay} tiene 200 registros sin repetir pares paciente y hora.
-    \item Ningún estado, ajuste ni recompensa usa etiquetas del día que se va a predecir.
-    \item Los días de calentamiento usan A1 y las acciones deshabilitadas no se ejecutan.
-    \item La etiqueta original se conserva y el adelanto de \textit{concept} no supera 12 horas.
-    \item El AUROC de cada día puede reconstruirse a partir de las predicciones guardadas.
+    \item Las particiones son disjuntas y, en PhysioNet, cada hora del \textit{replay} tiene 300 registros sin repetir pares paciente y hora.
+    \item Ningún estado, ajuste ni recompensa usa etiquetas del día que se va a predecir, y cada ajuste usa exactamente los siete días anteriores.
+    \item Las acciones deshabilitadas no se ejecutan.
+    \item La etiqueta original se conserva y, sin drift de concepto, la etiqueta del escenario es igual a la original.
+    \item La recompensa de cada día puede reconstruirse a partir de las predicciones \textit{pre} y \textit{post} guardadas.
     \item Los pesos del agente no cambian durante la validación ni la prueba (se comprueba con un \textit{hash}).
-    \item El oráculo no aporta estados, acciones ni recompensas al aprendizaje.
 \end{itemize}
 
-Además, para comprobar que el entorno es idéntico en todas las ejecuciones, las políticas
-fijas, la aleatoria y la regla de umbral deben producir en B-test exactamente el mismo
-AUROC diario y las mismas acciones que en la ejecución de referencia.
+Además, en v9 se comprueba que la preparación es idéntica a la de v8, y que el horizonte vale
+0 exactamente en las transiciones terminales.

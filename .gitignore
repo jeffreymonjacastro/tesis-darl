@@ -240,6 +240,7 @@ __pycache__/
 # --- tesis-darl: datos locales ---
 data/raw/*
 data/interim/*
+data/processed/*
 data/external/*
 !data/**/README.md
 
@@ -332,6 +333,10 @@ kaggle/dqn-dummy/v8/outputs/**
 # Khipu: generated results, checkpoints and executed notebooks stay outside Git.
 /khipu/**/outputs/**
 !/khipu/**/outputs/README.md
+
+# ddqn-fraud: resultados, checkpoints y logs fuera de Git.
+kaggle/ddqn-fraud/outputs/**
+!kaggle/ddqn-fraud/outputs/README.md
 
 # v9: preserve generated Kaggle results locally; version documentation only.
 /kaggle/dqn-dummy/v9/outputs/**
