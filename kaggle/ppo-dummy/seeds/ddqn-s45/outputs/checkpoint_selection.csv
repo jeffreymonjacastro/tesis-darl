@@ -1,0 +1,2 @@
+selected_episode,selected_validation_return,selected_smoothed_return,episodes,updates,selected_window_variation,selected_window_agreement,selected_window_tie_agreement,tie_probe,convergence_assessable
+580,15.725518554335041,16.15633995897501,1000,26937,0.07547580540569673,0.37037037037037035,0.46296296296296297,selected_checkpoint_validation_states_and_masks,True

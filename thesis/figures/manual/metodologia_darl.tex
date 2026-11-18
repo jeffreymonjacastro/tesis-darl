@@ -47,39 +47,39 @@
     feedback/.style={-{Latex[length=2.2mm]}, thick, dashed, green!45!black}
 ]
 
-\node[latent] (state) at (5.2, 2.35)
-{\textbf{Estado latente no observado $s_t$:}
-$P_t(X)$, $P_t(Y\mid X)$, tipo y severidad};
+\node[latent] (state) at (5.2, 3.0)
+{\textbf{Estado oculto $s_d$:}
+$P_d(X)$, $P_d(Y\mid X)$, tipo e intensidad del drift, versión del \textit{pipeline}};
 
 \node[module] (data) at (0, 0.8)
-{\textbf{1. Datos}\\TableShift\\pipeline base};
+{\textbf{1. UCI simulada}\\Hospital B, 200 camas\\\textit{pipeline} entrenado en A};
 
 \node[module] (drift) at (3.45, 0.8)
-{\textbf{2. Drift}\\Covariate shift\\inversión feature-label};
+{\textbf{2. Drift}\\\textit{covariate}, \textit{concept}\\o combinado};
 
 \node[module] (monitor) at (6.9, 0.8)
-{\textbf{3. Monitoreo}\\PSI, KS, C2ST\\$\Delta$AUC, $\Delta$F1};
+{\textbf{3. Monitoreo}\\KS, PSI, caída de AUROC\\días $d-3$ a $d-1$};
 
 \node[signal] (obs) at (10.35, 0.8)
-{\textbf{Observación}\\$o_t$};
+{\textbf{Observación}\\$\tilde{\mathbf{o}}_d \in \{0,1\}^{30}$};
 
-\node[agent] (dqn) at (10.35, -1.65)
-{\textbf{4. DQN}\\Red Q\\$\arg\max_a Q_{\theta}(o_t,a)$};
+\node[agent] (dqn) at (10.35, -2.0)
+{\textbf{4. Agente}\\Double DQN\\(PPO como comparación)};
 
-\node[module] (action) at (6.9, -1.65)
-{\textbf{5. Acción $a_t$}\\Defer / Features\\Model / Retrain};
+\node[module] (action) at (6.9, -2.0)
+{\textbf{5. Acción $a_d$}\\A1 / A2 / A3 / A4\\ajuste con 3 días previos};
 
-\node[reward] (metric) at (3.45, -1.65)
-{\textbf{6. Evaluación}\\AUC recuperado\\tiempo y RAM};
+\node[reward] (metric) at (3.45, -2.0)
+{\textbf{6. Recompensa}\\AUROC del día $d$\\menos costo de cómputo};
 
 \draw[arrow] (data) -- (drift);
 \draw[arrow] (drift) -- (monitor);
 \draw[arrow] (state.south) -- (monitor.north);
-\draw[signalflow] (monitor) -- node[above] {$o_t$} (obs);
+\draw[signalflow] (monitor) -- node[above] {$\tilde{\mathbf{o}}_d$} (obs);
 \draw[signalflow] (obs) -- (dqn);
-\draw[actionflow] (dqn) -- node[above] {$a_t$} (action);
+\draw[actionflow] (dqn) -- node[above] {$a_d$} (action);
 \draw[actionflow] (action) -- (metric);
-\draw[feedback] (metric.south) |- node[pos=0.25, below] {$r_t$ actualiza DQN} (dqn.south);
-\draw[feedback] (action.north) |- node[pos=0.28, above] {pipeline actualizado} (monitor.south);
+\draw[feedback] (metric.south) |- node[pos=0.25, below] {$r_d$ (al día siguiente)} (dqn.south);
+\draw[feedback] (action.north) |- node[pos=0.5, right] {nuevo \textit{pipeline}} (monitor.south);
 
 \end{tikzpicture}

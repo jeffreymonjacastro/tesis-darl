@@ -1,515 +1,564 @@
 \chapter{MARCO METODOLÓGICO}
+\label{chap:metodologia}
 
-Este capítulo describe la metodología experimental de DARL. El objetivo metodológico
-es construir episodios controlados de drift sobre datos tabulares reales,
-observar el efecto del cambio mediante métricas estadísticas y supervisadas, y
-entrenar una política que seleccione la acción de mantenimiento más eficiente
-para un \textit{pipeline} de dos etapas.
+Este capítulo describe cómo se aplican los conceptos del Capítulo~ef{chap:marco} para construir y
+evaluar DARL. La Sección~\ref{sec:met_vision} presenta el método completo. Las
+Secciones~\ref{sec:met_datos} a \ref{sec:met_drift} describen el entorno: los datos, la
+simulación de la UCI, el \textit{pipeline} y los escenarios de drift. Las
+Secciones~\ref{sec:met_acciones} y \ref{sec:met_pomdp} formulan el problema de decisión.
+Las Secciones~\ref{sec:met_ddqn} a \ref{sec:met_entrenamiento} describen los agentes y su
+entrenamiento, y las Secciones~\ref{sec:met_referencias} a \ref{sec:met_integridad}, el
+protocolo de evaluación.
 
 % ------------------------------------------------------------
-\section{Diseño general del framework DARL}
+\section{Visión general del método}
+\label{sec:met_vision}
 % ------------------------------------------------------------
 
-DARL se organiza como un ciclo de seis módulos. Primero, se seleccionan
-\textit{datasets} tabulares de TableShift y se entrena un \textit{pipeline} base
-con XGBoost como modelo principal. Segundo, se aplica drift sintético controlado
-sobre variables numéricas, categóricas o sobre la relación feature-label.
-Tercero, se
-monitorea el cambio resultante mediante señales de \textit{covariate shift},
-\textit{concept drift} y degradación de desempeño. Cuarto, un agente de
-aprendizaje por refuerzo observa esas señales y elige una acción de
-mantenimiento. Quinto, se ejecuta la acción seleccionada y se mide su efecto en
-rendimiento y cómputo. Finalmente, esas mediciones alimentan la recompensa que
-guía el entrenamiento del agente DQN.
+DARL se organiza como un ciclo diario (Figura~\ref{fig:metodologia_darl}). Un
+\textit{pipeline} entrenado en el hospital A predice el riesgo de sepsis de los pacientes
+del hospital B, sobre los que se inyecta un drift controlado. Al inicio de cada día llegan
+las etiquetas del día anterior; con ellas se calculan señales de monitoreo, que el agente
+recibe como observación. El agente elige una acción de mantenimiento, la acción se ejecuta
+usando solo datos pasados, y el \textit{pipeline} resultante predice el día. Al día
+siguiente, cuando llegan las etiquetas de ese día, se calcula la recompensa de la decisión.
 
 \begin{figure}[H]
     \centering
     \resizebox{0.98\textwidth}{!}{\input{figures/manual/metodologia_darl}}
-    \caption{Flujo metodológico de DARL como ciclo POMDP}
+    \caption{Ciclo diario de DARL como POMDP}
     \label{fig:metodologia_darl}
 \end{figure}
 
-Como se muestra en la Figura~\ref{fig:metodologia_darl}, la metodología no trata
-la detección de drift como un fin aislado. Las métricas de monitoreo son señales
-intermedias para decidir si conviene diferir, actualizar el preprocesamiento,
-actualizar el modelo predictivo o reentrenar todo el \textit{pipeline}. Esta
-separación responde a la brecha identificada en la literatura: diagnosticar que
-existe drift determina qué componente debe actualizarse
-\cite{cai2023disde,mahadevan2024cost}.
+El agente nunca ve el tipo ni la intensidad del drift (el estado oculto), solo las señales
+de monitoreo. El agente principal es Double DQN y, para justificar esa elección con
+evidencia, se compara con PPO en el mismo entorno (Secciones~\ref{sec:met_ddqn} y
+\ref{sec:met_ppo}).
 
 % ------------------------------------------------------------
-\section{Selección de datasets y particiones experimentales}
+\section{Datos y particiones}
+\label{sec:met_datos}
 % ------------------------------------------------------------
 
-La evaluación se concentra en dos \textit{datasets} de TableShift
-\cite{gardner2023tableshift}. La selección busca cubrir dos regímenes tabulares
-distintos: uno dominado por variables categóricas y otro dominado por variables
-numéricas. Esta decisión permite evaluar si las acciones de actualización
-selectiva se comportan de forma distinta cuando el drift afecta principalmente
-frecuencias categóricas o distribuciones numéricas continuas.
+Se usan los datos del PhysioNet/Computing in Cardiology Challenge 2019
+\cite{reyna2020sepsis}: 20\,336 pacientes del hospital A y 20\,000 del hospital B, con un
+registro por hora de estancia en la UCI. Las entradas son siete signos vitales: frecuencia
+cardiaca (HR), saturación de oxígeno (O2Sat), temperatura (Temp), presión arterial
+sistólica (SBP), media (MAP) y diastólica (DBP), y frecuencia respiratoria (Resp). La
+etiqueta es \texttt{SepsisLabel}, que vale 1 en las horas cercanas al inicio de la sepsis.
+Los valores faltantes se completan hacia adelante solo dentro de la historia de cada
+paciente y en orden horario.
+
+Cada hospital se divide por paciente en 60\,\% para entrenamiento, 20\,\% para validación y
+20\,\% para prueba, estratificando por la presencia de sepsis. Las seis particiones son
+disjuntas y tienen un papel fijo:
+
+\begin{itemize}
+    \item \textbf{A-train}: ajustar el \textit{pipeline} inicial.
+    \item \textbf{A-validation}: elegir los hiperparámetros de XGBoost y fijar el rendimiento de referencia.
+    \item \textbf{A-test}: medir una sola vez el \textit{pipeline} inicial, sin influir en ninguna decisión.
+    \item \textbf{B-train}: calibrar el drift y el costo, y entrenar a los agentes; es la única partición que produce gradientes.
+    \item \textbf{B-validation}: elegir el \textit{checkpoint} de cada agente.
+    \item \textbf{B-test}: evaluar una sola vez las políticas congeladas.
+\end{itemize}
+
+% ------------------------------------------------------------
+\section{Simulación de la UCI}
+\label{sec:met_uci}
+% ------------------------------------------------------------
+
+Los datos no tienen fechas absolutas, por lo que el uso del \textit{pipeline} se simula
+como una UCI de 200 camas durante 30 días. Cada partición se convierte en un
+\textit{replay}: una cola reproducible de pacientes en la que cada cama reproduce, hora a
+hora, los registros de un paciente en el orden de su estancia y, cuando la historia de ese
+paciente termina, recibe al siguiente de la cola en la hora siguiente. Cada hora tiene
+exactamente 200 registros, cada \textit{replay} consume 144\,000 filas y cada par paciente
+y hora de estancia aparece una sola vez. Un paciente puede ocupar una cama varios días.
+
+Las etiquetas de un día se conocen al inicio del día siguiente. Este retraso de un día es
+una simplificación del retraso real, en el que confirmar la sepsis puede tomar más tiempo.
+
+% ------------------------------------------------------------
+\section{Pipeline de dos etapas}
+\label{sec:met_pipeline}
+% ------------------------------------------------------------
+
+\textbf{Preparación de los datos ($f_\phi$).} Cada signo vital se completa con su mediana,
+se centra con esa mediana, se divide por su rango intercuartílico (RIC) y se recorta al
+intervalo $[-2, 2]$:
+
+\begin{equation}
+    z_j = \operatorname{clip}\!\left(\frac{\tilde{x}_j - \operatorname{med}_j}{\operatorname{RIC}_j},\; -2,\; 2\right).
+    \label{eq:transformador}
+\end{equation}
+
+\noindent\textbf{Donde:}
+\begin{itemize}
+    \item $\tilde{x}_j$ es el valor del signo vital $j$, reemplazado por $\operatorname{med}_j$ si falta.
+    \item $\operatorname{med}_j$ y $\operatorname{RIC}_j$ son la mediana y el rango intercuartílico (percentil 75 menos percentil 25) del signo $j$ en la ventana de ajuste; son los parámetros $\phi$.
+    \item $z_j$ es el valor preparado que recibe el modelo.
+\end{itemize}
+
+Se usan la mediana y el RIC porque los valores extremos, frecuentes en registros clínicos,
+los afectan menos que a la media y la desviación estándar. El recorte limita el efecto de
+valores fuera de rango. Reajustar $\phi$ no cambia el número ni el orden de las columnas,
+por lo que el modelo puede seguir usándolas (Sección~ef{sec:pipeline}).
+
+\textbf{Modelo predictivo ($g_\theta$).} XGBoost \cite{chen2016xgboost} con el peso de la
+clase positiva igual al cociente entre negativos y positivos de cada ventana de ajuste,
+para compensar el desbalance. Los hiperparámetros se eligen una sola vez en el hospital A
+entre ocho combinaciones (profundidad $\{3, 5\}$, tasa de aprendizaje $\{0{,}05; 0{,}1\}$ y
+número de árboles $\{60, 120\}$). Cada combinación se ajusta con los días 1--20 de A-train,
+se mide sin reajustar en los días 21--30, se vuelve a ajustar con los 30 días y se mide en
+A-validation. Se elige la de mayor AUROC en A-validation; los empates se resuelven por AP y
+luego por el modelo más pequeño. La combinación elegida (profundidad 3, tasa 0,1 y 60
+árboles) se mantiene en todos los reentrenamientos.
+
+El rendimiento de referencia $M_{\text{ref}}$ es la media de los AUROC diarios del
+\textit{pipeline} inicial en A-validation (0,642). Todas las caídas de rendimiento se
+miden respecto a este valor.
+
+% ------------------------------------------------------------
+\section{Escenarios de drift}
+\label{sec:met_drift}
+% ------------------------------------------------------------
+
+Sobre el hospital B se definen cuatro escenarios. En todos existe el drift natural entre
+hospitales; en tres de ellos se añade un drift artificial y gradual, cuyo inicio y velocidad
+están controlados.
+
+\textbf{Stable.} Los signos vitales y las etiquetas se conservan sin cambios.
+
+\textbf{Covariate.} Simula un cambio progresivo en la medición de los signos vitales. Desde
+el día de inicio $d_0$, cada signo se desplaza en una dirección fija y se ensancha
+alrededor de su mediana:
+
+\begin{equation}
+    \begin{gathered}
+    x'_{j} = \operatorname{med}_j + s_d\,(x_j - \operatorname{med}_j) + c_d\,\operatorname{RIC}_j\,u_j, \\
+    c_d = v_{\text{cov}} \max(0,\, d - d_0 + 1),
+    \qquad
+    s_d = 1 + 0{,}4 \min\!\left(1, \tfrac{c_d}{3}\right).
+    \end{gathered}
+    \label{eq:covariate_injection}
+\end{equation}
+
+\noindent\textbf{Donde:}
+\begin{itemize}
+    \item $x_j$ y $x'_j$ son el valor original y el valor con drift del signo $j$ en el día $d$.
+    \item $\operatorname{med}_j$ y $\operatorname{RIC}_j$ son los parámetros del transformador inicial ajustado en A-train.
+    \item $c_d$ es el desplazamiento acumulado, en unidades de RIC, que crece a la velocidad $v_{\text{cov}}$ (RIC por día).
+    \item $s_d$ es el factor de escala, que crece hasta 1,4.
+    \item $u_j \in \{+1, -1\}$ es la dirección del desplazamiento: hacia abajo para O2Sat y MAP, hacia arriba para el resto.
+\end{itemize}
+
+El desplazamiento crece cada día, lo que corresponde a un drift gradual
+(Ecuación~\ref{eq:drift_shape}). Las etiquetas no cambian: solo cambia $P(X)$.
+
+\textbf{Concept.} Simula un cambio progresivo en el criterio con el que se marca la sepsis:
+el inicio de las horas positivas se adelanta cada día. Para cada paciente con sepsis, la
+etiqueta del escenario es:
+
+\begin{equation}
+    y'_{h} = \mathbb{1}\!\left[h \geq h^{+} - e_d\right],
+    \qquad
+    e_d = \min\!\left(12,\; v_{\text{con}} \max(0,\, d - d_0 + 1)\right).
+    \label{eq:concept_injection}
+\end{equation}
+
+\noindent\textbf{Donde:}
+\begin{itemize}
+    \item $h$ es la hora de estancia del registro y $h^{+}$ la primera hora positiva del paciente en la etiqueta original.
+    \item $e_d$ es el adelanto, en horas, en el día $d$, que crece a la velocidad $v_{\text{con}}$ (horas por día) hasta un máximo de 12.
+    \item $\mathbb{1}[\cdot]$ vale 1 si se cumple la condición y 0 en otro caso.
+\end{itemize}
+
+Los pacientes sin sepsis siguen siendo negativos y los signos vitales no cambian: solo
+cambia $P(Y \mid X)$. La etiqueta original \texttt{SepsisLabel} se conserva; la etiqueta
+del escenario se guarda aparte y es la que usan el reentrenamiento y la recompensa. Este
+cambio es una prueba de exigencia artificial y no representa un cambio clínico real.
+
+\textbf{Combined.} Aplica ambos cambios. El componente de concepto empieza dos días después
+que el de medición.
+
+\textbf{Calibración.} Las velocidades se calibran solo con B-train. Para cada candidata
+($v_{\text{cov}} \in \{0{,}25; 0{,}35; 0{,}5\}$ RIC por día y $v_{\text{con}} \in \{0{,}25;
+0{,}5; 1\}$ horas por día) se compara el AUROC del \textit{pipeline} inicial con y sin drift
+el primer y el último día, y se mide cuánto recupera la acción que debería corregir ese
+drift (A2 para \textit{covariate}, A3 para \textit{concept}). Se busca la menor velocidad
+que cause una caída pequeña al inicio ($\leq 0{,}05$), una caída clara al final
+($\geq 0{,}10$) y una recuperación medible ($\geq 0{,}05$). Si ninguna cumple, se elige la
+de mayor caída final y se registra que la calibración no se cumplió. Se eligieron
+$v_{\text{cov}} = 0{,}25$ y $v_{\text{con}} = 0{,}25$; ninguna candidata cumplió los tres
+criterios, lo que se discute en el Capítulo~ef{chap:resultados}.
+
+En validación y prueba el drift empieza el día $d_0 = 5$ con las velocidades calibradas.
+En entrenamiento, para que el agente no memorice un único calendario, el día de inicio se
+sortea entre 3 y 7 y las velocidades se multiplican por un factor sorteado entre
+$\{0{,}75; 1; 1{,}25\}$.
+
+% ------------------------------------------------------------
+\section{Acciones de mantenimiento}
+\label{sec:met_acciones}
+% ------------------------------------------------------------
+
+Al inicio de cada día el agente elige una de cuatro acciones
+(Tabla~\ref{tab:acciones_darl}). Todas se ajustan con los tres últimos días cuyas
+etiquetas ya llegaron.
 
 \begin{table}[H]
     \centering
-    \caption{Datasets considerados en la metodología DARL}
-    \label{tab:datasets_metodologia_darl}
-    \resizebox{0.98\textwidth}{!}{%
-        \begin{tabular}{lll}
-            \hline
-            \textbf{Dataset}             & \textbf{Rol experimental} & \textbf{Tipo dominante de variables} \\
-            \hline
-            \text{diabetes\_readmission} & Readmisión hospitalaria   & Categóricas y discretas              \\
-            \text{physionet}             & Predicción de sepsis      & Numéricas fisiológicas               \\
-            \hline
-        \end{tabular}
-    }
-\end{table}
-
-Para cada dataset se distinguen tres particiones. La partición de referencia se
-usa para ajustar el preprocesamiento y entrenar el modelo base. La partición
-pre-drift estima el desempeño inicial sin intervención. La partición post-drift
-recibe las perturbaciones sintéticas y permite medir degradación, detección y
-recuperación. En el caso de \text{diabetes\_readmission}, el objetivo binario
-representa si un encuentro hospitalario termina en readmisión frente a la clase
-``NO''. En el caso de \text{physionet}, el objetivo binario representa la
-etiqueta de sepsis usada en los notebooks exploratorios del repositorio.
-
-Esta estructura conserva dos propiedades metodológicas importantes. Primero,
-usa datos tabulares reales y particiones reproducibles, en lugar de construir
-todo el entorno con datos sintéticos. Segundo, mantiene control experimental
-sobre el tipo y severidad de drift, porque el cambio se inyecta después de fijar
-la distribución de referencia.
-
-% ------------------------------------------------------------
-\section{Pipeline base de dos etapas}
-% ------------------------------------------------------------
-
-El sistema evaluado es un \textit{pipeline} de dos etapas. La primera etapa transforma los datos crudos en
-una representación numérica para el modelo. La segunda etapa aprende el mapeo
-predictivo. La implementación metodológica considera XGBoost como modelo
-principal por su desempeño en datos tabulares \cite{chen2016xgboost}, y
-regresión logística como línea base de menor complejidad.
-
-La etapa de preprocesamiento aplica tres familias de transformación. Las
-variables numéricas sesgadas se transforman mediante cuantiles, las variables
-categóricas de alta cardinalidad se codifican mediante \textit{target encoding},
-y el resto de variables numéricas se escala con una normalización estándar. La
-separación entre preprocesamiento y modelo es deliberada: permite evaluar
-acciones que actualizan solo los parámetros de transformación, solo el modelo
-predictivo o ambos.
-
-En cada configuración experimental, el \textit{pipeline} base se ajusta con la
-partición de referencia. Luego se evalúa en la partición pre-drift para obtener
-el desempeño inicial y en la partición post-drift perturbada para estimar la
-degradación. El valor de referencia para la recompensa no es el rendimiento
-absoluto del modelo, sino la recuperación lograda por cada acción frente al
-estado drifted sin mantenimiento.
-
-% ------------------------------------------------------------
-\section{Inyección sintética de drift}
-% ------------------------------------------------------------
-
-El módulo \text{DriftInjector} genera tres escenarios: \textit{covariate
-    shift}, \textit{concept drift} y la combinación de ambos. El drift se controla
-mediante una severidad $\gamma \in [0,1]$, donde valores mayores aumentan la
-proporción de observaciones afectadas o la intensidad del desplazamiento. Esta
-formulación mantiene trazabilidad entre el tipo de perturbación aplicada y las
-señales que deberían observarse en el módulo de monitoreo.
-
-\subsection{Drift numérico mediante mezcla Beta}
-
-Para variables numéricas, primero se normaliza cada valor al intervalo $[0,1]$
-usando los mínimos y máximos de referencia. La distribución objetivo que genera
-los valores perturbados se define mediante una Beta:
-
-\begin{equation}
-    z_{ij} \sim \mathrm{Beta}(\alpha_j,\beta_j),
-    \qquad
-    f_j(z)=
-    \frac{z^{\alpha_j-1}(1-z)^{\beta_j-1}}
-    {B(\alpha_j,\beta_j)},
-    \quad 0 \leq z \leq 1.
-    \label{eq:beta_target_distribution}
-\end{equation}
-
-\noindent\textbf{Donde:}
-\begin{itemize}
-    \item $z_{ij}$ representa el valor sintético normalizado generado para la observación $i$ en la variable numérica $j$.
-    \item $\mathrm{Beta}(\alpha_j,\beta_j)$ representa la distribución objetivo usada para generar valores en $[0,1]$.
-    \item $f_j(z)$ representa la función de densidad de la distribución Beta asociada a la variable $j$.
-    \item $\alpha_j$ y $\beta_j$ son parámetros positivos que controlan la forma de la distribución objetivo.
-    \item $B(\alpha_j,\beta_j)$ representa la función Beta de normalización.
-\end{itemize}
-
-La distribución Beta no decide por sí sola qué filas son
-modificadas; solo define de dónde provienen los valores numéricos alternativos.
-Al variar $\alpha_j$ y $\beta_j$, el inyector puede generar desplazamientos
-hacia valores altos, bajos, centrales o extremos dentro del rango normalizado.
-
-La selección de las observaciones perturbadas se modela por separado mediante
-una variable Bernoulli:
-
-\begin{equation}
-    m_{ij} \sim \mathrm{Bernoulli}(\gamma),
-    \qquad
-    \tilde{x}_{ij}
-    =
-    \left[
-        (1-m_{ij})u_{ij}
-        + m_{ij}z_{ij}
-        \right]
-    (x^{\max}_{j}-x^{\min}_{j})
-    + x^{\min}_{j}.
-    \label{eq:beta_mixture_drift}
-\end{equation}
-
-\noindent\textbf{Donde:}
-\begin{itemize}
-    \item $m_{ij}$ representa la máscara binaria que indica si la observación $i$ es perturbada en la variable $j$.
-    \item $\gamma$ representa la severidad del drift y controla la probabilidad de reemplazo.
-    \item $u_{ij}$ representa el valor original normalizado al intervalo $[0,1]$.
-    \item $z_{ij}$ representa la muestra Beta definida en la Ecuación~\ref{eq:beta_target_distribution}.
-    \item $\tilde{x}_{ij}$ representa el valor de la variable numérica $j$ para la observación $i$ después de aplicar drift.
-    \item $x^{\min}_{j}$ y $x^{\max}_{j}$ son el mínimo y máximo de la variable $j$ en la partición de referencia.
-\end{itemize}
-
-La distribución Bernoulli controla la intensidad aplicada a nivel de
-observación y variable: si $m_{ij}=0$, se conserva el valor original; si
-$m_{ij}=1$, se usa el valor sintético generado por la Beta. Así, el mecanismo
-simula \textit{covariate shift} en $P(X)$ sin cambiar directamente la etiqueta,
-por lo que debería reflejarse principalmente en métricas como KS, PSI o C2ST.
-
-\subsection{Drift categórico mediante remuestreo marginal}
-
-Para variables categóricas, se construye una distribución objetivo $q_j(c)$ sobre
-las categorías de la variable $j$ y se interpola con la distribución de
-referencia $p_{0,j}(c)$:
-
-\begin{equation}
-    p_{\gamma,j}(c)
-    =
-    (1-\gamma)p_{0,j}(c)
-    + \gamma q_j(c).
-    \label{eq:categorical_marginal_drift}
-\end{equation}
-
-\noindent\textbf{Donde:}
-\begin{itemize}
-    \item $p_{\gamma,j}(c)$ representa la probabilidad post-drift de la categoría $c$ en la variable categórica $j$.
-    \item $p_{0,j}(c)$ representa la frecuencia relativa de la categoría $c$ en la partición de referencia.
-    \item $q_j(c)$ representa la distribución categórica objetivo definida para inducir drift.
-    \item $\gamma$ representa la severidad del drift y controla cuánto se acerca la distribución post-drift a $q_j(c)$.
-    \item $c$ representa una categoría posible de la variable $j$.
-\end{itemize}
-
-Esta fórmula modifica las frecuencias de las categorías sin
-alterar la regla de etiquetado. En la implementación, esta distribución se
-aplica mediante remuestreo de filas ponderado por las nuevas probabilidades
-marginales. Este diseño es más conservador que reemplazar categorías de manera
-independiente, porque reduce el riesgo de crear combinaciones de columnas poco
-plausibles.
-
-\subsection{Concept drift mediante inversión de relación en variables}
-
-Para simular \textit{concept drift} en el experimento PhysioNet, se altera la
-relación funcional entre las variables fisiológicas y la etiqueta mediante una
-inversión parcial de las covariables alrededor de su mediana. Para cada variable
-numérica seleccionada, el valor perturbado se define como:
-
-\begin{equation}
-    \tilde{x}_{ij}
-    =
-    x_{ij}
-    +
-    \gamma
-    \left(
-    2x^{\mathrm{med}}_{j}
-    -
-    2x_{ij}
-    \right).
-    \label{eq:feature_relationship_inversion}
-\end{equation}
-
-\noindent\textbf{Donde:}
-\begin{itemize}
-    \item $\tilde{x}_{ij}$ representa el valor de la observación $i$ en la variable fisiológica $j$ después de aplicar la perturbación.
-    \item $x_{ij}$ representa el valor original de la observación $i$ en la variable $j$.
-    \item $x^{\mathrm{med}}_{j}$ representa la mediana de la variable $j$ calculada sobre la partición que se perturba.
-    \item $\gamma$ representa la severidad del drift y controla la intensidad de la inversión.
-\end{itemize}
-
-Esta transformación desplaza los valores hacia el lado opuesto
-de la mediana con una intensidad proporcional a $\gamma$. La etiqueta observada
-no se modifica directamente; lo
-que cambia es la correspondencia efectiva entre los patrones fisiológicos y la
-regla predictiva aprendida por el modelo. Por ello, el experimento evalúa si
-mantener el preprocesamiento original y actualizar el modelo predictivo permite
-recuperar desempeño cuando la relación aprendida entre $X$ e $Y$ deja de ser
-válida bajo la nueva ventana.
-
-% ------------------------------------------------------------
-\section{Monitoreo y señales de diagnóstico}
-% ------------------------------------------------------------
-
-El módulo de monitoreo calcula señales no supervisadas y supervisadas. Las
-señales no supervisadas comparan la partición de referencia con la ventana
-actual usando solo $X$. En este grupo se incluyen PSI, KS, divergencia de
-Jensen--Shannon, distancia de Hellinger y pruebas $\chi^2$ para variables
-categóricas. Adicionalmente, Evidently se usa como herramienta de monitoreo
-\textit{batch}; su \text{DataDriftPreset} permite evaluar cambios de
-distribución entre dos conjuntos de datos y reportar drift por columna
-\cite{evidently_data_drift,evidently_github}.
-
-Las señales supervisadas se calculan cuando existen etiquetas disponibles. En
-este grupo se ubican $\Delta AUC_t$, $\Delta \ell_t$, F1 y el flujo de errores
-del modelo. En los experimentos actuales, estas señales se usan para cuantificar
-la degradación posterior al drift y la recuperación obtenida por cada acción de
-mantenimiento, sin incorporar un detector en línea adicional.
-
-El resultado del monitoreo se resume en un vector de observación para el agente:
-promedios y máximos de métricas de drift por variable, indicadores de drift por
-familia de variables, señales supervisadas de desempeño y costos históricos de
-acciones previas. Estas señales no se interpretan como observaciones perfectas
-del estado real; se consideran evidencia parcial del tipo, severidad y efecto
-del drift.
-
-% ------------------------------------------------------------
-\section{Entorno de decisión y acciones del agente}
-% ------------------------------------------------------------
-
-El problema de actualización selectiva se modela como un POMDP, porque el agente
-no observa directamente $P_t(X)$ ni $P_t(Y \mid X)$, sino métricas estimadas
-sobre ventanas finitas \cite{kaelbling1998pomdp}. Cada episodio corresponde a 21
-días simulados de una UCI de 200 camas del hospital B. Al cierre de cada día, se
-calcula el vector de observación, el agente selecciona una acción y su efecto se
-aplica desde el día siguiente. La recompensa de esa decisión se conoce un día
-después, cuando llegan las etiquetas de los pacientes de evaluación.
-
-\begin{table}[H]
-    \centering
-    \caption{Acciones de mantenimiento consideradas por DARL}
+    \caption{Acciones de mantenimiento de DARL}
     \label{tab:acciones_darl}
-    \begin{tabular}{lll}
+    \resizebox{0.98\textwidth}{!}{%
+    \begin{tabular}{llll}
         \hline
-        \textbf{Acción}          & \textbf{Componente afectado} & \textbf{Interpretación}     \\
+        \textbf{Acción} & \textbf{Etapa afectada} & \textbf{Qué hace} & \textbf{Cuándo debería convenir} \\
         \hline
-        \textit{Defer}           & Ninguno                      & Mantener el pipeline actual \\
-        \textit{Update features} & $f_{\phi}$                   & Reajustar preprocesamiento  \\
-        \textit{Update model}    & $g_{\theta}$                 & Reajustar modelo predictivo \\
-        \textit{Retrain all}     & $f_{\phi}$ y $g_{\theta}$    & Reentrenar todo el pipeline \\
+        A1 & Ninguna            & Conserva el \textit{pipeline}                      & Sin caída de rendimiento \\
+        A2 & $f_\phi$           & Reajusta mediana y RIC, y la referencia de KS/PSI  & \textit{Covariate shift} \\
+        A3 & $g_\theta$         & Vuelve a entrenar XGBoost con el transformador actual & \textit{Concept drift} \\
+        A4 & $f_\phi$ y $g_\theta$ & Reajusta el transformador y vuelve a entrenar XGBoost & Ambos tipos \\
         \hline
-    \end{tabular}
-\end{table}
-
-La hipótesis operacional es que distintos tipos de drift favorecen distintas
-acciones. Un \textit{covariate shift} puro debería favorecer la actualización de
-\textit{features} cuando el modelo sigue siendo válido. Un \textit{concept
-    drift} debería favorecer la actualización del modelo. Un drift combinado puede
-requerir reentrenamiento completo. La acción \textit{Defer} permite capturar
-escenarios donde el cambio detectado no justifica el costo de mantenimiento.
-
-% ------------------------------------------------------------
-\section{Baseline empírico de tabla de decisión}
-% ------------------------------------------------------------
-
-Como referencia comparativa para la política aprendida, se construye una tabla
-de decisión empírica sobre el experimento PhysioNet. Esta tabla no corresponde a
-una política entrenada por refuerzo, sino a un \textit{baseline} supervisado por
-el diseño experimental: para cada combinación de tipo de drift y severidad
-conocidos, se ejecutan las estrategias de actualización disponibles, se mide su
-recuperación de AUC-ROC y se penaliza su costo computacional relativo. La acción
-seleccionada por la tabla es aquella que minimiza el costo total residual.
-
-En el notebook experimental, la tabla compara las acciones principales
-\textit{Defer}, \textit{Update features}, \textit{Update model} y
-\textit{Retrain all}. Adicionalmente, se reporta una estrategia auxiliar
-\textit{A2c}, denominada \textit{features correctivos}, que corrige
-marginalmente las variables drifteadas hacia la distribución de referencia y
-mantiene congelados el preprocesamiento y el modelo. Esta estrategia se incluye
-como referencia empírica adicional, pero no forma parte del espacio de acciones
-del agente DQN.
-
-\begin{table}[H]
-    \centering
-    \caption{Estrategias consideradas en la tabla baseline empírica}
-    \label{tab:baseline_empirico_acciones}
-    \begin{tabular}{lll}
-        \hline
-        \textbf{ID} & \textbf{Estrategia}           & \textbf{Descripción}                   \\
-        \hline
-        A1          & \textit{Defer}                & Mantener el pipeline original          \\
-        A2          & \textit{Update features}      & Reajustar Stage 1 y mantener Stage 2   \\
-        A2c         & \textit{Features correctivos} & Corregir variables hacia referencia    \\
-        A3          & \textit{Update model}         & Mantener Stage 1 y reentrenar Stage 2  \\
-        A4          & \textit{Retrain all}          & Reajustar Stage 1 y reentrenar Stage 2 \\
-        \hline
-    \end{tabular}
-\end{table}
-
-La recuperación relativa de AUC-ROC para una acción $a$ bajo una condición de
-drift $d$ y severidad $s$ se calcula como:
-
-\begin{equation}
-    \mathrm{Rec}_{d,s}(a)
-    =
-    \frac{
-        AUC_{d,s}^{(a)}
-    }{
-        AUC^{(\mathrm{base})}
+    \end{tabular}%
     }
-    \times 100.
-    \label{eq:baseline_auc_recovery}
-\end{equation}
+\end{table}
 
-\noindent\textbf{Donde:}
+A3 y A4 necesitan ambas clases en la ventana de ajuste; si los tres días previos no tienen
+ningún positivo, quedan deshabilitadas mediante una máscara y el agente solo puede elegir
+entre A1 y A2. Cada acción crea una nueva versión del \textit{pipeline}, que se usa a partir
+de ese día y no recalcula predicciones pasadas.
+
+% ------------------------------------------------------------
+\section{Formulación como POMDP}
+\label{sec:met_pomdp}
+% ------------------------------------------------------------
+
+\subsection{Estado oculto y ciclo diario}
+
+El estado real del entorno incluye la distribución de los signos vitales, la relación de
+estos con la etiqueta, el tipo y la intensidad del drift y la versión del
+\textit{pipeline} desplegado. Nada de esto se muestra al agente. Cada episodio recorre los
+30 días con el siguiente ciclo, que garantiza que ninguna decisión use información futura:
+
+\begin{enumerate}
+    \item Al inicio del día $d$ llegan las etiquetas del día $d-1$. Con las probabilidades
+    guardadas al predecir ese día se calcula su AUROC y se cierra la recompensa de la
+    decisión del día $d-1$.
+    \item Se construye la observación con las señales de los días $d-3$, $d-2$ y $d-1$.
+    \item El agente elige una acción; la acción se ajusta con los días $d-3$ a $d-1$.
+    \item El \textit{pipeline} resultante predice todas las horas del día $d$. No hay
+    ajustes dentro del día.
+\end{enumerate}
+
+Los días 1 a 3 son de calentamiento: se conserva el \textit{pipeline} inicial (A1) para
+acumular tres días de señales. Las decisiones van del día 4 al 30, es decir, 27 decisiones
+por episodio.
+
+\subsection{Observación}
+
+Para cada día con etiquetas se calculan tres señales sobre exactamente las filas que
+recibieron predicciones:
+
 \begin{itemize}
-    \item $\mathrm{Rec}_{d,s}(a)$ representa el porcentaje de recuperación de AUC-ROC de la acción $a$ bajo el tipo de drift $d$ y severidad $s$.
-    \item $AUC_{d,s}^{(a)}$ representa el AUC-ROC obtenido al aplicar la acción $a$ sobre la ventana perturbada.
-    \item $AUC^{(\mathrm{base})}$ representa el AUC-ROC del pipeline base evaluado antes de aplicar drift.
-    \item $d$ representa el tipo de drift considerado: \textit{covariate shift}, \textit{concept drift} o ambos.
-    \item $s$ representa la severidad experimental del drift.
+    \item \textbf{KS}: el mayor estadístico de Kolmogorov--Smirnov entre los siete signos
+    vitales, frente a una muestra de referencia de hasta 1000 valores por signo.
+    \item \textbf{PSI}: el mayor PSI entre los siete signos, con diez intervalos definidos
+    por los deciles de la referencia.
+    \item \textbf{Caída de AUROC}: $\Delta M = M_{\text{ref}} - \text{AUROC}$ del día. Si el
+    día no tiene ambas clases, se usa el último AUROC válido y se marca el día como no
+    válido.
 \end{itemize}
 
-Esta métrica expresa cuánto rendimiento conserva o recupera
-cada estrategia respecto al pipeline base. Un valor cercano a 100 indica que la
-acción mantiene un desempeño similar al escenario pre-drift, mientras que
-valores inferiores indican degradación residual después de aplicar la
-intervención.
-
-Para seleccionar la acción de la tabla se define un costo total que combina
-degradación residual y costo computacional relativo, siguiendo la motivación de
-reentrenamiento consciente del costo \cite{mahadevan2024cost}:
+La referencia de KS y PSI es inicialmente A-train y solo cambia cuando se ejecuta A2 o A4,
+porque esas acciones redefinen qué datos se consideran normales. Cada señal se discretiza
+en tres niveles y se codifica en \textit{one-hot}. Los cortes siguen los umbrales prácticos
+del Capítulo~ef{chap:marco}: KS en 0,10 y 0,30; PSI en 0,10 y 0,25; y caída de AUROC en 0,03 y 0,10.
+Con un indicador de validez, cada día aporta diez entradas, y la observación apila los tres
+últimos días (Ecuación~\ref{eq:stacked_observation} con $H = 3$):
 
 \begin{equation}
-    J_{d,s}(a)
-    =
-    \left(
-    100 - \mathrm{Rec}_{d,s}(a)
-    \right)
-    +
-    \lambda_B \kappa(a),
+    \tilde{\mathbf{o}}_d = \left[\mathbf{b}_{d-3},\, \mathbf{b}_{d-2},\, \mathbf{b}_{d-1}\right] \in \{0,1\}^{30},
     \qquad
-    a^{*}_{d,s}
-    =
-    \arg\min_{a \in \mathcal{A}_B} J_{d,s}(a).
-    \label{eq:baseline_total_cost}
+    \mathbf{b}_{k} = \left[\mathbf{e}(\text{KS}_k),\, \mathbf{e}(\text{PSI}_k),\, \mathbf{e}(\Delta M_k),\, v_k\right].
+    \label{eq:darl_observation}
 \end{equation}
 
 \noindent\textbf{Donde:}
 \begin{itemize}
-    \item $J_{d,s}(a)$ representa el costo total asignado a la acción $a$ bajo tipo de drift $d$ y severidad $s$.
-    \item $100 - \mathrm{Rec}_{d,s}(a)$ representa la degradación residual de AUC-ROC después de aplicar la acción.
-    \item $\kappa(a)$ representa el costo computacional relativo de la acción $a$, normalizado respecto a \textit{Retrain all}.
-    \item $\lambda_B$ representa el peso que convierte el costo computacional relativo en puntos de recuperación porcentual.
-    \item $\mathcal{A}_B$ representa el conjunto de estrategias evaluadas por la tabla baseline.
-    \item $a^{*}_{d,s}$ representa la acción empíricamente óptima para la condición $(d,s)$.
+    \item $\tilde{\mathbf{o}}_d$ es la observación que recibe el agente al decidir en el día $d$.
+    \item $\mathbf{b}_k$ es el bloque de diez entradas del día $k$.
+    \item $\mathbf{e}(\cdot) \in \{0,1\}^3$ codifica el nivel (bajo, medio o alto) de cada señal.
+    \item $v_k$ vale 1 si el AUROC del día $k$ es válido y 0 en otro caso.
 \end{itemize}
 
-El baseline empírico funciona como una tabla de consulta
-construida con conocimiento explícito del tipo y severidad de drift. Por ello,
-no reemplaza al agente DQN ni resuelve el POMDP: sirve como punto de comparación
-para evaluar si la política aprendida selecciona acciones razonables sin recibir
-directamente la etiqueta de la condición experimental.
+La discretización hace que la observación sea robusta a pequeñas variaciones y fácil de
+interpretar, a costa de perder detalle. La observación no incluye el día del episodio ni
+las acciones anteriores: el agente debe inferir el efecto de sus decisiones pasadas a
+través de las señales.
 
-% ------------------------------------------------------------
-\section{Recompensa y entrenamiento del agente DQN}
-% ------------------------------------------------------------
+\subsection{Recompensa}
 
-La recompensa combina la mejora del rendimiento y el costo de cada acción. Para
-cada decisión $a_t$ tomada al cierre del día $t$, se comparan las predicciones del
-\textit{pipeline} actualizado con las que habría producido el \textit{pipeline}
-sin actualizar, sobre los mismos pacientes de evaluación del día $t+1$:
+La recompensa de la decisión del día $d$ se conoce al inicio del día $d+1$ y combina el
+rendimiento obtenido con el costo de la acción:
 
 \begin{equation}
-    r_t(a_t)
-    =
-    \text{AP}\!\left(y_{t+1}, \hat{p}^{\,(a_t)}_{t+1}\right)
-    -
-    \text{AP}\!\left(y_{t+1}, \hat{p}^{\,(\text{previo})}_{t+1}\right)
-    -
-    \lambda\, c(a_t).
+    r_d = \text{AUROC}_d - \lambda\,\frac{t(a_d)}{t_{\text{ref}}}.
     \label{eq:darl_reward}
 \end{equation}
 
 \noindent\textbf{Donde:}
 \begin{itemize}
-    \item $r_t(a_t)$ representa la recompensa de la acción $a_t$ elegida en el día $t$.
-    \item $\text{AP}(\cdot)$ representa la precisión promedio, usada como estimación de la AUPRC.
-    \item $y_{t+1}$ representa las etiquetas reales de los pacientes de evaluación en el día $t+1$.
-    \item $\hat{p}^{\,(a_t)}_{t+1}$ representa las probabilidades predichas después de aplicar la acción $a_t$.
-    \item $\hat{p}^{\,(\text{previo})}_{t+1}$ representa las probabilidades que habría predicho el \textit{pipeline} sin la acción.
-    \item $c(a_t)$ representa el costo relativo de la acción: $0$ para A1, $0.1$ para A2, $0.6$ para A3 y $1$ para A4.
-    \item $\lambda = 0.25$ representa el peso del costo frente a la mejora del rendimiento.
+    \item $\text{AUROC}_d$ es el AUROC de las predicciones del día $d$ hechas con el \textit{pipeline} resultante de la acción $a_d$, medido con la etiqueta del escenario. Si el día no tiene ambas clases, vale 0.
+    \item $t(a_d)$ es el tiempo de cómputo medido de la acción, en segundos.
+    \item $t_{\text{ref}}$ es la unidad de costo: la mediana de cinco ejecuciones de A4 sobre los tres primeros días de B-train (0,074 segundos).
+    \item $\lambda = 0{,}05$ es el peso del costo; un reentrenamiento completo cuesta así unos 0,05 puntos de AUROC.
 \end{itemize}
 
-Esta recompensa evita que el agente elija siempre volver a entrenar todo el
-\textit{pipeline}. Una acción recibe una recompensa alta si mejora la calidad de
-las alertas con un costo bajo, y una recompensa negativa si su costo no se
-compensa con una mejora. Si el día de evaluación no tiene casos positivos, la
-mejora se toma como cero y solo se descuenta el costo. Además de este costo
-relativo, en cada acción se miden el tiempo de ejecución y el pico de memoria
-con \texttt{tracemalloc}, que se reportan en la evaluación pero no entran en la
-recompensa \cite{mahadevan2024cost}.
+Se usa el AUROC porque, a diferencia de la AP, no depende de la proporción diaria de
+positivos, que varía mucho entre días con pocos casos de sepsis; la AP se reporta como
+medida complementaria. Medir el costo como tiempo de cómputo permite compararlo entre
+acciones; otros costos, como el clínico, no se modelan. El retorno de un episodio es la
+suma de las 27 recompensas.
 
-\subsection{Diseño del agente DQN}
+% ------------------------------------------------------------
+\section{Agente principal: Double DQN}
+\label{sec:met_ddqn}
+% ------------------------------------------------------------
 
-El agente se entrena con una red Q profunda, descrita en la
-Sección~\ref{sec:dqn}. El agente no reemplaza al monitor: aprende a decidir a
-partir de las señales que este produce. Su entrada no son los datos completos ni
-las distribuciones reales, sino la observación ampliada
-$\tilde{\mathbf{o}}_t$, formada por las siete señales diarias de los últimos
-cuatro días, es decir, 28 valores. A partir de ella, la red estima un valor $Q$
-para cada una de las cuatro acciones de la Tabla~\ref{tab:acciones_darl} y el
-agente elige la de mayor valor.
+\subsection{Justificación de la elección}
 
-Durante el entrenamiento, la experiencia de cada día se guarda en la memoria de
-experiencias solo cuando su recompensa ya es conocida, es decir, un día después
-de la decisión. Luego, la red se actualiza con grupos de experiencias tomadas al
-azar de esa memoria. El entrenamiento se realiza con los pacientes de la
-partición de entrenamiento del hospital B; la versión del agente que se conserva
-es la que obtiene el mejor retorno promedio en la partición de validación, y la
-evaluación final se hace sobre la partición de prueba, que no se usa en ninguna
-etapa anterior.
+Se eligió Double DQN como agente principal por cuatro características del problema:
+
+\begin{enumerate}
+    \item \textbf{Pocas acciones discretas.} DQN estima un valor por acción y elige la mayor,
+    que es justo la forma del problema ($|\mathcal{A}| = 4$).
+    \item \textbf{Experiencia costosa.} Cada decisión implica ajustar y evaluar un
+    \textit{pipeline}. Al ser un método fuera de política, DQN reutiliza cada experiencia
+    varias veces desde su memoria.
+    \item \textbf{Acciones irreversibles.} Volver a entrenar el modelo con tres días de datos
+    cambia el \textit{pipeline} para el resto del episodio. Un método fuera de política
+    conserva en su memoria experiencias de episodios en los que no se reentrenó, aunque su
+    política actual ya no las genere (Sección~ef{sec:onoff}).
+    \item \textbf{Sobreestimación.} Las recompensas tienen mucho ruido de un día a otro;
+    Double DQN reduce la sobreestimación de valores que ese ruido produce en DQN
+    \cite{vanhasselt2016ddqn}.
+\end{enumerate}
+
+Como la literatura no ofrece una comparación de algoritmos para este problema, la elección
+se contrasta empíricamente con PPO (Sección~\ref{sec:met_ppo}).
+
+\subsection{Configuración}
+
+La Tabla~\ref{tab:ddqn_config} resume la configuración. La red recibe las 30 entradas de la
+observación y devuelve un valor por acción. Las acciones deshabilitadas se excluyen tanto
+al elegir la acción como al calcular el objetivo de Double DQN
+(Ecuación~\ref{eq:ddqn_target}): cada experiencia guarda la máscara del estado siguiente.
+Una experiencia entra a la memoria solo cuando se conoce su recompensa, es decir, al día
+siguiente de la decisión; con cada experiencia nueva se da un paso de gradiente.
 
 \begin{table}[H]
     \centering
-    \caption{Configuración del agente DQN en DARL}
-    \label{tab:dqn_config_darl}
-    \begin{tabular}{p{0.38\textwidth}p{0.50\textwidth}}
+    \caption{Configuración del agente Double DQN}
+    \label{tab:ddqn_config}
+    \begin{tabular}{ll}
         \hline
-        \textbf{Elemento}                & \textbf{Configuración}                                  \\
+        \textbf{Elemento} & \textbf{Valor} \\
         \hline
-        Algoritmo                        & DQN con red objetivo y memoria de experiencias          \\
-        Red Q                            & Dos capas ocultas de 128 neuronas con activación ReLU   \\
-        Entrada                          & 28 valores (7 señales $\times$ 4 días)                  \\
-        Acciones                         & 4 (A1, A2, A3, A4)                                      \\
-        Optimizador                      & Adam, tasa de aprendizaje $10^{-3}$                     \\
-        Función de pérdida               & Error cuadrático medio                                  \\
-        Factor de descuento              & $\gamma = 0.99$                                         \\
-        Exploración $\varepsilon$        & De 1.0 a 0.01, multiplicando por 0.995 en cada episodio \\
-        Memoria de experiencias          & 10\,000 experiencias                                    \\
-        Tamaño de lote                   & 32 experiencias                                         \\
-        Actualización de la red objetivo & Copia completa cada 200 actualizaciones                 \\
-        Duración del episodio            & 21 días (20 decisiones)                                 \\
-        Semillas de evaluación           & 42 a 46                                                 \\
+        Red                         & $30 \rightarrow 128 \rightarrow 128 \rightarrow 4$, ReLU \\
+        Optimizador                 & Adam \cite{kingma2015adam}, tasa de $5 \times 10^{-4}$ a $5 \times 10^{-5}$ \\
+        Pérdida                     & Huber \\
+        Factor de descuento $\gamma$ & 0,99 \\
+        Memoria de experiencias     & 50\,000 transiciones, muestreo uniforme \\
+        Tamaño de lote              & 64 \\
+        Red objetivo                & Copia cada 50 pasos de gradiente \\
+        Exploración $\varepsilon$   & De 1 a 0,05, multiplicada por 0,99 en cada episodio \\
+        Episodios                   & 500 a 1000 (regla de parada de la Sección~\ref{sec:met_entrenamiento}) \\
         \hline
     \end{tabular}
 \end{table}
 
-En consecuencia, el agente no memoriza una regla fija por tipo de cambio, sino
-que aprende a estimar qué tan conveniente es cada acción según la evidencia
-disponible. Por ejemplo, puede esperar ante cambios leves, corregir la
-preparación de los datos ante cambios en la medición de los signos vitales,
-volver a entrenar el modelo ante cambios en las etiquetas o volver a entrenar
-todo cuando una corrección parcial no compensa la caída del rendimiento.
+% ------------------------------------------------------------
+\section{Agente de comparación: PPO}
+\label{sec:met_ppo}
+% ------------------------------------------------------------
+
+PPO \cite{schulman2017ppo} se entrena en el mismo entorno, con la misma observación,
+acciones, recompensa, particiones y regla de selección de \textit{checkpoint}; solo cambia
+el agente. Esto permite atribuir las diferencias de resultados al algoritmo.
+
+\textbf{Diseño.} El actor ($30 \rightarrow 128 \rightarrow 128 \rightarrow 4$) da las
+probabilidades de cada acción; las acciones deshabilitadas reciben un \textit{logit} de
+$-10^9$, lo que anula su probabilidad. El crítico, una red separada del mismo tamaño con una
+salida, estima el valor del estado. La ventaja se calcula con GAE
+(Ecuación~\ref{eq:gae}) y se normaliza en cada actualización. El retorno que aprende el
+crítico se estandariza con una media y una varianza acumuladas, porque los retornos de
+alrededor de 15 hacían que el error del crítico dominara la pérdida. Se usan Adam con tasa
+de $3 \times 10^{-4}$ a $3 \times 10^{-5}$, recorte $\epsilon = 0{,}2$, coeficiente de
+entropía de 0,01 a 0,001 y recorte de la norma del gradiente en 0,5. En validación y prueba
+se elige la acción de mayor probabilidad.
+
+\textbf{Versiones.} PPO se ajustó en tres versiones (Tabla~\ref{tab:ppo_versiones}). Cada
+cambio responde a un diagnóstico de la versión anterior hecho con el entrenamiento y la
+validación, nunca con B-test.
+
+\begin{table}[H]
+    \centering
+    \caption{Versiones del agente PPO}
+    \label{tab:ppo_versiones}
+    \small
+    \begin{tabular}{p{1.4cm}p{5.8cm}p{5.8cm}}
+        \hline
+        \textbf{Versión} & \textbf{Cambio} & \textbf{Motivo} \\
+        \hline
+        v1 & Actualiza cada 4 episodios, 4 épocas, lote 32, $\lambda = 0{,}5$ & Configuración inicial con el mismo presupuesto que Double DQN \\
+        v2 & Actualiza cada 20 episodios (540 decisiones), 10 épocas, lote 64, $\lambda = 0{,}95$ & En v1 la política casi no cambiaba (recorte en menos del 1,2\,\% de las muestras) \\
+        v3 & v2 con política inicial prudente, $\pi_0(\text{A1}) = 0{,}9$ & En v2 ningún episodio de entrenamiento terminó sin reentrenar \\
+        \hline
+    \end{tabular}
+\end{table}
+
+La inicialización prudente de v3 responde a la irreversibilidad del reentrenamiento. Como
+PPO solo aprende de su política actual, si desde el inicio reentrena en casi todos los
+episodios, nunca observa qué ocurre si no lo hace. Para evitarlo, los pesos de la última
+capa del actor se multiplican por 0,01 y su sesgo se fija en:
+
+\begin{equation}
+    \beta_{\text{A1}} = \ln\!\left(\frac{p\,(|\mathcal{A}| - 1)}{1 - p}\right),
+    \qquad \beta_{\text{A2}} = \beta_{\text{A3}} = \beta_{\text{A4}} = 0.
+    \label{eq:ppo_init}
+\end{equation}
+
+\noindent\textbf{Donde:}
+\begin{itemize}
+    \item $\beta_a$ es el sesgo de salida de la acción $a$.
+    \item $p = 0{,}9$ es la probabilidad inicial deseada de A1.
+    \item $|\mathcal{A}| = 4$ es el número de acciones.
+\end{itemize}
+
+Con esta inicialización la política parte con probabilidad 0,9 para A1 y 0,033 para cada
+una de las demás, casi sin depender de la observación, y alrededor del 15\,\% de los
+primeros episodios no reentrena nunca: en cada decisión la probabilidad de no reentrenar es
+$0{,}9 + 0{,}033 = 0{,}933$, y $0{,}933^{27} \approx 0{,}15$. El agente puede así comparar episodios con y sin reentrenamiento.
+
+% ------------------------------------------------------------
+\section{Entrenamiento y selección del checkpoint}
+\label{sec:met_entrenamiento}
+% ------------------------------------------------------------
+
+Cada episodio de entrenamiento reinicia el \textit{pipeline} inicial de A y usa uno de
+cuatro \textit{replays} de B-train, en rotación. Los escenarios siguen el ciclo
+\textit{stable}, \textit{covariate}, \textit{concept}, \textit{combined}, \textit{covariate},
+\textit{concept}, \textit{combined}, que da más peso a los escenarios con drift.
+
+Cada 10 episodios, la política actual se evalúa de forma determinista en los cuatro
+escenarios de B-validation. El \textit{checkpoint} elegido es el de mayor media en tres
+validaciones consecutivas, y no el de una validación aislada, para no premiar un resultado
+por azar. Double DQN y PPO v1 pueden detenerse desde el episodio 500 si cinco validaciones
+seguidas varían menos del 5\,\% y coinciden en al menos el 95\,\% de las acciones; el
+límite es de 1000 episodios. PPO v2 y v3 completan siempre 1000 episodios.
+
+Como medida de estabilidad se reporta el \textbf{acuerdo} de la ventana elegida: la
+fracción de decisiones de validación en las que las tres políticas consecutivas eligen la
+misma acción. Un acuerdo cercano a 1 indica una política que ya no cambia.
+
+% ------------------------------------------------------------
+\section{Políticas de referencia}
+\label{sec:met_referencias}
+% ------------------------------------------------------------
+
+Las políticas aprendidas se comparan con:
+
+\begin{itemize}
+    \item \textbf{Políticas fijas}: elegir siempre A1, A2, A3 o A4. Corresponden a las
+    estrategias de corrección única descritas en la literatura de \textit{pipelines} con
+    corrección automática (Sección~\ref{sec:lit_selfhealing}). Si una política fija pide
+    una acción deshabilitada, ejecuta A1 y se registra el motivo.
+    \item \textbf{Política aleatoria}: elige al azar entre las acciones habilitadas.
+    \item \textbf{Regla de umbral}: indica \textit{covariate shift} si KS $\geq 0{,}30$ o
+    PSI $\geq 0{,}25$, y caída de rendimiento si $\Delta M \geq 0{,}03$. Elige A4 si se
+    cumplen ambas, A2 si solo hay \textit{covariate shift}, A3 si solo cae el rendimiento y
+    A1 en otro caso.
+    \item \textbf{Oráculo inmediato} (solo auditoría): cada día evalúa las cuatro acciones
+    con las etiquetas del día que se va a predecir y registra la de mayor recompensa. Usa
+    información futura, por lo que no participa en el aprendizaje; sirve para medir el
+    \textit{regret}, es decir, cuánta recompensa se pierde frente a la mejor acción de cada
+    día.
+\end{itemize}
+
+% ------------------------------------------------------------
+\section{Protocolo de semillas}
+\label{sec:met_semillas}
+% ------------------------------------------------------------
+
+El resultado de un agente de RL puede cambiar mucho solo por su semilla aleatoria
+\cite{henderson2018matters}. Por eso, Double DQN y la versión final de PPO (v3) se entrenan
+con ocho semillas cada uno (42 a 49). La semilla del agente controla los pesos iniciales,
+la exploración, el muestreo de la memoria o de los minilotes y el sorteo de escenarios de
+entrenamiento. La semilla del entorno se mantiene en 42 en todas las ejecuciones, de modo
+que las particiones, el XGBoost inicial, los \textit{replays} y el episodio de B-test son
+idénticos: todas las ejecuciones resuelven el mismo examen. PPO v1 y v2 se ejecutan solo con
+la semilla 42, como parte del ajuste.
+
+Las ejecuciones se hicieron en Kaggle; por el límite de sesiones simultáneas, algunas usaron
+GPU (NVIDIA T4) y otras CPU. XGBoost se ejecuta siempre en CPU.
 
 % ------------------------------------------------------------
 \section{Métricas de evaluación}
+\label{sec:met_metricas}
 % ------------------------------------------------------------
 
-La evaluación final separa métricas de rendimiento y métricas de cómputo. Las
-métricas de rendimiento incluyen AUC-ROC como métrica principal, F1-score como
-medida complementaria y $\Delta AUC$ como caída o recuperación frente al estado
-pre-drift. Las métricas de cómputo incluyen tiempo de actualización, memoria
-máxima y costo relativo frente a \textit{Retrain all}. Esta separación permite
-responder dos preguntas distintas: si la acción corrige el deterioro y si lo
-hace con menos recursos que el reentrenamiento completo.
+Cada política congelada se evalúa en los cuatro escenarios de B-test. Como el costo de la
+Ecuación~\eqref{eq:darl_reward} depende del tiempo medido en cada máquina, para comparar
+ejecuciones se recalcula el retorno con un costo fijo por acción:
+
+\begin{equation}
+    R^{\text{fijo}} = \sum_{d=4}^{30} \left( \text{AUROC}_d - \bar{c}(a_d) \right).
+    \label{eq:retorno_fijo}
+\end{equation}
+
+\noindent\textbf{Donde:}
+\begin{itemize}
+    \item $R^{\text{fijo}}$ es el retorno de un escenario con costo fijo.
+    \item $\bar{c}(a)$ es el costo medio de la acción $a$ en las políticas fijas de la ejecución de referencia (Double DQN, semilla 42).
+\end{itemize}
+
+Se reportan las siguientes métricas:
+
+\begin{itemize}
+    \item \textbf{Rendimiento}: retorno con costo fijo, AUROC medio diario y AP media.
+    \item \textbf{Comportamiento}: número de veces que se elige cada acción.
+    \item \textbf{Regret} frente al oráculo inmediato.
+    \item \textbf{Brecha} frente a la mejor política fija de cada escenario. Una semilla
+    \textbf{falla} si en algún escenario queda más de 1,0 por debajo de la mejor acción fija.
+    \item \textbf{Estabilidad}: acuerdo de la ventana elegida y dispersión del retorno entre
+    semillas.
+\end{itemize}
+
+Para comparar Double DQN y PPO se usa el retorno medio de los cuatro escenarios de cada
+semilla. Se reportan la media, la desviación estándar y el número de semillas que fallan; la
+diferencia de medias se evalúa con la prueba de Mann--Whitney \cite{mann1947test} y con un
+intervalo de confianza del 95\,\% obtenido con 10\,000 remuestreos \textit{bootstrap}
+\cite{efron1979bootstrap}.
+
+% ------------------------------------------------------------
+\section{Controles de integridad}
+\label{sec:met_integridad}
+% ------------------------------------------------------------
+
+Cada ejecución verifica automáticamente 33 controles antes de aceptar sus resultados, entre
+ellos:
+
+\begin{itemize}
+    \item Las particiones son disjuntas y cada hora del \textit{replay} tiene 200 registros sin repetir pares paciente y hora.
+    \item Ningún estado, ajuste ni recompensa usa etiquetas del día que se va a predecir.
+    \item Los días de calentamiento usan A1 y las acciones deshabilitadas no se ejecutan.
+    \item La etiqueta original se conserva y el adelanto de \textit{concept} no supera 12 horas.
+    \item El AUROC de cada día puede reconstruirse a partir de las predicciones guardadas.
+    \item Los pesos del agente no cambian durante la validación ni la prueba (se comprueba con un \textit{hash}).
+    \item El oráculo no aporta estados, acciones ni recompensas al aprendizaje.
+\end{itemize}
+
+Además, para comprobar que el entorno es idéntico en todas las ejecuciones, las políticas
+fijas, la aleatoria y la regla de umbral deben producir en B-test exactamente el mismo
+AUROC diario y las mismas acciones que en la ejecución de referencia.
