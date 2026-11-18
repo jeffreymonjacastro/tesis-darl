@@ -1,0 +1,6 @@
+check,passed
+positive_gain,True
+negative_gain_positive_reward,True
+a1_zero_gain,True
+invalid_cost_only,True
+absolute_gain_cost_arithmetic,True

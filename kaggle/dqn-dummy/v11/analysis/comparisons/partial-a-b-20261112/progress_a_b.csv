@@ -1,0 +1,3 @@
+worker,completed_trials,active_trial,active_episode,total_episodes,remaining_episodes,feasible_trials,closest_max_action_share
+A,8,9,851,8851,1149,0,0.5075757575757576
+B,7,8,896,7896,2104,1,0.38636363636363635

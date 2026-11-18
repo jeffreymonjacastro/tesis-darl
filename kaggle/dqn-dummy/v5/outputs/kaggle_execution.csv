@@ -1,0 +1,2 @@
+kernel,kernel_version,remote_status,internal_status,version,mode,source_matches_remote,source_sha256,private,accelerator,internet_enabled,audited_utc
+jeffreyamc/darl-dqn-dummy-v5,4,COMPLETE,complete,v5,full,True,2287c6ed8558d8e24f9348b2cd9140c72e627c068b6f16bc1850839b686fc881,True,NvidiaTeslaT4,False,2026-10-10T05:59:13.451636+00:00

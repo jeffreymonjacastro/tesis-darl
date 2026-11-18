@@ -1,0 +1,7 @@
+replay,patients_used,rows,days,beds,capacity_passed,initial_min_day,initial_max_day
+train_0,7629,288000,40,300,True,1,7
+train_1,7723,288000,40,300,True,1,7
+train_2,7716,288000,40,300,True,1,7
+train_3,7628,288000,40,300,True,1,7
+validation,7716,288000,40,300,True,1,7
+test,7610,288000,40,300,True,1,7
