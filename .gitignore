@@ -349,3 +349,11 @@ kaggle/ddqn-fraud/outputs/**
 /kaggle/dqn-dummy/v9/outputs/full-20261105/ddqn-v9/concept_audits/
 /kaggle/dqn-dummy/v9/outputs/full-20261105/ddqn-v9/train_actions.csv
 /kaggle/dqn-dummy/v9/outputs/full-20261105/ddqn-v9/train_daily_metrics.csv
+
+# v10 generated experiment outputs stay local.
+/kaggle/dqn-dummy/v10/outputs/**
+!/kaggle/dqn-dummy/v10/outputs/README.md
+
+# v11: generated outputs remain local, documentation only.
+/kaggle/dqn-dummy/v11/**/outputs/**
+!/kaggle/dqn-dummy/v11/**/outputs/README.md
