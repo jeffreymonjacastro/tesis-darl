@@ -52,25 +52,25 @@
 $P_d(X)$, $P_d(Y\mid X)$, tipo e intensidad del drift, versión del \textit{pipeline}};
 
 \node[module] (data) at (0, 0.8)
-{\textbf{1. UCI simulada}\\Hospital B, 200 camas\\\textit{pipeline} entrenado en A};
+{\textbf{1. Flujo diario}\\UCI de 300 camas o\\transacciones reales};
 
 \node[module] (drift) at (3.45, 0.8)
 {\textbf{2. Drift}\\\textit{covariate}, \textit{concept}\\o combinado};
 
 \node[module] (monitor) at (6.9, 0.8)
-{\textbf{3. Monitoreo}\\KS, PSI, caída de AUROC\\días $d-3$ a $d-1$};
+{\textbf{3. Monitoreo}\\KS, PSI, AUC, AP\\días $d-3$ a $d-1$};
 
 \node[signal] (obs) at (10.35, 0.8)
-{\textbf{Observación}\\$\tilde{\mathbf{o}}_d \in \{0,1\}^{30}$};
+{\textbf{Observación}\\$\tilde{\mathbf{o}}_d$ y horizonte $h_d$};
 
 \node[agent] (dqn) at (10.35, -2.0)
-{\textbf{4. Agente}\\Double DQN\\(PPO como comparación)};
+{\textbf{4. Agente}\\Double DQN};
 
 \node[module] (action) at (6.9, -2.0)
-{\textbf{5. Acción $a_d$}\\A1 / A2 / A3 / A4\\ajuste con 3 días previos};
+{\textbf{5. Acción $a_d$}\\A1 / A2 / A3 / A4\\7 días previos};
 
 \node[reward] (metric) at (3.45, -2.0)
-{\textbf{6. Recompensa}\\AUROC del día $d$\\menos costo de cómputo};
+{\textbf{6. Recompensa}\\AUC, AP, ganancia\\menos costo};
 
 \draw[arrow] (data) -- (drift);
 \draw[arrow] (drift) -- (monitor);

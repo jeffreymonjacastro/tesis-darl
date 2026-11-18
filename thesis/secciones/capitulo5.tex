@@ -1,102 +1,311 @@
-\chapter{RESULTADOS PRELIMINARES}
+\chapter{RESULTADOS}
 \label{chap:resultados}
 
-Este capítulo presenta los resultados preliminares de DARL. Se reporta la tabla de
-decisión empírica construida con XGBoost sobre PhysioNet, usada como referencia para
-comparar las estrategias de actualización selectiva. La evaluación del agente DQN en
-la UCI simulada del hospital B se encuentra en curso y se presentará una vez que sus
-resultados se generen y validen en \texttt{outputs/}.
+Este capítulo presenta los resultados de DARL. La Sección~\ref{sec:res_preliminar} resume el
+análisis preliminar que motivó el método: una tabla de decisión construida con XGBoost sobre
+PhysioNet. La Sección~\ref{sec:res_verificacion} comprueba que el entorno funciona como se
+diseñó. Las Secciones~\ref{sec:res_physionet} y \ref{sec:res_fraude} presentan los resultados
+del agente Double DQN en los dos casos de estudio, con las versiones del protocolo de la
+Tabla~\ref{tab:versiones_protocolo}. La Sección~\ref{sec:res_discusion} compara ambos casos.
+
+En todas las tablas, el retorno es la suma de las 33 recompensas diarias del episodio de prueba
+(Ecuación~\ref{eq:darl_reward}), y el AUROC y la AP son los promedios de los 33 días de
+decisión. Cada versión se entrenó con una sola semilla (42), por lo que diferencias de unas
+pocas décimas en el retorno no permiten afirmar que una política sea mejor que otra.
 
 % ------------------------------------------------------------
-\section{Baseline empírico de actualización selectiva}
+\section{Resultado preliminar: la mejor acción depende del escenario}
+\label{sec:res_preliminar}
 % ------------------------------------------------------------
 
-En el primer experimento se entrena un
-\textit{pipeline} de dos etapas con XGBoost como modelo predictivo y se evalúan
-cinco estrategias ante drift sintético de distinta naturaleza y severidad. El
-AUC del modelo base antes de aplicar las perturbaciones fue $0.7836$; por
-ello, la recuperación se reporta como porcentaje relativo respecto a dicho
-baseline.
+Antes de construir el entorno diario se comprobó la premisa de DARL: que la mejor acción de
+mantenimiento cambia según el tipo y la severidad del drift. Si una sola acción fuera siempre la
+mejor, bastaría una regla fija y no haría falta aprender.
 
-La Tabla~\ref{tab:resultados_baseline_xgboost} resume los resultados principales
-de recuperación de AUC. Las acciones A1--A4 corresponden a las estrategias
-del espacio de decisión de DARL: diferir, actualizar \textit{features},
-actualizar modelo y reentrenar todo. La acción A2c se incluye como estrategia
-auxiliar correctiva como alternativa para el feature update. Lo que hace es crear
-un \textit{quantile map} que referencia los datos con drift con los originales
-para intentar corregir el drift. No forma parte del espacio de
-acciones del agente DQN.
+Para ello se entrenó un \textit{pipeline} de dos etapas sobre PhysioNet, con una transformación
+por cuantiles de cinco signos vitales y XGBoost, cuyo AUROC sin drift fue 0,7836. Sobre los
+datos se aplicaron tres tipos de drift (\textit{covariate}, \textit{concept} y combinado) con
+tres severidades, y se midió cuánto AUROC recuperaba cada acción. La acción óptima de cada
+escenario es la que minimiza la pérdida de rendimiento más el costo, siguiendo la idea de
+reentrenamiento consciente del costo de Mahadevan y Mathioudakis \cite{mahadevan2024cost}:
+
+\begin{equation}
+    a^{*} = \arg\min_{a} \left[ \left(100 - \text{Rec}(a)\right) + \kappa\, c(a) \right].
+    \label{eq:res_optima}
+\end{equation}
+
+\noindent\textbf{Donde:}
+\begin{itemize}
+    \item $a^{*}$ es la acción óptima del escenario.
+    \item $\text{Rec}(a)$ es la recuperación de la acción $a$: su AUROC dividido entre el AUROC sin drift, por 100.
+    \item $c(a)$ es el costo relativo a A4, fijado a partir de tiempos medidos: 0 para A1, 0,12 para A2, 0,45 para A3 y 1 para A4.
+    \item $\kappa = 10$ es el peso del costo: reentrenar todo equivale a perder 10 puntos de recuperación.
+\end{itemize}
+
+El criterio castiga tanto el rendimiento perdido como el cómputo gastado, de modo que una acción
+que recupera un poco menos puede ser la óptima si cuesta mucho menos. La
+Tabla~\ref{tab:resultados_baseline_xgboost} muestra los resultados.
 
 \input{tables/resultados_baseline_xgboost.tex}
 
-Los resultados muestran que el reentrenamiento completo (A4) no domina
-necesariamente la decisión. En drift leve, A1 puede ser óptima porque evita
-costo computacional y conserva una recuperación alta. En escenarios moderados o
-severos, A3 aparece con frecuencia como mejor compromiso entre recuperación de
-AUC y costo relativo: recupera gran parte del desempeño sin pagar el costo total
-de A4.
+La acción óptima cambió según el escenario: A1 en \textit{covariate} leve, A2 en
+\textit{concept} leve y A3 en la mayoría de los casos moderados y severos. A4 nunca fue la
+óptima: en \textit{covariate} moderado, A3 recuperó casi lo mismo (96,6\,\% frente a 96,7\,\%)
+con menos de la mitad del costo. Ninguna acción fue la mejor en todos los escenarios, lo que
+justifica aprender la decisión.
 
-También se observa que la estrategia A2 no siempre mejora el desempeño, aun
-cuando el drift contiene componentes covariados. Esto ocurre porque reajustar el
-preprocesamiento puede cambiar la representación de entrada sin corregir la
-relación aprendida por el modelo. En contraste, A3 es más robusta en los casos
-de drift severo o combinado, donde actualizar el modelo predictivo permite
-recuperar mejor la relación efectiva entre variables y etiqueta.
-Esto ocurre porque el modelo XGBoost realiza una normalización interna
-de los datos con drift, mejorando la inferencia del modelo a pesar de la falta
-de actualización de los features en A2. Por ello, actualizar el modelo (A3)
-tiende a superar a actualizar los features (A2) en casos de Covariate shift.
+Este análisis tiene limitaciones que explican el diseño del entorno del
+Capítulo~\ref{chap:metodologia}. El tipo de drift se conocía de antemano, el reentrenamiento usó
+todos los datos con drift y con etiquetas, y no existía una secuencia de días en la que una
+decisión afectara a las siguientes. Además, el \textit{concept drift} de este análisis modificó
+las variables en lugar de las etiquetas: con severidad moderada todos los signos vitales quedan
+iguales a su mediana, lo que explica que en ese caso gane A1. El entorno diario corrige estas
+limitaciones: el agente no conoce el tipo de drift, las etiquetas llegan con retraso y el
+\textit{concept drift} cambia las etiquetas.
 
-Esta evidencia preliminar respalda la motivación central de DARL: la
-acción de mantenimiento debe elegirse por balance costo-beneficio y no solo por
-maximización del rendimiento absoluto. Es decir, la decisión no debe reducirse
-a ordenar las acciones por el mayor AUC
-recuperado. Si ese fuera el único criterio, el reentrenamiento completo (A4)
-tendería a imponerse por ser la acción más exhaustiva; sin embargo, los tiempos
-de ejecución normalizados muestran que esta mejora marginal puede no compensar
-su costo. En XGBoost, A3 alcanza una recuperación de $96.6\%$ frente a
-$96.7\%$ de A4 en \textit{covariate shift} moderado, pero con un costo relativo
-de $0.45x$ frente a $1.00x$. Por ello, el criterio relevante para DARL no es escoger la
-acción con máximo rendimiento aislado, sino aquella que entrega suficiente
-recuperación por unidad de costo computacional.
+Las primeras versiones del entorno diario, con ventanas de tres días y una recompensa basada
+solo en el AUROC, mostraron que reentrenar con tan pocos datos empeoraba el modelo incluso sin
+drift, y que ningún agente superaba a la política fija de reajustar siempre la preparación de
+los datos. Esos hallazgos llevaron al protocolo actual (v8 y v9), cuyos resultados se presentan
+a continuación.
 
 % ------------------------------------------------------------
-\section{Lectura preliminar}
+\section{Verificación del entorno}
+\label{sec:res_verificacion}
 % ------------------------------------------------------------
 
-En conjunto, los resultados preliminares sugieren que la actualización selectiva
-es metodológicamente plausible para DARL. La tabla empírica muestra que la
-acción óptima cambia según tipo y severidad de drift, y que el costo computacional
-puede cambiar la decisión incluso cuando una estrategia obtiene mayor AUC
-absoluto. Estos resultados no prueban todavía que una política aprendida supere
-a otros métodos, pero sí delimitan la hipótesis que debe validarse: la decisión de
-mantenimiento debe depender simultáneamente del tipo de drift, la degradación de
-desempeño y el costo relativo de intervenir cada etapa.
+Las tres ejecuciones terminaron sus 1000 episodios (33\,000 decisiones de entrenamiento) en una
+GPU NVIDIA T4 y aprobaron todos sus controles de integridad
+(Sección~\ref{sec:met_integridad}): 75 en PhysioNet v8, 97 en PhysioNet v9 y 75 en Fraude v1.
+La Tabla~\ref{tab:res_calibracion} resume la calibración del drift y la unidad de costo.
 
-Esta lectura también justifica por qué DARL modela el \textit{pipeline} de dos
-etapas como una decisión conjunta y no como dos decisiones independientes. La
-etapa de preprocesamiento no produce un efecto aislado: al actualizar
-\textit{features}, cambia la representación que recibe el modelo predictivo. Por
-ello, una corrección de Stage 1 puede reducir señales de \textit{covariate shift},
-pero también desalinear al modelo si la relación aprendida entre
-variables y etiqueta no se actualiza. De forma análoga, actualizar solo Stage 2
-puede ser suficiente ante señales conceptuales, pero no necesariamente corrige
-una representación de entrada degradada. El contexto conjunto beneficia la
-decisión porque permite evaluar cada acción por su efecto final sobre el
-\textit{pipeline} completo: recuperación de AUC/F1, costo de tiempo y memoria, y
-compatibilidad entre la representación producida por Stage 1 y la función
-predictiva aprendida por Stage 2.
+\begin{table}[H]
+    \centering
+    \caption{Calibración del drift y unidad de costo en cada caso}
+    \label{tab:res_calibracion}
+    \begin{tabular}{lrr}
+        \toprule
+        \textbf{Elemento} & \textbf{PhysioNet} & \textbf{Fraude} \\
+        \midrule
+        Velocidad \textit{covariate} elegida, $v_{\text{cov}}$ & 0,5 & 0,5 \\
+        Velocidad \textit{concept} elegida, $v_{\text{con}}$   & 0,15 & 0,1 \\
+        Calibración cumplida                                     & No & Sí \\
+        AUROC de referencia, $M_{\text{ref}}$                    & 0,676 & 0,891 \\
+        AP de referencia                                         & 0,031 & 0,202 \\
+        Unidad de costo, $t_{\text{ref}}$ (s)                    & 0,154 & 0,275 \\
+        \bottomrule
+    \end{tabular}
+\end{table}
 
-La principal limitación es que estos resultados provienen de una tabla construida
-con conocimiento del tipo y la severidad del cambio, y todavía no de la política
-aprendida por el agente DQN. Como se desprende de la brecha identificada en el
-Capítulo I, la validación completa deberá comparar
-DARL contra estrategias externas y \textit{baselines} más simples: reentrenar
-todo siempre, diferir siempre o aplicar umbrales simples de no acción, actualizar
-solo \textit{features} con una regla fija, actualizar solo el modelo con una
-regla fija, usar políticas basadas en umbrales de drift/AUC y entrenar un
-clasificador supervisado que prediga una de las cuatro acciones a partir de
-señales de drift, AUC/F1 y costos. Esa comparación deberá mantener la misma
-definición de recuperación de AUC y costo relativo para separar qué parte del
-beneficio proviene del contexto de dos etapas y qué parte proviene únicamente de
-la regla de decisión usada.
+En PhysioNet ninguna velocidad candidata cumplió los tres criterios. El \textit{covariate
+drift} no produjo la caída final esperada en el \textit{pipeline} inicial (0,006 frente a 0,10),
+y en \textit{concept} la recuperación con A3 fue menor que la exigida (0,012 frente a 0,05). Se
+eligieron las velocidades de mayor caída final y se registra como limitación. En fraude, en
+cambio, el \textit{covariate drift} hizo caer el AUROC final 0,43 y A2 recuperó 0,31, y el
+\textit{concept drift} lo hizo caer 0,20 y A3 recuperó 0,21: el drift daña el modelo y la
+acción que corresponde lo repara.
+
+% ------------------------------------------------------------
+\section{Resultados en PhysioNet}
+\label{sec:res_physionet}
+% ------------------------------------------------------------
+
+\subsection{Double DQN frente a las políticas de referencia}
+
+La Tabla~\ref{tab:res_physionet_v9} muestra el retorno de cada política en el episodio de
+prueba de PhysioNet con el protocolo vigente (v9), descrito en el Capítulo~\ref{chap:metodologia}.
+
+\begin{table}[H]
+    \centering
+    \caption{Retorno en prueba en PhysioNet (v9)}
+    \label{tab:res_physionet_v9}
+    \begin{tabular}{lrrrrr}
+        \toprule
+        \textbf{Política} & \textbf{Stable} & \textbf{Covariate} & \textbf{Concept} & \textbf{Combined} & \textbf{Media} \\
+        \midrule
+        Siempre A1      & 21,24          & 17,69          & 20,67          & 19,65          & 19,81 \\
+        Siempre A2      & 20,98          & \textbf{21,35} & 20,38          & 21,39          & 21,03 \\
+        Siempre A3      & 21,31          & 17,54          & \textbf{22,26} & 19,52          & 20,16 \\
+        Siempre A4      & 21,19          & 20,23          & 22,05          & 21,55          & 21,26 \\
+        Aleatoria       & 21,10          & 19,55          & 21,65          & 21,17          & 20,87 \\
+        Regla de umbral & \textbf{21,91} & 19,86          & 22,25          & \textbf{21,59} & 21,40 \\
+        Double DQN      & 21,15          & 21,01          & 22,23          & 21,55          & \textbf{21,48} \\
+        \bottomrule
+    \end{tabular}
+
+    \vspace{1mm}
+    \begin{minipage}{0.85\textwidth}
+        \footnotesize
+        \textit{Nota.} En negrita, el mayor valor de cada columna. La media es el promedio de los
+        cuatro escenarios.
+    \end{minipage}
+\end{table}
+
+Ninguna política fue la mejor en todos los escenarios: la regla de umbral ganó en
+\textit{stable} y \textit{combined}, A2 en \textit{covariate} y A3 en \textit{concept}. Double DQN
+no ganó en ningún escenario por separado, pero obtuvo el mayor retorno medio (21,48), seguido por
+la regla de umbral (21,40) y por A4 (21,26). Es decir, ninguna política fija ni la regla de umbral
+se comportó tan bien como el agente en el conjunto de los cuatro escenarios.
+
+El agente adaptó su acción al tipo de drift. En \textit{stable} y \textit{concept} reentrenó el
+modelo casi todos los días (30 de 33 decisiones con A3), que es la acción adecuada cuando cambia
+la relación entre las variables y la sepsis. En \textit{covariate} y \textit{combined} combinó
+las cuatro acciones (A1 una vez, A2 siete veces, A3 dieciocho veces y A4 siete veces). En
+\textit{covariate} su AUROC medio fue 0,589, frente a 0,514 de no hacer nada (A1) y 0,585 de A2,
+y en \textit{concept} fue 0,591, igual al de A3. Su retorno en \textit{covariate} (21,01) quedó
+por debajo de A2 (21,35) porque siguió reentrenando el modelo en días en que bastaba con reajustar
+la preparación de los datos, lo que tiene un costo mayor.
+
+En \textit{stable} el agente reentrenó casi todos los días aunque no hubiera drift añadido. Con
+la ventana de siete días esto ya no empeora el modelo (A3 obtuvo un retorno algo mayor que A1),
+pero sí indica que el costo pesa poco en la recompensa, como se discute en la
+Sección~\ref{sec:res_discusion}.
+
+\subsection{Comparación con la versión anterior (v8)}
+
+La versión v8 usaba la misma preparación, los mismos \textit{replays} y la misma recompensa que
+v9, pero su observación solo incluía el máximo de KS y PSI entre los signos vitales y no indicaba
+cuántos días quedaban (Sección~\ref{sec:met_versiones}). Con esa observación, el agente nunca
+eligió A2 (0 de 132 decisiones de prueba): podía saber que alguna variable había cambiado, pero no
+cuál, y reentrenó el modelo casi todos los días en los cuatro escenarios. Además, sus estimaciones
+del valor de cada acción ($Q$) se alejaban mucho de la recompensa real al final del episodio. Estos
+dos problemas motivaron la versión v9. Como ambas versiones comparten la preparación, sus
+resultados se pueden comparar directamente (Tabla~\ref{tab:res_v8_v9}).
+
+\begin{table}[H]
+    \centering
+    \caption{Comparación entre v8 y v9 en PhysioNet}
+    \label{tab:res_v8_v9}
+    \begin{tabular}{lrr}
+        \toprule
+        \textbf{Medida} & \textbf{v8} & \textbf{v9} \\
+        \midrule
+        Retorno en \textit{stable}                  & 21,14 & 21,15 \\
+        Retorno en \textit{covariate}               & 20,56 & 21,01 \\
+        Retorno en \textit{concept}                 & 22,15 & 22,23 \\
+        Retorno en \textit{combined}                & 21,94 & 21,55 \\
+        Retorno medio                               & 21,45 & 21,48 \\
+        AUROC medio en \textit{covariate}           & 0,579 & 0,589 \\
+        Veces que elige A2 (de 132)                 & 0     & 14 \\
+        \textit{Checkpoint} elegido                 & 940   & 740 \\
+        Error medio entre $Q$ y la recompensa final & 59,52 & 0,40 \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+Con la observación por signo vital y el horizonte, el agente empezó a usar A2 y su retorno en
+\textit{covariate} subió de 20,56 a 21,01. Sus estimaciones $Q$ pasaron a ser coherentes con la
+recompensa real, con un error medio de 0,40 frente a 59,52. La mejora total fue pequeña y no fue
+pareja: en \textit{combined} el retorno bajó de 21,94 a 21,55. Como v9 cambió dos elementos a la
+vez, el monitoreo por variable y el horizonte, y cada versión se entrenó con una sola semilla, no
+se puede atribuir la mejora a uno de ellos en particular.
+% ------------------------------------------------------------
+\section{Resultados en detección de fraude}
+\label{sec:res_fraude}
+% ------------------------------------------------------------
+
+La Tabla~\ref{tab:res_fraude} muestra el retorno y la AP media de cada política en el episodio
+de prueba de fraude (Fraude v1, protocolo v8).
+
+\begin{table}[H]
+    \centering
+    \caption{Retorno y AP media en prueba en fraude (Fraude v1)}
+    \label{tab:res_fraude}
+    \small
+    \begin{tabular}{lrrrrrrrr}
+        \toprule
+        & \multicolumn{4}{c}{\textbf{Retorno}} & \multicolumn{4}{c}{\textbf{AP media}} \\
+        \cmidrule(lr){2-5} \cmidrule(lr){6-9}
+        \textbf{Política} & \textbf{Sta.} & \textbf{Cov.} & \textbf{Con.} & \textbf{Com.}
+                          & \textbf{Sta.} & \textbf{Cov.} & \textbf{Con.} & \textbf{Com.} \\
+        \midrule
+        Siempre A1      & 47,57 & 31,38 & 40,03 & 29,01 & 0,507 & 0,118 & 0,366 & 0,100 \\
+        Siempre A2      & 45,96 & 45,87 & 39,58 & 40,15 & 0,476 & 0,452 & 0,356 & 0,348 \\
+        Siempre A3      & 49,90 & 35,17 & 43,12 & 32,28 & 0,567 & 0,204 & 0,411 & 0,162 \\
+        Siempre A4      & 49,95 & 49,23 & 43,09 & 43,17 & 0,569 & 0,530 & 0,413 & 0,395 \\
+        Aleatoria       & 49,92 & \textbf{49,75} & 42,81 & 42,80 & 0,556 & 0,524 & 0,399 & 0,383 \\
+        Regla de umbral & 46,22 & 48,55 & 42,89 & \textbf{43,28} & 0,469 & 0,508 & 0,387 & 0,385 \\
+        Double DQN      & \textbf{49,97} & 49,09 & \textbf{43,37} & 43,09 & 0,569 & 0,526 & 0,415 & 0,389 \\
+        \bottomrule
+    \end{tabular}
+
+    \vspace{1mm}
+    \begin{minipage}{0.9\textwidth}
+        \footnotesize
+        \textit{Nota.} Sta.: \textit{stable}; Cov.: \textit{covariate}; Con.: \textit{concept};
+        Com.: \textit{combined}. En negrita, el mayor retorno de cada escenario.
+    \end{minipage}
+\end{table}
+
+En fraude el efecto del drift es mucho más marcado que en PhysioNet. Sin actualizar (A1), la AP
+media cae de 0,507 en \textit{stable} a 0,118 en \textit{covariate} y a 0,100 en
+\textit{combined}: el modelo deja de encontrar casi todo el fraude. Cada acción corrige el drift
+que le corresponde: A2 recupera la AP en \textit{covariate} (0,452) y A3 la mejora en
+\textit{concept} (0,411), mientras que A4 es la mejor política fija en los cuatro escenarios.
+
+Double DQN igualó a A4 en los cuatro escenarios, con diferencias de retorno menores a 0,15, y
+superó claramente a A1 y a la regla de umbral. La Figura~\ref{fig:res_fraude} muestra el AUROC
+y la AP de las políticas principales y las acciones que eligió el agente.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\textwidth]{figures/generated/ddqn_fraude_resultados.png}
+    \caption{AUROC y AP medios en prueba por política, y acciones elegidas por Double DQN en fraude}
+    \label{fig:res_fraude}
+\end{figure}
+
+El agente eligió A4 en la mayoría de los días de \textit{stable} (28 de 33), \textit{covariate}
+(20) y \textit{concept} (21). En \textit{combined} hizo algo distinto: eligió A4 solo cinco veces
+y después reentrenó el modelo con A3 en 27 días, con el mismo resultado que A4. Como el
+\textit{pipeline} es persistente, una vez que la preparación de los datos se actualizó con A4,
+reentrenar solo el modelo bastaba, y costaba menos. Este comportamiento indica que el agente
+aprendió algo del efecto duradero de sus acciones.
+
+Sin embargo, la política aleatoria quedó muy cerca de Double DQN e incluso obtuvo el mayor
+retorno en \textit{covariate} (49,75 frente a 49,09). La Figura~\ref{fig:res_fraude_curvas}
+ayuda a entender por qué: el retorno de entrenamiento ya es alto desde los primeros episodios,
+cuando el agente todavía elige casi al azar, y el aprendizaje solo se nota con claridad en
+\textit{combined}, cuya media baja cerca del episodio 400 y luego se recupera.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\textwidth]{figures/generated/ddqn_fraude_retorno_por_episodio.png}
+    \caption{Retorno de Double DQN por episodio de entrenamiento en fraude, por escenario}
+    \label{fig:res_fraude_curvas}
+\end{figure}
+
+% ------------------------------------------------------------
+\section{Discusión}
+\label{sec:res_discusion}
+% ------------------------------------------------------------
+
+\textbf{La mejor acción depende del escenario en ambos casos.} Tanto en el análisis preliminar
+como en PhysioNet y en fraude, la mejor política cambió según el tipo de drift. Esta es la
+premisa de DARL y se mantuvo en los dos dominios.
+
+\textbf{El protocolo se pudo trasladar a otro dominio.} En fraude se usaron las mismas acciones,
+la misma recompensa y el mismo agente que en PhysioNet; solo cambió lo que obligaba el conjunto
+de datos. En ese caso, además, la calibración se cumplió y el drift tuvo un efecto claro y
+reparable, lo que hizo de fraude un banco de pruebas más informativo que PhysioNet.
+
+\textbf{El peso del costo determina lo que aprende el agente.} Con $\lambda = 0{,}025$, el costo
+de la acción más cara equivale a 0,025 puntos de recompensa diaria, mientras que la mejora del
+AUROC y la AP tras actualizar suele ser mucho mayor. En fraude, por ejemplo, el costo total
+pagado por el agente en un episodio fue de entre 0,50 y 0,64, poco más del 1\,\% de su retorno.
+Así, actualizar casi siempre compensa su costo: el agente se parece a la política
+``actualizar siempre'' y una política aleatoria, que también actualiza en tres de cada cuatro
+días, queda cerca. Para que el agente aprenda a no actualizar cuando no hace falta, como ocurre
+sin drift, el costo debe pesar más. Calibrar $\lambda$ con una misma regla en ambos casos queda
+como trabajo inmediato.
+
+\textbf{La regla de umbral no funciona igual en todos los datos.} En PhysioNet la regla de
+umbral fue la mejor política en \textit{stable} y estuvo cerca de la mejor en \textit{concept} y
+\textit{combined}. En fraude, en cambio, quedó por debajo de A4 y de Double DQN en
+\textit{stable}, con una AP de 0,469 frente a 0,569. Unos umbrales fijos que funcionan en un
+dominio pueden fallar en otro, lo que refuerza la idea de aprender la decisión a partir de las
+consecuencias observadas.
+
+\textbf{Limitaciones.} Cada versión se entrenó con una sola semilla. En PhysioNet la calibración
+del drift no se cumplió. Fraude v1 usa la observación agregada de v8; la versión Fraude v2, con
+monitoreo de 20 variables y horizonte, permitirá comprobar si el efecto observado en v9 se repite
+en el segundo caso.
