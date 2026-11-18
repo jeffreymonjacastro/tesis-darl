@@ -1,0 +1,2 @@
+alpha,beta,cost_lambda,eta_auc,eta_ap,config_id,seed,episodes
+1,1,0.025000000000000001,1,1,a1_b1_ea1_ep1_l0p025,42,1000

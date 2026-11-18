@@ -1,0 +1,10 @@
+{
+  "protocol": "kaggle-v8-prepost-7d-mixed",
+  "stage": "complete",
+  "segment": "kaggle-v8",
+  "completed_configs": 0,
+  "active_episode": 0,
+  "requested_configs": 1,
+  "requested_episodes_per_config": 1000,
+  "snapshot_bytes": 11516247
+}

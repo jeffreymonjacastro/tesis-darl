@@ -1,0 +1,2 @@
+protocol,mode,episodes,notebook,observation_mode,observation_dim,parquet,torch,numpy,pandas,sklearn,xgboost,gpu,segment
+kaggle-v9-horizon-prepost-7d-mixed,full,1000,00aa261feba3aefdaade3c8c7cac9482a9abde4a49be9a4c0bf6761e06880326,per_vital,52,23cd3e96ee8e061f3b40d1af3937b15eff5badb6fc46b74c050454eb1e8cce89,2.11.0+cu128,2.1.3,2.3.3,1.6.1,3.4.1,Tesla T4,kaggle-v9

@@ -240,7 +240,6 @@ __pycache__/
 # --- tesis-darl: datos locales ---
 data/raw/*
 data/interim/*
-data/processed/*
 data/external/*
 !data/**/README.md
 
@@ -314,3 +313,42 @@ kaggle/ppo-dummy/v2/outputs/predictions/*
 kaggle/ppo-dummy/v3/outputs/predictions/*
 kaggle/ppo-dummy/seeds/*/outputs/predictions/*
 kaggle/ppo-dummy/**/*.log
+
+# v6: resultados y modelos permanecen locales; versionar solo su documentación.
+kaggle/dqn-dummy/v6/outputs/**
+!kaggle/dqn-dummy/v6/outputs/README.md
+
+# v7 y continuaciones: conservar resultados fuera de Git, salvo documentación.
+kaggle/dqn-dummy/v7/outputs/**
+!kaggle/dqn-dummy/v7/outputs/README.md
+
+# v8
+kaggle/dqn-dummy/v8/outputs/**
+!kaggle/dqn-dummy/v8/outputs/
+!kaggle/dqn-dummy/v8/outputs/full-20261030/
+!kaggle/dqn-dummy/v8/outputs/full-20261030/**
+
+
+# Khipu: generated results, checkpoints and executed notebooks stay outside Git.
+/khipu/**/outputs/**
+!/khipu/**/outputs/README.md
+
+# v9: preserve generated Kaggle results locally; version documentation only.
+/kaggle/dqn-dummy/v9/outputs/**
+!kaggle/dqn-dummy/v9/outputs/
+!kaggle/dqn-dummy/v9/outputs/full-20261105/
+!kaggle/dqn-dummy/v9/outputs/full-20261105/**
+
+# Excluir artefactos de la ejecución completa de DDQN v9.
+/kaggle/dqn-dummy/v9/outputs/full-20261105/ddqn-v9/predictions/
+/kaggle/dqn-dummy/v9/outputs/full-20261105/ddqn-v9/concept_audits/
+/kaggle/dqn-dummy/v9/outputs/full-20261105/ddqn-v9/train_actions.csv
+/kaggle/dqn-dummy/v9/outputs/full-20261105/ddqn-v9/train_daily_metrics.csv
+
+# v10 generated experiment outputs stay local.
+/kaggle/dqn-dummy/v10/outputs/**
+!/kaggle/dqn-dummy/v10/outputs/README.md
+
+# v11: generated outputs remain local, documentation only.
+/kaggle/dqn-dummy/v11/**/outputs/**
+!/kaggle/dqn-dummy/v11/**/outputs/README.md

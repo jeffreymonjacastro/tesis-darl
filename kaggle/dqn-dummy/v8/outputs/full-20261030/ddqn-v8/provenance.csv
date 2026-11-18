@@ -1,0 +1,2 @@
+protocol,mode,episodes,notebook,parquet,torch,numpy,pandas,sklearn,xgboost,gpu,segment
+kaggle-v8-prepost-7d-mixed,full,1000,6d13fe8345092a093a3e34df42fc3c78e1487c6a2a8e322cf687bf96f9c29aaa,23cd3e96ee8e061f3b40d1af3937b15eff5badb6fc46b74c050454eb1e8cce89,2.11.0+cu128,2.1.3,2.3.3,1.6.1,3.4.1,Tesla T4,kaggle-v8

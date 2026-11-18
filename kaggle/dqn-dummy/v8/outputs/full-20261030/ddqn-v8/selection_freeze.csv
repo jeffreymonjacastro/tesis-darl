@@ -1,0 +1,2 @@
+config_id,alpha,beta,cost_lambda,eta_auc,eta_ap,selected_episode,episodes,selection_score,selected_native_return,updates,elapsed_s,source,before_test
+a1_b1_ea1_ep1_l0p025,1,1,0.025000000000000001,1,1,940,1000,21.684486847753618,21.679710895343742,32937,7613.7269712830002,mixed_validation_only,True

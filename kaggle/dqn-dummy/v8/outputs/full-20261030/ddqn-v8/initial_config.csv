@@ -1,0 +1,2 @@
+max_depth,learning_rate,n_estimators,auc,average_precision,pr_auc_trapz,ap_valid,auc_valid,f1_positive,f1_macro,precision,recall,balanced_accuracy,threshold,prevalence,positives,negatives,rows,source
+3,0.10000000000000001,60,0.67640990345944796,0.031452165726262811,0.030825885284375486,True,True,0.072507552870090641,0.52213104205285743,0.046411688869789428,0.16564417177914109,0.56051968177282219,0.67581003904342651,0.012936507936507937,652,49748,50400,train_only_first_seven_days
