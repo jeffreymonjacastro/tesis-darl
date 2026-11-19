@@ -357,3 +357,27 @@ kaggle/ddqn-fraud/outputs/**
 # v11: generated outputs remain local, documentation only.
 /kaggle/dqn-dummy/v11/**/outputs/**
 !/kaggle/dqn-dummy/v11/**/outputs/README.md
+
+# PPO v4: generated artifacts stay local; retain output documentation only.
+/kaggle/ppo-dummy/v4/outputs/**
+!/kaggle/ppo-dummy/v4/outputs/README.md
+!/kaggle/ppo-dummy/v4/outputs/analysis/
+!/kaggle/ppo-dummy/v4/outputs/analysis/figures/
+!/kaggle/ppo-dummy/v4/outputs/analysis/figures/*.png
+!/kaggle/ppo-dummy/v4/outputs/ppo-v4/
+/kaggle/ppo-dummy/v4/outputs/ppo-v4/**
+!/kaggle/ppo-dummy/v4/outputs/ppo-v4/figures/
+!/kaggle/ppo-dummy/v4/outputs/ppo-v4/figures/*.png
+
+/kaggle/ppo-dummy/v4/comparison/outputs/**
+!/kaggle/ppo-dummy/v4/comparison/outputs/README.md
+!/kaggle/ppo-dummy/v4/comparison/outputs/*.png
+
+# DQN v12: preserve only the final run figures and output documentation.
+/kaggle/dqn-dummy/v12/outputs/**
+!/kaggle/dqn-dummy/v12/outputs/README.md
+!/kaggle/dqn-dummy/v12/outputs/run-20261118/
+!/kaggle/dqn-dummy/v12/outputs/run-20261118/ddqn-v12/
+/kaggle/dqn-dummy/v12/outputs/run-20261118/ddqn-v12/**
+!/kaggle/dqn-dummy/v12/outputs/run-20261118/ddqn-v12/figures/
+!/kaggle/dqn-dummy/v12/outputs/run-20261118/ddqn-v12/figures/*.png
