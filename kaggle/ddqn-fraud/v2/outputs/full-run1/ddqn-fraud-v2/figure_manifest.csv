@@ -1,0 +1,16 @@
+figure,source
+01_aprendizaje.png,CSV only
+02_retorno_por_escenario.png,CSV only
+03_acciones.png,CSV only
+04_comparacion_politicas.png,CSV only
+05_auc_pre_post.png,CSV only
+06_componentes_reward.png,CSV only
+07_monitoreo.png,CSV only
+08_deriva_etiquetas.png,CSV only
+09_exploracion_huber.png,CSV only
+10_deriva_covariables.png,CSV only
+11_ddqn_frente_a1.png,CSV only
+03b_distribucion_acciones_dqn.png,CSV only
+12_reward_entrenamiento.png,CSV only
+13_reward_por_escenario.png,CSV only
+14_acciones_validacion.png,CSV only

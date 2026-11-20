@@ -1,0 +1,5 @@
+scenario,A1,A2,A3,A4
+stable,31,0,0,2
+covariate,25,0,1,7
+concept,30,0,0,3
+combined,24,0,2,7
