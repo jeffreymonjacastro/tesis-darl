@@ -1,0 +1,16 @@
+check,passed
+positive_gain,True
+negative_gain_positive_reward,True
+a1_zero_gain,True
+invalid_cost_only,True
+absolute_gain_cost_arithmetic,True
+winning_reward_weights,True
+per_feature_dimension,True
+horizon_initial,True
+horizon_last_decision,True
+horizon_final,True
+individual_ks_order,True
+individual_psi_transform,True
+invalid_predictive_fallback,True
+missing_feature_neutral,True
+schema_unique,True

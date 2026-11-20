@@ -1,0 +1,2 @@
+config_id,alpha,beta,cost_lambda,eta,selected_episode,episodes,selection_score,selected_native_return,max_action_share,observation_mode,observation_dim,updates,elapsed_s,source,before_test
+a0p96724_b0p10531_e0p92157_l0p10062,0.96723999999999999,0.10531,0.10062,0.92157,580,1000,29.910909182855793,29.871298177693305,0.78787878787878785,per_feature,136,32937,11516.786369236001,mixed_validation_only,True
